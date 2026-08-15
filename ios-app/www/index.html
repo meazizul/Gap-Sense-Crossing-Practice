@@ -1,0 +1,3137 @@
+<!DOCTYPE html>
+<!--
+  GAP SENSE — CROSSING PRACTICE — iOS build
+  ==================================
+  MAINTAINER QUICK JUMP — search tokens (line numbers drift, so none are listed)
+
+  const TEST_TUNING            <- timing + loudness knobs
+  const SOUND_PRESET_LIBRARY   <- tone families
+  function presetTone
+  function playCompositeTone
+  function hapticCue           <- NEW: native iOS Taptic Engine bridge
+  function recordMarker
+  function beginReplay
+  function classifyMark        <- NEW: single source of truth for acceptable/outside
+
+  The timing engine, the AudioContext-clock replay sync, and the feedback-as-duration
+  behavior are carried over unchanged from the original index.html. Only the
+  presentation layer, the haptics bridge, and three bug fixes are new.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Gap Sense — Crossing Practice</title>
+  <meta name="description" content="Build a felt sense of how long it takes you to cross a street. An O&amp;M timing trainer for blind and low-vision travelers." />
+
+  <!-- iOS home-screen / standalone behavior -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Gap Sense" />
+  <meta name="theme-color" content="#0F766E" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#070C14" media="(prefers-color-scheme: dark)" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="icon" href="icons/icon-192.png" />
+
+  <meta property="og:title" content="Gap Sense — Crossing Practice" />
+  <meta property="og:description" content="An O&amp;M timing trainer for blind and low-vision travelers." />
+  <meta property="og:site_name" content="Gap Sense — Crossing Practice" />
+  <meta property="og:type" content="website" />
+
+  <style>
+    /* ============================================================
+       DESIGN TOKENS
+       Every accent color below was checked for >= 4.5:1 contrast
+       against the text color placed on it. Gradients run dark -> mid
+       (never dark -> bright) so white text stays legible across the
+       whole sweep.
+       ============================================================ */
+    :root {
+      color-scheme: light;
+
+      /* Brand */
+      --brand-1: #0F766E;          /* teal-700  */
+      --brand-2: #0E7490;          /* cyan-700  */
+
+      /* Stage identities — color + shape + text, never color alone */
+      --stage-start-1: #3730A3;    /* indigo-800 */
+      --stage-start-2: #4F46E5;    /* indigo-600 */
+      --stage-half-1:  #9A3412;    /* orange-800 */
+      --stage-half-2:  #C2410C;    /* orange-700 */
+      --stage-finish-1:#065F46;    /* emerald-800 */
+      --stage-finish-2:#047857;    /* emerald-700 */
+
+      /* Semantic */
+      --ok: #047857;
+      --warn: #C2410C;
+
+      /* Surfaces */
+      --bg: #EEF2F7;
+      --bg-tint-1: rgba(15, 118, 110, 0.10);
+      --bg-tint-2: rgba(14, 116, 144, 0.08);
+      --surface: #FFFFFF;
+      --surface-2: #F8FAFC;
+      --text: #0F172A;
+      --muted: #475569;
+      --outline: #0F172A;
+      --border: #CBD5E1;
+      --accent: var(--brand-1);
+      --on-accent: #FFFFFF;
+
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.07);
+      --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.08), 0 10px 28px rgba(15, 23, 42, 0.10);
+      --shadow-lg: 0 8px 20px rgba(15, 23, 42, 0.14), 0 24px 48px rgba(15, 23, 42, 0.16);
+
+      --radius-sm: 12px;
+      --radius: 18px;
+      --radius-lg: 26px;
+
+      --viewport-height: 100vh;
+    }
+
+    body[data-theme="light"] {
+      color-scheme: light;
+      --bg: #EEF2F7;
+      --surface: #FFFFFF;
+      --surface-2: #F8FAFC;
+      --text: #0F172A;
+      --muted: #475569;
+      --outline: #0F172A;
+      --border: #CBD5E1;
+      --brand-1: #0F766E;
+      --brand-2: #0E7490;
+      --accent: #0F766E;
+      --on-accent: #FFFFFF;
+      --bg-tint-1: rgba(15, 118, 110, 0.10);
+      --bg-tint-2: rgba(14, 116, 144, 0.08);
+    }
+
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #070C14;
+      --surface: #131C2B;
+      --surface-2: #1B2637;
+      --text: #E8EEF7;
+      --muted: #A8B6C8;
+      --outline: #E8EEF7;
+      --border: #2C3A4E;
+      --brand-1: #2DD4BF;
+      --brand-2: #38BDF8;
+      --accent: #2DD4BF;
+      /* Dark ink on the light teal accent (~10:1). White here was ~1.8:1. */
+      --on-accent: #04141A;
+      --ok: #34D399;
+      --warn: #FB923C;
+      --bg-tint-1: rgba(45, 212, 191, 0.10);
+      --bg-tint-2: rgba(56, 189, 248, 0.08);
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+      --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.5), 0 10px 28px rgba(0, 0, 0, 0.45);
+      --shadow-lg: 0 8px 20px rgba(0, 0, 0, 0.55), 0 24px 48px rgba(0, 0, 0, 0.5);
+    }
+
+    body[data-theme="inverted"] {
+      color-scheme: dark;
+      --bg: #000000;
+      --surface: #000000;
+      --surface-2: #000000;
+      --text: #FFFF00;
+      --muted: #FFF176;
+      --outline: #FFFF00;
+      --border: #FFFF00;
+      --brand-1: #00FFFF;
+      --brand-2: #00FFFF;
+      --accent: #00FFFF;
+      /* Black on cyan; white on cyan fails contrast. */
+      --on-accent: #000000;
+      --ok: #00FF66;
+      --warn: #FF8C00;
+      --bg-tint-1: transparent;
+      --bg-tint-2: transparent;
+      --shadow-sm: none;
+      --shadow-md: none;
+      --shadow-lg: none;
+    }
+
+    body.high-contrast {
+      --bg: #FFFFFF;
+      --surface: #FFFFFF;
+      --surface-2: #FFFFFF;
+      --text: #000000;
+      --muted: #1A1A1A;
+      --outline: #000000;
+      --border: #000000;
+      --brand-1: #000000;
+      --brand-2: #000000;
+      --accent: #000000;
+      --on-accent: #FFFFFF;
+      --ok: #000000;
+      --warn: #000000;
+      --bg-tint-1: transparent;
+      --bg-tint-2: transparent;
+      --shadow-sm: none;
+      --shadow-md: none;
+      --shadow-lg: none;
+    }
+
+    /* Flatten every gradient in the two "maximum legibility" themes. */
+    body.high-contrast .action-btn,
+    body.high-contrast .brand-mark,
+    body[data-theme="inverted"] .action-btn,
+    body[data-theme="inverted"] .brand-mark {
+      background-image: none !important;
+    }
+
+    html { font-size: 18px; }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      -webkit-font-smoothing: antialiased;
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(120% 70% at 12% -8%, var(--bg-tint-1) 0%, transparent 60%),
+        radial-gradient(110% 60% at 92% 4%, var(--bg-tint-2) 0%, transparent 55%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-size: 1rem;
+      display: flex;
+      min-height: var(--viewport-height);
+      align-items: flex-start;
+      justify-content: center;
+      overflow-x: hidden;
+      overscroll-behavior-y: none;
+      /* Kill the iOS tap-highlight + text selection during rapid marking. */
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body.dialog-open {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .panel {
+      width: min(560px, 100vw);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding:
+        calc(14px + env(safe-area-inset-top))
+        18px
+        calc(20px + env(safe-area-inset-bottom));
+      min-width: 0;
+    }
+
+    .panel > * { min-width: 0; }
+
+    /* ---------------- Header ---------------- */
+    .app-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .brand-mark {
+      width: 2.9rem;
+      height: 2.9rem;
+      flex: 0 0 auto;
+      border-radius: 14px;
+      background-image: linear-gradient(140deg, var(--brand-1), var(--brand-2));
+      background-color: var(--brand-1);
+      display: grid;
+      place-items: center;
+      box-shadow: var(--shadow-sm);
+      border: 2px solid transparent;
+    }
+
+    .brand-mark svg {
+      width: 62%;
+      height: 62%;
+      display: block;
+      fill: none;
+      stroke: var(--on-accent);
+      stroke-width: 2.1;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    body.high-contrast .brand-mark,
+    body[data-theme="inverted"] .brand-mark {
+      background-color: var(--accent);
+      border-color: var(--outline);
+    }
+
+    .brand-text { min-width: 0; }
+
+    .app-title {
+      margin: 0;
+      font-size: 1.22rem;
+      font-weight: 800;
+      letter-spacing: -0.015em;
+      line-height: 1.15;
+      color: var(--text);
+      overflow-wrap: anywhere;
+    }
+
+    .app-subtitle {
+      margin: 2px 0 0;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .icon-btn {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 15px;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      display: inline-grid;
+      place-items: center;
+      cursor: pointer;
+      padding: 0;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .icon-btn svg {
+      width: 1.5rem;
+      height: 1.5rem;
+      display: block;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ---------------- Cards ---------------- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow-sm);
+      min-width: 0;
+    }
+
+    .card-label {
+      margin: 0 0 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    /* ---------------- Mode selector ---------------- */
+    .mode-toggle {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      border: none;
+      padding: 0;
+      margin: 0;
+      min-width: 0;
+    }
+
+    .mode-toggle label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      text-align: center;
+      padding: 11px 8px;
+      border-radius: 14px;
+      border: 2px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      cursor: pointer;
+      min-height: 3.4rem;
+      font-size: 0.86rem;
+      font-weight: 600;
+      line-height: 1.2;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .mode-toggle input[type="radio"] {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .mode-toggle label:has(input:checked) {
+      background: var(--accent);
+      color: var(--on-accent);
+      border-color: var(--accent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .mode-toggle label:focus-within {
+      outline: 4px solid var(--outline);
+      outline-offset: 2px;
+    }
+
+    .mode-dots {
+      display: flex;
+      gap: 3px;
+      font-size: 0.9rem;
+      line-height: 1;
+    }
+
+    /* ---------------- Progress markers ---------------- */
+    .markers {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .marker {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      padding: 11px 6px;
+      border-radius: 14px;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .marker-shape {
+      width: 2.2rem;
+      height: 2.2rem;
+      border-radius: 50%;
+      border: 2.5px solid var(--border);
+      display: grid;
+      place-items: center;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 900;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .marker-label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+
+    .marker.complete { border-color: var(--ok); }
+    .marker.complete .marker-shape {
+      background: var(--ok);
+      border-color: var(--ok);
+      color: #FFFFFF;
+    }
+    .marker.complete .marker-label { color: var(--text); }
+
+    .marker.current {
+      border-color: var(--accent);
+      border-style: dashed;
+    }
+    .marker.current .marker-shape {
+      border-color: var(--accent);
+      border-style: double;
+      border-width: 4px;
+      color: var(--text);
+    }
+    .marker.current .marker-label { color: var(--text); }
+
+    body.high-contrast .marker.complete .marker-shape,
+    body[data-theme="inverted"] .marker.complete .marker-shape {
+      color: var(--on-accent);
+      background: var(--accent);
+      border-color: var(--outline);
+    }
+
+    /* ---------------- The action button ---------------- */
+    .action-btn {
+      width: 100%;
+      min-height: 11rem;
+      height: clamp(11rem, 32vh, 15rem);
+      border-radius: var(--radius-lg);
+      border: 3px solid var(--border);
+      background-color: var(--surface);
+      background-image: none;
+      color: var(--text);
+      font-size: clamp(1.15rem, 0.95rem + 1.3vw, 1.7rem);
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+      text-align: center;
+      white-space: normal;
+      box-shadow: var(--shadow-md);
+      /* Prevent the double-tap-to-zoom delay from adding latency to a
+         timing measurement. */
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
+      overflow-wrap: anywhere;
+    }
+
+    .action-btn-indicator {
+      font-size: 2.5rem;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .action-btn-hint {
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      opacity: 0.9;
+      text-transform: uppercase;
+    }
+
+    /* Idle: brand gradient. */
+    .action-btn.idle {
+      background-image: linear-gradient(150deg, var(--brand-1), var(--brand-2));
+      background-color: var(--brand-1);
+      color: var(--on-accent);
+      border-color: transparent;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .action-btn.running {
+      background-color: var(--accent);
+      color: var(--on-accent);
+      border-color: transparent;
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Stage identities: distinct hue AND distinct corner radius AND distinct
+       border style AND distinct indicator glyph. Four redundant channels. */
+    .action-btn.running.stage-start {
+      background-image: linear-gradient(150deg, var(--stage-start-1), var(--stage-start-2));
+      background-color: var(--stage-start-1);
+      color: #FFFFFF;
+      border-radius: 10px;
+      border: 3px solid rgba(255, 255, 255, 0.28);
+    }
+
+    .action-btn.running.stage-halfway {
+      background-image: linear-gradient(150deg, var(--stage-half-1), var(--stage-half-2));
+      background-color: var(--stage-half-1);
+      color: #FFFFFF;
+      border-radius: 999px;
+      border: 3px dashed rgba(255, 255, 255, 0.55);
+    }
+
+    .action-btn.running.stage-finish {
+      background-image: linear-gradient(150deg, var(--stage-finish-1), var(--stage-finish-2));
+      background-color: var(--stage-finish-1);
+      color: #FFFFFF;
+      border-radius: 0;
+      border: 3px double rgba(255, 255, 255, 0.75);
+    }
+
+    body.high-contrast .action-btn.running,
+    body[data-theme="inverted"] .action-btn.running {
+      background-color: var(--accent);
+      color: var(--on-accent);
+      border: 3px solid var(--outline);
+    }
+
+    .action-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .action-btn:active:not(:disabled) { transform: scale(0.985); }
+
+    /* "Flash the action button on cue" accessibility option. */
+    .action-btn.flash {
+      box-shadow: 0 0 0 7px var(--accent), var(--shadow-lg);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .action-btn:active:not(:disabled) { transform: none; }
+      .action-btn.flash { box-shadow: var(--shadow-md); }
+    }
+
+    /* ---------------- Cue banner ---------------- */
+    .cue-banner {
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 11px 13px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.35;
+      min-height: 2.6rem;
+      box-shadow: var(--shadow-sm);
+      overflow-wrap: anywhere;
+    }
+
+    .cue-banner[data-visible="false"] { display: none; }
+    .cue-banner[data-tone="ok"] { border-left-color: var(--ok); }
+    .cue-banner[data-tone="warn"] { border-left-color: var(--warn); }
+
+    .cue-dot {
+      width: 0.62rem;
+      height: 0.62rem;
+      border-radius: 50%;
+      background: var(--accent);
+      flex: 0 0 auto;
+    }
+    .cue-banner[data-tone="ok"] .cue-dot { background: var(--ok); }
+    .cue-banner[data-tone="warn"] .cue-dot { background: var(--warn); }
+
+    /* ---------------- Setup-required prompt ---------------- */
+    .setup-required-prompt {
+      border: 2px solid var(--warn);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      text-align: left;
+      min-width: 0;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .setup-required-prompt[hidden] { display: none; }
+
+    .setup-required-prompt-title {
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--warn);
+    }
+
+    .setup-required-prompt p { margin: 0; line-height: 1.4; }
+    .setup-required-prompt .settings-action { width: 100%; }
+
+    /* ---------------- Forms / dialogs ---------------- */
+    .field-help {
+      margin: 0;
+      font-size: 0.88rem;
+      line-height: 1.35;
+      color: var(--muted);
+      text-align: left;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .debug {
+      font-size: 0.9rem;
+      color: var(--muted);
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .debug:empty { display: none; }
+
+    dialog {
+      border: none;
+      padding: 0;
+      background: transparent;
+      width: 100%;
+      max-width: none;
+      max-height: none;
+    }
+
+    dialog[open] {
+      position: fixed;
+      inset: 0;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        10px
+        max(10px, env(safe-area-inset-bottom))
+        10px;
+      overflow: hidden;
+    }
+
+    dialog::backdrop { background: rgba(2, 6, 16, 0.72); }
+
+    .modal-card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: min(640px, 100%);
+      min-width: 0;
+      max-height: min(760px, calc(var(--viewport-height) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px));
+      overflow: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      box-shadow: var(--shadow-lg);
+      z-index: 1;
+    }
+
+    .modal-visual-preview {
+      position: fixed;
+      inset: 0;
+      height: var(--viewport-height);
+      pointer-events: none;
+      opacity: 0;
+      z-index: 30;
+      overflow: hidden;
+    }
+    .modal-visual-preview[data-active="true"] { opacity: 1; }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+      /* Sticky so Close stays reachable at any text size. */
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin: -16px -16px 0;
+      padding-left: 16px;
+      padding-right: 16px;
+      padding-top: 16px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      min-width: 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+
+    .close-modal {
+      border: 2px solid var(--border);
+      background: var(--surface-2);
+      border-radius: 999px;
+      padding: 9px 16px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--text);
+      white-space: normal;
+      text-align: center;
+      max-width: 100%;
+      flex: 0 0 auto;
+      overflow-wrap: anywhere;
+    }
+
+    .setup {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      text-align: left;
+      min-width: 0;
+    }
+
+    .setup-group {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .setup-heading {
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--accent);
+      overflow-wrap: anywhere;
+    }
+
+    body.high-contrast .setup-heading,
+    body[data-theme="inverted"] .setup-heading { color: var(--text); }
+
+    .setup-note {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .setup label {
+      font-size: 1rem;
+      color: var(--text);
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .setup input[type="number"],
+    .setup select {
+      width: 100%;
+      max-width: 100%;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border);
+      font-size: 1.05rem;
+      font-family: inherit;
+      margin-top: 6px;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .setup input[type="checkbox"],
+    .setup input[type="radio"] {
+      width: 1.45rem;
+      height: 1.45rem;
+      margin: 0;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    fieldset,
+    .option-group {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      padding: 10px 12px 12px;
+      margin: 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    legend,
+    .option-group-title {
+      padding: 0 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .option-group-title {
+      display: inline-block;
+      margin-bottom: 8px;
+      overflow-wrap: anywhere;
+    }
+
+    .sound-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .sound-option {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-areas:
+        "input label"
+        "button button";
+      align-items: center;
+      gap: 10px 12px;
+      padding: 4px 0;
+      min-width: 0;
+    }
+
+    .sound-option input { grid-area: input; }
+    .sound-option label { grid-area: label; min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
+    .sound-option button { grid-area: button; width: 100%; }
+
+    .preview-btn,
+    .settings-action,
+    .sound-option button {
+      border: 2px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface-2);
+      padding: 11px 16px;
+      cursor: pointer;
+      font-size: 0.98rem;
+      font-weight: 700;
+      font-family: inherit;
+      min-height: 2.9rem;
+      color: var(--text);
+      white-space: normal;
+      text-align: center;
+      line-height: 1.25;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .settings-action.primary {
+      background-image: linear-gradient(140deg, var(--brand-1), var(--brand-2));
+      background-color: var(--brand-1);
+      color: var(--on-accent);
+      border-color: transparent;
+    }
+
+    body.high-contrast .settings-action.primary,
+    body[data-theme="inverted"] .settings-action.primary {
+      background-image: none;
+      background-color: var(--accent);
+      border-color: var(--outline);
+    }
+
+    .preview-btn:disabled,
+    .settings-action:disabled,
+    .sound-option button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .exemplar-actions { display: grid; gap: 8px; }
+
+    .share-message-output {
+      width: 100%;
+      min-height: 92px;
+      resize: vertical;
+      padding: 12px;
+      padding-right: 52px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+
+    .share-message-wrap { position: relative; }
+    .share-message-group { display: flex; flex-direction: column; gap: 8px; }
+
+    .copy-icon-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-2);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .copy-icon-btn svg {
+      width: 18px; height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .platform-note {
+      margin: 0;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      color: var(--muted);
+      padding: 9px 11px;
+      border-radius: var(--radius-sm);
+      border: 1px dashed var(--border);
+      background: var(--surface);
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 4px solid var(--outline);
+      outline-offset: 2px;
+    }
+
+    body.focus-boost :focus-visible {
+      outline-width: 6px;
+      outline-offset: 4px;
+    }
+
+    /* ---------------- Full-screen visual replay ----------------
+       These colors are calibrated for low vision on a black field and
+       are deliberately NOT themed. Do not restyle them. */
+    .visual-replay-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: var(--viewport-height);
+      pointer-events: none;
+      opacity: 0;
+      z-index: 9999;
+    }
+
+    .visual-replay-overlay[data-active="true"] { opacity: 1; }
+
+    .visual-replay-flash,
+    .visual-replay-shape-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .visual-replay-flash { background: #000000; }
+
+    .visual-replay-shape-layer {
+      display: grid;
+      place-items: center;
+      z-index: 1;
+    }
+
+    .visual-replay-shape {
+      width: min(70vmin, calc(var(--viewport-height) * 0.7), 70vw);
+      height: min(70vmin, calc(var(--viewport-height) * 0.7), 70vw);
+      display: none;
+    }
+
+    .visual-replay-shape[data-type="acceptable"] {
+      border-radius: 50%;
+      background: #00FF66;
+    }
+
+    .visual-replay-shape[data-type="outside"] {
+      background: #FF5500;
+      clip-path: polygon(50% 0%, 6.7% 75%, 93.3% 75%);
+    }
+
+    .visual-replay-shape[data-outside-variant="down"] { transform: rotate(180deg); }
+
+    /* ---------------- Large-text + small-screen reflow ---------------- */
+    body.large-text-layout .app-subtitle,
+    body.large-text-layout .card-label,
+    body.large-text-layout .setup-heading,
+    body.large-text-layout .option-group-title,
+    body.large-text-layout .marker-label,
+    body.large-text-layout .action-btn,
+    body.large-text-layout .action-btn-hint {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    body.large-text-layout .mode-toggle { grid-template-columns: minmax(0, 1fr); }
+    body.large-text-layout .mode-toggle label { flex-direction: row; justify-content: flex-start; gap: 10px; }
+    body.large-text-layout .markers { flex-direction: column; }
+    body.large-text-layout .marker { flex-direction: row; justify-content: flex-start; gap: 12px; }
+    body.large-text-layout .app-header { flex-direction: column; align-items: stretch; }
+    body.large-text-layout .header-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    body.large-text-layout .icon-btn { width: 100%; height: auto; min-height: 3rem; padding: 10px; }
+    body.large-text-layout .action-btn { height: auto; min-height: 8rem; padding: 1.25rem; }
+
+    body.short-screen-layout .panel { gap: 12px; }
+    body.short-screen-layout .action-btn { min-height: 6.5rem; height: auto; padding: 1rem; }
+    body.short-screen-layout .brand-mark { width: 2.4rem; height: 2.4rem; }
+
+    body.phone-safe-layout .panel { width: min(44rem, 100vw); }
+    body.phone-safe-layout .setup-group { padding: 12px; }
+    body.phone-safe-layout .close-modal { padding: 9px 14px; }
+
+    body.landscape-layout.large-text-layout .action-btn { min-height: 6rem; }
+  </style>
+</head>
+<body>
+  <main class="panel" id="appMain">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" focusable="false">
+            <path d="M4 20h16" />
+            <path d="M7 20V9l5-5 5 5v11" />
+            <path d="M12 20v-5" />
+            <circle cx="12" cy="10.5" r="1.4" />
+          </svg>
+        </span>
+        <div class="brand-text">
+          <h1 class="app-title">Gap Sense</h1>
+          <p class="app-subtitle">Crossing Practice</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="settingsTrigger" type="button" aria-label="Settings and setup" title="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="3.2" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.1 4.7a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03z" />
+          </svg>
+        </button>
+        <button class="icon-btn" id="a11yTrigger" type="button" aria-label="Accessibility options" title="Accessibility">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="7" r="1.6" />
+            <path d="M8.8 10.2h6.4" />
+            <path d="M12 8.6v6.6" />
+            <path d="M12 15.2l-3.2 3.2" />
+            <path d="M12 15.2l3.2 3.2" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="card" aria-labelledby="modeCardLabel">
+      <p class="card-label" id="modeCardLabel">Practice mode</p>
+      <div class="mode-toggle" role="radiogroup" aria-label="Practice mode">
+        <label>
+          <input type="radio" id="mode-start-halfway" name="mode" value="2b" checked aria-label="Start to Halfway" />
+          <span class="mode-dots" aria-hidden="true">●&nbsp;▲</span>
+          <span aria-hidden="true">Start → Halfway</span>
+        </label>
+        <label>
+          <input type="radio" id="mode-start-finish" name="mode" value="2" aria-label="Start to Finish" />
+          <span class="mode-dots" aria-hidden="true">●&nbsp;■</span>
+          <span aria-hidden="true">Start → Finish</span>
+        </label>
+        <label>
+          <input type="radio" id="mode-start-halfway-finish" name="mode" value="3" aria-label="Start to Halfway to Finish" />
+          <span class="mode-dots" aria-hidden="true">●&nbsp;▲&nbsp;■</span>
+          <span aria-hidden="true">Start → Halfway → Finish</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="setup-required-prompt" id="timingRequiredPrompt" hidden>
+      <p class="setup-required-prompt-title">Times needed</p>
+      <p id="timingRequiredPromptText">Enter both street times in Settings before using practice or exemplars.</p>
+      <button class="settings-action primary" id="timingRequiredPromptButton" type="button">
+        Open Settings to enter times
+      </button>
+    </section>
+
+    <!-- role="img" + aria-label makes this one announceable unit. The old build
+         used aria-hidden here, which silently threw away the computed summary. -->
+    <section class="markers" id="markers" role="img" aria-label="Progress markers"></section>
+
+    <button class="action-btn idle" id="actionBtn" type="button">
+      <span class="action-btn-label">Begin</span>
+      <span class="action-btn-indicator" id="actionBtnIndicator" aria-hidden="true">○</span>
+      <span class="action-btn-hint" id="actionBtnHint" aria-hidden="true">Tap when you step off</span>
+    </button>
+
+    <div class="cue-banner" id="cueBanner" data-visible="false" data-tone="neutral" aria-live="off">
+      <span class="cue-dot" aria-hidden="true"></span>
+      <span class="cue-text" id="cueBannerText">Ready.</span>
+    </div>
+
+    <div id="srAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+    <div class="debug" id="debugText" aria-live="off" aria-hidden="true"></div>
+  </main>
+
+  <!-- ============ SETTINGS ============ -->
+  <dialog id="settingsModal" aria-labelledby="settingsTitle" aria-modal="true">
+    <div class="visual-replay-overlay modal-visual-preview" id="settingsVisualPreview" aria-hidden="true" data-active="false">
+      <div class="visual-replay-flash" id="settingsVisualPreviewFlash"></div>
+      <div class="visual-replay-shape-layer">
+        <div class="visual-replay-shape" id="settingsVisualPreviewShape" data-type="acceptable" data-outside-variant="up"></div>
+      </div>
+    </div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="settingsTitle" tabindex="-1">Settings</h2>
+        <button class="close-modal" type="button" id="closeSettings">Close</button>
+      </div>
+      <div class="setup">
+        <div class="setup-group">
+          <p class="setup-heading">Time entry</p>
+          <label for="clearTime">Time to clear from left (seconds)</label>
+          <input id="clearTime" type="number" step="0.1" min="0.1" inputmode="decimal" />
+          <label for="fullTime">Full street time (seconds)</label>
+          <input id="fullTime" type="number" step="0.1" min="0.1" inputmode="decimal" />
+          <label for="marginInput">Acceptable margin of error (seconds)</label>
+          <input id="marginInput" type="number" step="0.1" min="0" inputmode="decimal" value="0.4" />
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Sound calibration</p>
+          <fieldset class="option-group">
+            <legend class="option-group-title">Acceptable (within tolerance)</legend>
+            <div class="sound-options">
+              <div class="sound-option">
+                <input type="radio" id="acceptable-a" name="acceptableSound" value="acceptable-a" />
+                <label for="acceptable-a">Chime A</label>
+                <button type="button" class="preview-btn" data-sound="acceptable-a">Play Chime A</button>
+              </div>
+              <div class="sound-option">
+                <input type="radio" id="acceptable-b" name="acceptableSound" value="acceptable-b" />
+                <label for="acceptable-b">Chime B</label>
+                <button type="button" class="preview-btn" data-sound="acceptable-b">Play Chime B</button>
+              </div>
+            </div>
+          </fieldset>
+          <fieldset class="option-group">
+            <legend class="option-group-title">Out of bounds (outside tolerance)</legend>
+            <div class="sound-options">
+              <div class="sound-option">
+                <input type="radio" id="outside-a" name="outsideSound" value="outside-a" />
+                <label for="outside-a">Low Pulse A</label>
+                <button type="button" class="preview-btn" data-sound="outside-a">Play Low Pulse A</button>
+              </div>
+              <div class="sound-option">
+                <input type="radio" id="outside-b" name="outsideSound" value="outside-b" />
+                <label for="outside-b">Low Pulse B</label>
+                <button type="button" class="preview-btn" data-sound="outside-b">Play Low Pulse B</button>
+              </div>
+            </div>
+          </fieldset>
+          <button type="button" class="settings-action" id="previewUserSound">Hear my marker sound</button>
+          <label>
+            <input type="checkbox" id="replayUsesConfirm" />
+            Use button chime instead of marker tone during replay
+          </label>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Visual calibration</p>
+          <fieldset class="option-group">
+            <legend class="option-group-title">Outside triangle orientation</legend>
+            <label><input type="radio" name="outsideVisualVariant" value="up" checked /> Up</label>
+            <label><input type="radio" name="outsideVisualVariant" value="down" /> Down</label>
+          </fieldset>
+          <fieldset class="option-group">
+            <legend class="option-group-title">User flash contrast</legend>
+            <label><input type="radio" name="userFlashContrast" value="soft" checked /> Soft</label>
+            <label><input type="radio" name="userFlashContrast" value="balanced" /> Balanced</label>
+            <label><input type="radio" name="userFlashContrast" value="high" /> High contrast</label>
+          </fieldset>
+          <div class="exemplar-actions">
+            <button type="button" class="settings-action visual-preview-btn" data-visual-type="user" aria-label="Preview user flash">Preview: User flash</button>
+            <button type="button" class="settings-action visual-preview-btn" data-visual-type="acceptable" aria-label="Preview acceptable shape">Preview: Acceptable shape</button>
+            <button type="button" class="settings-action visual-preview-btn" data-visual-type="outside" aria-label="Preview outside shape">Preview: Outside shape</button>
+          </div>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Training exemplars</p>
+          <p class="setup-note">Hear what a correct crossing feels like before you try it.</p>
+          <div class="exemplar-actions">
+            <button type="button" class="settings-action exemplar-btn" data-exemplar-mode="2b" aria-label="Play Start to Halfway">Play: Start → Halfway</button>
+            <button type="button" class="settings-action exemplar-btn" data-exemplar-mode="2" aria-label="Play Start to Finish">Play: Start → Finish</button>
+            <button type="button" class="settings-action exemplar-btn" data-exemplar-mode="3" aria-label="Play Start to Halfway to Finish">Play: Start → Halfway → Finish</button>
+          </div>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Share &amp; debug</p>
+          <button type="button" class="settings-action" id="shareTimingSettings">Share time settings</button>
+          <p class="setup-note">Generates two separate messages so rich link previews stay cleaner in RCS and iMessage.</p>
+          <div class="share-message-group">
+            <label for="setupTimingMessage">Setup message</label>
+            <div class="share-message-wrap">
+              <textarea id="setupTimingMessage" class="share-message-output" readonly></textarea>
+              <button type="button" class="copy-icon-btn" id="copySetupTimingMessage" aria-label="Copy setup message" title="Copy setup message">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+                  <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="share-message-group">
+            <label for="practiceTimingMessage">Practice message</label>
+            <div class="share-message-wrap">
+              <textarea id="practiceTimingMessage" class="share-message-output" readonly></textarea>
+              <button type="button" class="copy-icon-btn" id="copyPracticeTimingMessage" aria-label="Copy practice message" title="Copy practice message">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+                  <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <label>
+            <input type="checkbox" id="debugToggle" />
+            Show user times vs reference at replay start
+          </label>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ============ ACCESSIBILITY ============ -->
+  <dialog id="a11yModal" aria-labelledby="a11yTitle" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="a11yTitle" tabindex="-1">Accessibility</h2>
+        <button class="close-modal" type="button" id="closeA11y">Close</button>
+      </div>
+      <div class="setup">
+        <div class="setup-group">
+          <p class="setup-heading">Output / feedback mode</p>
+          <fieldset class="option-group">
+            <legend class="option-group-title">Preferred feedback</legend>
+            <label><input type="radio" name="a11yOutputMode" value="audio-only" checked /> Audio only (default)</label>
+            <label><input type="radio" name="a11yOutputMode" value="audio-visual" /> Audio + Visual</label>
+            <label><input type="radio" name="a11yOutputMode" value="visual-only" /> Visual only (no sounds)</label>
+          </fieldset>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Touch feedback (haptics)</p>
+          <label>
+            <input type="checkbox" id="a11yVibrate" />
+            Vibrate on cue
+          </label>
+          <button type="button" class="settings-action" id="hapticsTestBtn">Test haptic pulse</button>
+          <p class="platform-note" id="hapticsSupportNote">Checking haptics support…</p>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Visual feedback</p>
+          <label><input type="checkbox" id="a11yShowBanner" /> Show on-screen cue banner</label>
+          <label><input type="checkbox" id="a11yFlashAction" /> Flash the action button briefly on cue</label>
+          <label><input type="checkbox" id="a11yUseTextLabels" /> Use text labels</label>
+          <label><input type="checkbox" id="a11ySyncVisualReplay" /> Synchronized visual replay (AudioContext-timed)</label>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Vision preferences</p>
+          <label for="a11yTheme">Theme</label>
+          <select id="a11yTheme">
+            <option value="system">System default</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="inverted">Inverted (yellow on black)</option>
+          </select>
+          <label for="a11yTextSize">Text size</label>
+          <select id="a11yTextSize">
+            <option value="smaller">Smaller</option>
+            <option value="default">Default</option>
+            <option value="large">Large (115%)</option>
+            <option value="largest">Larger (130%)</option>
+            <option value="huge">Huge (150%)</option>
+            <option value="xl">Extra Large (200%)</option>
+            <option value="xxl">XXL (250%)</option>
+            <option value="max">Maximum (300%)</option>
+          </select>
+          <p class="field-help" id="textSizeLandscapeHint" hidden></p>
+          <label><input type="checkbox" id="a11yHighContrast" /> High contrast</label>
+          <label><input type="checkbox" id="a11yFocusBoost" /> Focus boost</label>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Screen reader</p>
+          <label><input type="checkbox" id="a11yAnnounceCues" /> Announce cues</label>
+          <p class="setup-note">Announcements pause during replay so VoiceOver does not talk over the timing tones.</p>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="visual-replay-overlay" id="visualReplayOverlay" aria-hidden="true" data-active="false">
+    <div class="visual-replay-flash" id="visualReplayFlash"></div>
+    <div class="visual-replay-shape-layer">
+      <div class="visual-replay-shape" id="visualReplayShape" data-type="acceptable" data-outside-variant="up"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+     * LocalStorage keys (all prefixed om-):
+     *   om-clear-time, om-full-time, om-margin, om-mode,
+     *   om-replay-use-confirm, om-debug-replay,
+     *   om-feedback-acceptable, om-feedback-outside,
+     *   om-a11y-output-mode, om-a11y-show-banner, om-a11y-flash-action,
+     *   om-a11y-vibrate, om-a11y-use-text-labels, om-a11y-theme,
+     *   om-a11y-text-size, om-a11y-high-contrast, om-a11y-focus-boost,
+     *   om-a11y-announce-cues, om-a11y-sync-visual-replay,
+     *   om-a11y-outside-visual-variant, om-a11y-user-flash-contrast
+     * Cue types: start, marker, replay_start, replay_end,
+     *            validation_error, reference_ok, reference_bad
+     * ============================================================ */
+
+    const appMain = document.getElementById("appMain");
+    const actionBtn = document.getElementById("actionBtn");
+    const actionBtnLabel = actionBtn.querySelector(".action-btn-label");
+    const actionBtnIndicator = document.getElementById("actionBtnIndicator");
+    const actionBtnHint = document.getElementById("actionBtnHint");
+    const markersEl = document.getElementById("markers");
+    const debugText = document.getElementById("debugText");
+    const modeInputs = [...document.querySelectorAll("input[name='mode']")];
+    const timingRequiredPrompt = document.getElementById("timingRequiredPrompt");
+    const timingRequiredPromptText = document.getElementById("timingRequiredPromptText");
+    const timingRequiredPromptButton = document.getElementById("timingRequiredPromptButton");
+    const settingsTrigger = document.getElementById("settingsTrigger");
+    const settingsModal = document.getElementById("settingsModal");
+    const closeSettings = document.getElementById("closeSettings");
+    const a11yTrigger = document.getElementById("a11yTrigger");
+    const a11yModal = document.getElementById("a11yModal");
+    const closeA11y = document.getElementById("closeA11y");
+    const settingsTitle = document.getElementById("settingsTitle");
+    const a11yTitle = document.getElementById("a11yTitle");
+    const cueBanner = document.getElementById("cueBanner");
+    const cueBannerText = document.getElementById("cueBannerText");
+    const srAnnouncer = document.getElementById("srAnnouncer");
+    const outputModeInputs = [...document.querySelectorAll("input[name='a11yOutputMode']")];
+    const a11yShowBanner = document.getElementById("a11yShowBanner");
+    const a11yFlashAction = document.getElementById("a11yFlashAction");
+    const a11yVibrate = document.getElementById("a11yVibrate");
+    const a11yUseTextLabels = document.getElementById("a11yUseTextLabels");
+    const a11ySyncVisualReplay = document.getElementById("a11ySyncVisualReplay");
+    const a11yTheme = document.getElementById("a11yTheme");
+    const a11yTextSize = document.getElementById("a11yTextSize");
+    const textSizeLandscapeHint = document.getElementById("textSizeLandscapeHint");
+    const a11yHighContrast = document.getElementById("a11yHighContrast");
+    const a11yFocusBoost = document.getElementById("a11yFocusBoost");
+    const a11yAnnounceCues = document.getElementById("a11yAnnounceCues");
+    const hapticsTestBtn = document.getElementById("hapticsTestBtn");
+    const hapticsSupportNote = document.getElementById("hapticsSupportNote");
+    const previewUserSoundBtn = document.getElementById("previewUserSound");
+    const replayUsesConfirm = document.getElementById("replayUsesConfirm");
+    const debugToggle = document.getElementById("debugToggle");
+    const shareTimingSettingsBtn = document.getElementById("shareTimingSettings");
+    const setupTimingMessage = document.getElementById("setupTimingMessage");
+    const practiceTimingMessage = document.getElementById("practiceTimingMessage");
+    const copySetupTimingMessageBtn = document.getElementById("copySetupTimingMessage");
+    const copyPracticeTimingMessageBtn = document.getElementById("copyPracticeTimingMessage");
+    const clearTimeInput = document.getElementById("clearTime");
+    const fullTimeInput = document.getElementById("fullTime");
+    const marginInput = document.getElementById("marginInput");
+    const numberInputs = [...document.querySelectorAll("input[type='number']")];
+    const acceptableInputs = [...document.querySelectorAll("input[name='acceptableSound']")];
+    const outsideInputs = [...document.querySelectorAll("input[name='outsideSound']")];
+    const previewButtons = [...document.querySelectorAll(".preview-btn")];
+    const exemplarButtons = [...document.querySelectorAll(".exemplar-btn")];
+    const visualPreviewButtons = [...document.querySelectorAll(".visual-preview-btn")];
+    const outsideVisualVariantInputs = [...document.querySelectorAll("input[name='outsideVisualVariant']")];
+    const userFlashContrastInputs = [...document.querySelectorAll("input[name='userFlashContrast']")];
+    const visualReplayOverlay = document.getElementById("visualReplayOverlay");
+    const visualReplayFlash = document.getElementById("visualReplayFlash");
+    const visualReplayShape = document.getElementById("visualReplayShape");
+    const settingsVisualPreview = document.getElementById("settingsVisualPreview");
+    const settingsVisualPreviewFlash = document.getElementById("settingsVisualPreviewFlash");
+    const settingsVisualPreviewShape = document.getElementById("settingsVisualPreviewShape");
+
+    const setupControls = [
+      settingsTrigger,
+      previewUserSoundBtn,
+      clearTimeInput,
+      fullTimeInput,
+      marginInput,
+      replayUsesConfirm,
+      debugToggle,
+      shareTimingSettingsBtn,
+      copySetupTimingMessageBtn,
+      copyPracticeTimingMessageBtn,
+      ...acceptableInputs,
+      ...outsideInputs,
+      ...previewButtons,
+      ...visualPreviewButtons,
+      ...outsideVisualVariantInputs,
+      ...userFlashContrastInputs,
+      ...exemplarButtons
+    ];
+
+    const a11yControls = [
+      a11yTrigger,
+      a11yShowBanner,
+      a11yFlashAction,
+      a11yVibrate,
+      a11yUseTextLabels,
+      a11ySyncVisualReplay,
+      a11yTheme,
+      a11yTextSize,
+      a11yHighContrast,
+      a11yFocusBoost,
+      a11yAnnounceCues,
+      hapticsTestBtn,
+      ...outputModeInputs
+    ];
+
+    const modes = {
+      "2": { labels: ["Start", "Finish"] },
+      "2b": { labels: ["Start", "Halfway"] },
+      "3": { labels: ["Start", "Halfway", "Finish"] }
+    };
+
+    let audioContext;
+    let masterLimiter;
+    let markerTimes = [];
+    let currentMode = "2b";
+    let stage = 0;
+    let started = false;
+    let replayTimeout;
+    let exemplarTimeout;
+    let exemplarVisualTimeouts = [];
+    let replayUsesConfirmTone = false;
+    let showDebug = false;
+    let suppressSrAnnouncements = false;
+    let pendingStatusMessage = "";
+    let lastDialogTrigger = null;
+    let lockedScrollY = 0;
+    let flashTimeout;
+    let startTimestamp = 0;
+
+    const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    const VISUAL_PULSE_SEC = 0.2;
+    const VISUAL_REPLAY_PRE_DELAY_SEC = 0.5; // screen stays normal this long before going black
+    const VISUAL_USER_FLASH_COLORS = {
+      soft: "#8c8c8c",
+      balanced: "#bcbcbc",
+      high: "#e6e6e6"
+    };
+
+    const visualReplayState = {
+      rafId: null,
+      nextIndex: 0,
+      events: [],
+      endAtSec: 0,
+      replayStartTime: 0,
+      userFlashUntilSec: 0,
+      referenceUntilSec: 0,
+      currentReferenceType: null,
+      target: null
+    };
+
+    const a11ySettings = {
+      outputMode: "audio-only",
+      showBanner: true,
+      flashAction: false,
+      vibrate: false,
+      useTextLabels: true,
+      syncVisualReplay: true,
+      outsideVisualVariant: "up",
+      userFlashContrast: "soft",
+      theme: "system",
+      textSize: "default",
+      highContrast: false,
+      focusBoost: false,
+      announceCues: true
+    };
+
+    /* ============================================================
+     * NATIVE HAPTICS BRIDGE
+     * navigator.vibrate() does not exist in Safari/WKWebView on iOS —
+     * Apple has never implemented the Vibration API. Inside the
+     * Capacitor shell we reach the real Taptic Engine instead; on the
+     * web we fall back to navigator.vibrate (Android) and degrade to
+     * nothing on iOS Safari.
+     * ============================================================ */
+    const CapacitorGlobal = window.Capacitor;
+    const isNativeShell = Boolean(CapacitorGlobal?.isNativePlatform?.());
+    const HapticsPlugin = CapacitorGlobal?.Plugins?.Haptics;
+    const hasWebVibrate = typeof navigator.vibrate === "function";
+
+    const WEB_VIBRATION_PATTERNS = {
+      start: [25],
+      marker: [40],
+      reference_ok: [30, 30, 30],
+      reference_bad: [120]
+    };
+
+    function hapticsAvailable() {
+      return (isNativeShell && Boolean(HapticsPlugin)) || hasWebVibrate;
+    }
+
+    function describeHapticsSupport() {
+      if (isNativeShell && HapticsPlugin) {
+        return "Native haptics active — this build drives the iPhone Taptic Engine directly.";
+      }
+      if (hasWebVibrate) {
+        return "Web vibration available. Patterns are coarse on/off only (typical on Android browsers).";
+      }
+      return "No haptics on this browser. iOS Safari has never supported web vibration — install the native app build to feel cues.";
+    }
+
+    function hapticCue(type) {
+      if (!a11ySettings.vibrate) return;
+      if (isNativeShell && HapticsPlugin) {
+        try {
+          if (type === "reference_ok") {
+            HapticsPlugin.notification({ type: "SUCCESS" });
+          } else if (type === "reference_bad") {
+            HapticsPlugin.notification({ type: "ERROR" });
+          } else if (type === "marker") {
+            HapticsPlugin.impact({ style: "MEDIUM" });
+          } else if (type === "start") {
+            HapticsPlugin.impact({ style: "LIGHT" });
+          }
+          return;
+        } catch (error) {
+          /* fall through to the web path */
+        }
+      }
+      if (hasWebVibrate) {
+        const pattern = WEB_VIBRATION_PATTERNS[type];
+        if (pattern) navigator.vibrate(pattern);
+      }
+    }
+
+    /* ---------------- Layout / viewport ---------------- */
+    function lockPageScroll() {
+      lockedScrollY = window.scrollY;
+      document.body.classList.add("dialog-open");
+      document.body.style.top = `-${lockedScrollY}px`;
+    }
+
+    function unlockPageScroll() {
+      document.body.classList.remove("dialog-open");
+      document.body.style.top = "";
+      window.scrollTo(0, lockedScrollY);
+    }
+
+    function syncViewportHeight() {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty("--viewport-height", `${viewportHeight}px`);
+      applyLayoutMode();
+    }
+
+    function setMainContentInert(isInert) {
+      appMain.inert = isInert;
+      if (isInert) {
+        appMain.setAttribute("aria-hidden", "true");
+        return;
+      }
+      appMain.removeAttribute("aria-hidden");
+    }
+
+    function applyLayoutMode() {
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const coarsePointer = window.matchMedia("(any-pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+      const largeTextLayout = ["largest", "huge", "xl", "xxl", "max"].includes(a11ySettings.textSize);
+      const phoneSafeLayout = coarsePointer || viewportWidth <= 430 || viewportHeight <= 500 || largeTextLayout;
+      document.body.classList.toggle("phone-safe-layout", phoneSafeLayout);
+      document.body.classList.toggle("short-screen-layout", viewportHeight <= 500);
+      document.body.classList.toggle("large-text-layout", largeTextLayout);
+      document.body.classList.toggle("landscape-layout", viewportWidth > viewportHeight);
+    }
+
+    function syncCueBannerVisibility() {
+      const hasMessage = Boolean(cueBannerText.textContent.trim());
+      cueBanner.dataset.visible = String(a11ySettings.showBanner && hasMessage);
+    }
+
+    /* ---------------- Audio ---------------- */
+    const tones = {
+      confirm: { base: 350, harmonic: 700 },
+      user: { base: 410 }
+    };
+
+    /*
+     * ============================================================
+     * SOUND / TIMING TUNING GUIDE (edit here, no code changes needed)
+     * ============================================================
+     *
+     * 1) TEST_TUNING: timing and loudness controls
+     * ------------------------------------------------------------
+     * replayLeadInSec    delay before replay starts. Typical 0.4-1.2 s.
+     * exemplarLeadInSec  delay before exemplar playback. Typical 0.3-0.8 s.
+     * replayEndPadSec /
+     * exemplarEndPadSec  extra time after the final cue before reset.
+     *                    Typical 0.8-1.5 s.
+     *
+     * masterVolume       scales all sounds. Typical 0.7-1.0.
+     * userVolume         scales the user marker tone. Typical 0.8-1.0.
+     * feedbackVolume     scales acceptable/outside cues. Typical 0.8-1.0.
+     * confirmVolume      scales the button chime. Typical 0.6-1.0 — keep
+     *                    below feedbackVolume so the cues stand out.
+     *
+     * Presets are normalized so 1 plays at (near) full scale. Values above
+     * 1 hit the master limiter: no distortion, but no extra loudness
+     * either. Stay at or below 1.
+     *
+     * visualPreviewTimingMs  Settings-preview timing for the visual samples.
+     *                    enter/visible/exit in ms. Typical 250-600.
+     *
+     * 2) SOUND_PRESET_LIBRARY: named tone families
+     * ------------------------------------------------------------
+     * Each preset has a duration (seconds, before the release tail) and
+     * partials (freq + gain layers that shape the timbre).
+     * Easiest path for non-musicians:
+     *   A) pick a different preset name in SOUND_FALLBACK_TONES
+     *   B) then tweak gainScale / durationScale in presetTone(...)
+     *
+     * 3) SOUND_FALLBACK_TONES: assign presets to roles
+     * ------------------------------------------------------------
+     * acceptable-a / acceptable-b   within-margin feedback options
+     * outside-a / outside-b         outside-margin feedback options
+     * user-marker                   replay marker tone (default)
+     * user-confirm                  optional replay alternative
+     *
+     * 4) presetTone(...) options
+     * ------------------------------------------------------------
+     * transposeSemitones  pitch shift; +12 = one octave up. Typical -3..+3.
+     * gainScale           multiplier for partial gains. Typical 0.8-1.3.
+     * durationScale       multiplier for duration. Typical 0.8-1.4.
+     */
+    const TEST_TUNING = {
+      replayLeadInSec: 1.5,
+      exemplarLeadInSec: 0.5,
+      replayEndPadSec: 1.2,
+      exemplarEndPadSec: 0.9,
+      masterVolume: 1,
+      userVolume: 1,
+      feedbackVolume: 1,
+      confirmVolume: 0.8,
+      visualPreviewTimingMs: {
+        userEnter: 500,
+        userVisible: 280,
+        userExit: 500,
+        shapeEnter: 500,
+        shapeVisible: 280,
+        shapeExit: 500
+      }
+    };
+
+    // Gain budget: keep the SUM of a preset's partial gains at or below ~0.8.
+    // That leaves headroom for a user marker and a feedback cue landing at the
+    // same moment during replay (the accurate case); the master limiter
+    // catches anything beyond it.
+    const SOUND_PRESET_LIBRARY = {
+      // "Acceptable" cues: short, pure, high two-note chimes.
+      chime_soft: {
+        duration: 0.12,
+        partials: [{ freq: 659, gain: 0.55 }, { freq: 823, gain: 0.25 }]
+      },
+      chime_bright: {
+        duration: 0.12,
+        partials: [{ freq: 523, gain: 0.55 }, { freq: 659, gain: 0.25 }]
+      },
+      // "Outside" cues: longer, rough, buzzing pulses. Two closely spaced
+      // frequencies beat against each other (harsh texture), pitched near
+      // ~300-350 Hz — dark next to the chimes, but high enough for a phone
+      // speaker to actually reproduce (240-260 Hz fell below small-speaker
+      // response and was partly lost in the speaker itself).
+      pulse_low: {
+        duration: 0.3,
+        partials: [{ freq: 330, gain: 0.42 }, { freq: 349, gain: 0.38 }]
+      },
+      pulse_dull: {
+        duration: 0.3,
+        partials: [{ freq: 294, gain: 0.42 }, { freq: 311, gain: 0.38 }]
+      },
+      marker_tone: {
+        duration: 0.14,
+        partials: [{ freq: tones.user.base, gain: 0.75 }]
+      },
+      confirm_chime: {
+        duration: 0.18,
+        partials: [{ freq: tones.confirm.base, gain: 0.5 }, { freq: tones.confirm.harmonic, gain: 0.22 }]
+      }
+    };
+
+    function presetTone(name, options = {}) {
+      const base = SOUND_PRESET_LIBRARY[name] || SOUND_PRESET_LIBRARY.marker_tone;
+      const transposeSemitones = Number(options.transposeSemitones || 0);
+      const transpose = Math.pow(2, transposeSemitones / 12);
+      const gainScale = Number(options.gainScale || 1);
+      const durationScale = Number(options.durationScale || 1);
+      return {
+        duration: base.duration * durationScale,
+        partials: base.partials.map((partial) => ({
+          freq: partial.freq * transpose,
+          gain: partial.gain * gainScale
+        }))
+      };
+    }
+
+    const SOUND_FALLBACK_TONES = {
+      "acceptable-a": presetTone("chime_soft"),
+      "acceptable-b": presetTone("chime_bright"),
+      "outside-a": presetTone("pulse_low"),
+      "outside-b": presetTone("pulse_dull"),
+      "user-marker": presetTone("marker_tone"),
+      "user-confirm": presetTone("confirm_chime")
+    };
+
+    const feedbackOptions = {
+      acceptable: {
+        "acceptable-a": {
+          label: "Chime A",
+          duration: SOUND_FALLBACK_TONES["acceptable-a"].duration,
+          partials: SOUND_FALLBACK_TONES["acceptable-a"].partials
+        },
+        "acceptable-b": {
+          label: "Chime B",
+          duration: SOUND_FALLBACK_TONES["acceptable-b"].duration,
+          partials: SOUND_FALLBACK_TONES["acceptable-b"].partials
+        }
+      },
+      outside: {
+        "outside-a": {
+          label: "Low Pulse A",
+          duration: SOUND_FALLBACK_TONES["outside-a"].duration,
+          partials: SOUND_FALLBACK_TONES["outside-a"].partials
+        },
+        "outside-b": {
+          label: "Low Pulse B",
+          duration: SOUND_FALLBACK_TONES["outside-b"].duration,
+          partials: SOUND_FALLBACK_TONES["outside-b"].partials
+        }
+      }
+    };
+
+    const userSoundOptions = {
+      marker: {
+        duration: SOUND_FALLBACK_TONES["user-marker"].duration,
+        partials: SOUND_FALLBACK_TONES["user-marker"].partials
+      },
+      confirm: {
+        duration: SOUND_FALLBACK_TONES["user-confirm"].duration,
+        partials: SOUND_FALLBACK_TONES["user-confirm"].partials
+      }
+    };
+
+    function ensureAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // Safety limiter on the master output: individual cues are tuned to
+        // pass through untouched, but overlapping cues (user marker + feedback
+        // tone landing together during replay) are caught here instead of
+        // hard-clipping into distortion.
+        masterLimiter = audioContext.createDynamicsCompressor();
+        masterLimiter.threshold.value = -2;
+        masterLimiter.knee.value = 0;
+        masterLimiter.ratio.value = 20;
+        masterLimiter.attack.value = 0.001;
+        masterLimiter.release.value = 0.05;
+        masterLimiter.connect(audioContext.destination);
+      }
+      if (audioContext.state === "suspended") {
+        audioContext.resume();
+      }
+      return audioContext;
+    }
+
+    function playCompositeTone(partials, duration = 0.16, startTime = 0, volumeScale = 1) {
+      if (a11ySettings.outputMode === "visual-only") return;
+      const context = ensureAudioContext();
+      if (context.state === "suspended") {
+        context.resume().then(() => {
+          playCompositeTone(partials, duration, startTime, volumeScale);
+        });
+        return;
+      }
+      const now = context.currentTime + startTime;
+      const gain = context.createGain();
+      const attack = 0.01;
+      const release = 0.07;
+      const outputLevel = TEST_TUNING.masterVolume * volumeScale;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(outputLevel, now + attack);
+      gain.gain.linearRampToValueAtTime(0, now + duration + release);
+      partials.forEach((partial) => {
+        const osc = context.createOscillator();
+        osc.type = "sine";
+        osc.frequency.value = partial.freq;
+        const oscGain = context.createGain();
+        oscGain.gain.setValueAtTime(partial.gain, now);
+        osc.connect(oscGain).connect(gain);
+        osc.start(now);
+        osc.stop(now + duration + release + 0.02);
+      });
+      gain.connect(masterLimiter);
+    }
+
+    function playSoundOption(option, startTime = 0, volumeScale = 1) {
+      if (!option) return;
+      playCompositeTone(option.partials, option.duration || 0.12, startTime, volumeScale);
+    }
+
+    function playConfirmTone(startTime = 0) {
+      playSoundOption(userSoundOptions.confirm, startTime, TEST_TUNING.confirmVolume);
+    }
+
+    function playUserMarkerTone(startTime = 0) {
+      playSoundOption(userSoundOptions.marker, startTime, TEST_TUNING.userVolume);
+    }
+
+    function playFeedbackTone(type, startTime = 0) {
+      const selection = getSelectedSound(type);
+      const option = feedbackOptions[type][selection];
+      playSoundOption(option, startTime, TEST_TUNING.feedbackVolume);
+    }
+
+    function getSelectionStorageKey(category) {
+      return category === "acceptable" ? "om-feedback-acceptable" : "om-feedback-outside";
+    }
+
+    function getSelectedSound(category) {
+      const key = getSelectionStorageKey(category);
+      const inputs = category === "acceptable" ? acceptableInputs : outsideInputs;
+      const stored = localStorage.getItem(key);
+      const fallback = inputs.find((input) => input.value.endsWith("-a"))?.value || inputs[0]?.value;
+      if (stored && feedbackOptions[category][stored]) {
+        return stored;
+      }
+      return fallback;
+    }
+
+    function storeSelection(category, value) {
+      localStorage.setItem(getSelectionStorageKey(category), value);
+    }
+
+    function applyStoredSelections() {
+      const acceptableSelection = getSelectedSound("acceptable");
+      const outsideSelection = getSelectedSound("outside");
+      acceptableInputs.forEach((input) => {
+        input.checked = input.value === acceptableSelection;
+      });
+      outsideInputs.forEach((input) => {
+        input.checked = input.value === outsideSelection;
+      });
+      if (acceptableSelection) storeSelection("acceptable", acceptableSelection);
+      if (outsideSelection) storeSelection("outside", outsideSelection);
+    }
+
+    /* ---------------- Setup / timing ---------------- */
+    function lockSettings(lock) {
+      setupControls.forEach((control) => { control.disabled = lock; });
+      a11yControls.forEach((control) => { control.disabled = lock; });
+    }
+
+    function getTimingInputs() {
+      return {
+        clearTime: Number(clearTimeInput.value),
+        fullTime: Number(fullTimeInput.value)
+      };
+    }
+
+    function getMargin() {
+      return Number(marginInput.value);
+    }
+
+    function normalizeTimingValue(value) {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return "";
+      return String(parsed);
+    }
+
+    function encodeBase64Url(value) {
+      const bytes = new TextEncoder().encode(value);
+      let binary = "";
+      bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+      return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    function decodeBase64Url(value) {
+      const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+      const binary = atob(padded);
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    }
+
+    function computeShareChecksum(value) {
+      let hash = 2166136261;
+      for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return (hash >>> 0).toString(36).padStart(7, "0").slice(0, 7);
+    }
+
+    function buildShareTimingToken() {
+      const clearTime = normalizeTimingValue(clearTimeInput.value);
+      const fullTime = normalizeTimingValue(fullTimeInput.value);
+      const margin = normalizeTimingValue(marginInput.value);
+      const rawPayload = `${clearTime}|${fullTime}|${margin}`;
+      const encodedPayload = encodeBase64Url(rawPayload);
+      const checksum = computeShareChecksum(encodedPayload);
+      return `v1.${encodedPayload}.${checksum}`;
+    }
+
+    function buildShareTimingLink() {
+      const url = new URL(window.location.href);
+      url.hash = `ts=${buildShareTimingToken()}`;
+      return url.toString();
+    }
+
+    function buildRegularSiteLink() {
+      const url = new URL(window.location.href);
+      url.hash = "";
+      return url.toString();
+    }
+
+    function buildSetupTimingMessage() {
+      return ["Click here once to configure times:", buildShareTimingLink()].join("\n");
+    }
+
+    function buildPracticeTimingMessage() {
+      return ["Save/use this link to practice:", buildRegularSiteLink()].join("\n");
+    }
+
+    function populateShareMessagePreviews() {
+      setupTimingMessage.value = buildSetupTimingMessage();
+      practiceTimingMessage.value = buildPracticeTimingMessage();
+    }
+
+    async function copyTextToClipboard(text) {
+      try {
+        if (!navigator.clipboard?.writeText) {
+          throw new Error("Clipboard API unavailable.");
+        }
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (error) {
+        const helper = document.createElement("textarea");
+        helper.value = text;
+        helper.setAttribute("readonly", "");
+        helper.style.position = "absolute";
+        helper.style.left = "-9999px";
+        document.body.appendChild(helper);
+        helper.select();
+        document.execCommand("copy");
+        document.body.removeChild(helper);
+        return true;
+      }
+    }
+
+    function clearImportedHash() {
+      const cleanedUrl = `${window.location.pathname}${window.location.search}`;
+      window.history.replaceState({}, document.title, cleanedUrl);
+    }
+
+    function importSharedTimingSettings() {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (!hash.startsWith("ts=")) return false;
+
+      const token = hash.slice(3);
+      const [version, encodedPayload, checksum] = token.split(".");
+      const invalid = () => {
+        pendingStatusMessage = "This time settings link is invalid.";
+        clearImportedHash();
+        return true;
+      };
+
+      if (version !== "v1" || !encodedPayload || !checksum) return invalid();
+      if (computeShareChecksum(encodedPayload) !== checksum) return invalid();
+
+      let decodedPayload;
+      try {
+        decodedPayload = decodeBase64Url(encodedPayload);
+      } catch (error) {
+        return invalid();
+      }
+
+      const [clearValue, fullValue, marginValue] = decodedPayload.split("|");
+      const normalizedClear = normalizeTimingValue(clearValue);
+      const normalizedFull = normalizeTimingValue(fullValue);
+      const normalizedMargin = normalizeTimingValue(marginValue);
+      const clearNumber = Number(normalizedClear);
+      const fullNumber = Number(normalizedFull);
+      const marginNumber = Number(normalizedMargin);
+
+      if (
+        !normalizedClear || !normalizedFull || !normalizedMargin ||
+        !Number.isFinite(clearNumber) || !Number.isFinite(fullNumber) || !Number.isFinite(marginNumber) ||
+        clearNumber <= 0 || fullNumber <= 0 || marginNumber < 0
+      ) {
+        return invalid();
+      }
+
+      clearTimeInput.value = normalizedClear;
+      fullTimeInput.value = normalizedFull;
+      marginInput.value = normalizedMargin;
+      localStorage.setItem("om-clear-time", normalizedClear);
+      localStorage.setItem("om-full-time", normalizedFull);
+      localStorage.setItem("om-margin", normalizedMargin);
+      pendingStatusMessage = "Time settings updated for this device.";
+      clearImportedHash();
+      refreshTimingRequirementPrompt();
+      updateNextPrompt();
+      return true;
+    }
+
+    async function copyShareTimingLink() {
+      if (!validateSetup()) return;
+      populateShareMessagePreviews();
+      await copyTextToClipboard(setupTimingMessage.value);
+      setStatus("Setup message ready. Practice message is shown below.");
+      announceScreenReader("Setup message ready. Practice message is shown below.");
+    }
+
+    function getMissingTimingFields() {
+      const { clearTime, fullTime } = getTimingInputs();
+      const missing = [];
+      if (!Number.isFinite(clearTime) || clearTime <= 0) missing.push("clear");
+      if (!Number.isFinite(fullTime) || fullTime <= 0) missing.push("full");
+      return missing;
+    }
+
+    function getTimingRequirementMessage() {
+      const missing = getMissingTimingFields();
+      if (missing.length === 0) return "";
+      if (missing.length === 2) {
+        return "Enter the time to clear from left and full street time in Settings before using practice or exemplars.";
+      }
+      if (missing[0] === "clear") {
+        return "Enter the time to clear from left in Settings before using practice or exemplars.";
+      }
+      return "Enter the full street time in Settings before using practice or exemplars.";
+    }
+
+    function refreshTimingRequirementPrompt() {
+      const message = getTimingRequirementMessage();
+      const hasMissingTimes = Boolean(message);
+      timingRequiredPrompt.hidden = !hasMissingTimes;
+      timingRequiredPromptText.textContent = message || "Enter both street times in Settings before using practice or exemplars.";
+      return !hasMissingTimes;
+    }
+
+    function focusFirstMissingTimingField() {
+      const missing = getMissingTimingFields();
+      const target = missing[0] === "clear"
+        ? clearTimeInput
+        : missing[0] === "full"
+          ? fullTimeInput
+          : clearTimeInput;
+      target.focus();
+      target.select?.();
+    }
+
+    function openSettingsForTimingEntry() {
+      if (!settingsModal.open) {
+        lastDialogTrigger = timingRequiredPromptButton;
+        lockPageScroll();
+        setMainContentInert(true);
+        settingsModal.showModal();
+      }
+      requestAnimationFrame(() => { focusFirstMissingTimingField(); });
+    }
+
+    function requireTimingInputs() {
+      const message = getTimingRequirementMessage();
+      if (!message) {
+        refreshTimingRequirementPrompt();
+        if (!started) setStatus("");
+        return true;
+      }
+      refreshTimingRequirementPrompt();
+      setStatus("");
+      announceScreenReader(message);
+      if (settingsModal.open) {
+        focusFirstMissingTimingField();
+      } else {
+        timingRequiredPromptButton.focus();
+      }
+      return false;
+    }
+
+    function getTextSizeScale(size) {
+      if (size === "smaller") return 16 / 18;
+      if (size === "large") return 1.15;
+      if (size === "largest") return 1.3;
+      if (size === "huge") return 1.5;
+      if (size === "xl") return 2;
+      if (size === "xxl") return 2.5;
+      if (size === "max") return 3;
+      return 1;
+    }
+
+    function validateSetup() {
+      const margin = getMargin();
+      if (!requireTimingInputs()) return false;
+      if (!Number.isFinite(margin) || margin < 0) {
+        setStatus("Enter a margin of error before starting.", "warn");
+        emitCue("validation_error", { message: "Need a margin of error before starting." });
+        return false;
+      }
+      return true;
+    }
+
+    // Single source of truth for reference times — the old build had two
+    // near-identical copies of this that could drift apart.
+    function getReferenceTimes(mode = currentMode) {
+      const { clearTime, fullTime } = getTimingInputs();
+      if (mode === "2") return [0, fullTime];
+      if (mode === "2b") return [0, clearTime];
+      return [0, clearTime, fullTime];
+    }
+
+    // Single source of truth for acceptable-vs-outside. The old build computed
+    // this twice inside beginReplay (once for audio, once for the visual event
+    // list); if one copy were tuned, sound and visuals would silently disagree.
+    function classifyMark(userTime, referenceTime) {
+      const diff = Math.abs((userTime ?? 0) - referenceTime);
+      const latency = (audioContext?.baseLatency || 0) + (audioContext?.outputLatency || 0);
+      const timingEpsilon = Math.max(0.02, latency);
+      const feedbackType = diff <= getMargin() + timingEpsilon ? "acceptable" : "outside";
+      return { diff, feedbackType };
+    }
+
+    /* ---------------- Visual replay ---------------- */
+    function getUserFlashColor() {
+      return VISUAL_USER_FLASH_COLORS[a11ySettings.userFlashContrast] || VISUAL_USER_FLASH_COLORS.soft;
+    }
+
+    function applyVisualReplayFrame(elapsedSec) {
+      if (elapsedSec < VISUAL_REPLAY_PRE_DELAY_SEC) return;
+      const overlay = visualReplayState.target?.overlay || visualReplayOverlay;
+      const flash = visualReplayState.target?.flash || visualReplayFlash;
+      const shape = visualReplayState.target?.shape || visualReplayShape;
+      const isUserPulseActive = elapsedSec < visualReplayState.userFlashUntilSec;
+      const isReferencePulseActive = elapsedSec < visualReplayState.referenceUntilSec;
+      overlay.dataset.active = "true";
+      flash.style.background = isUserPulseActive ? getUserFlashColor() : "#000000";
+      if (isReferencePulseActive && visualReplayState.currentReferenceType) {
+        shape.style.display = "block";
+        shape.dataset.type = visualReplayState.currentReferenceType;
+        shape.dataset.outsideVariant = a11ySettings.outsideVisualVariant;
+      } else {
+        shape.style.display = "none";
+      }
+    }
+
+    function hideVisualReplayFrame() {
+      const overlay = visualReplayState.target?.overlay || visualReplayOverlay;
+      const flash = visualReplayState.target?.flash || visualReplayFlash;
+      const shape = visualReplayState.target?.shape || visualReplayShape;
+      overlay.dataset.active = "false";
+      flash.style.background = "transparent";
+      shape.style.display = "none";
+      visualReplayState.userFlashUntilSec = 0;
+      visualReplayState.referenceUntilSec = 0;
+      visualReplayState.currentReferenceType = null;
+      visualReplayState.target = null;
+    }
+
+    function playVisualPreview(type) {
+      const previewTarget = {
+        overlay: settingsVisualPreview,
+        flash: settingsVisualPreviewFlash,
+        shape: settingsVisualPreviewShape
+      };
+      const timing = TEST_TUNING.visualPreviewTimingMs;
+      const leadInMs = type === "user" ? timing.userEnter : timing.shapeEnter;
+      const visibleMs = type === "user" ? timing.userVisible : timing.shapeVisible;
+      const exitMs = type === "user" ? timing.userExit : timing.shapeExit;
+      const totalMs = leadInMs + visibleMs + exitMs;
+
+      previewTarget.overlay.dataset.active = "true";
+      previewTarget.flash.style.background = "#000000";
+      previewTarget.shape.style.display = "none";
+
+      setTimeout(() => {
+        if (type === "user") {
+          previewTarget.flash.style.background = getUserFlashColor();
+          return;
+        }
+        previewTarget.shape.dataset.type = type;
+        previewTarget.shape.dataset.outsideVariant = a11ySettings.outsideVisualVariant;
+        previewTarget.shape.style.display = "block";
+      }, leadInMs);
+
+      setTimeout(() => {
+        previewTarget.flash.style.background = "#000000";
+        previewTarget.shape.style.display = "none";
+      }, leadInMs + visibleMs);
+
+      setTimeout(() => {
+        previewTarget.overlay.dataset.active = "false";
+        previewTarget.flash.style.background = "transparent";
+        previewTarget.shape.style.display = "none";
+      }, totalMs);
+    }
+
+    function triggerVisualReplayEvent(event, elapsedSec) {
+      if (event.type === "user") {
+        visualReplayState.userFlashUntilSec = Math.max(
+          visualReplayState.userFlashUntilSec,
+          elapsedSec + VISUAL_PULSE_SEC
+        );
+        return;
+      }
+      if (event.type === "reference") {
+        visualReplayState.currentReferenceType = event.feedbackType;
+        visualReplayState.referenceUntilSec = Math.max(
+          visualReplayState.referenceUntilSec,
+          elapsedSec + VISUAL_PULSE_SEC
+        );
+      }
+    }
+
+    function stopVisualReplay() {
+      if (visualReplayState.rafId !== null) {
+        cancelAnimationFrame(visualReplayState.rafId);
+        visualReplayState.rafId = null;
+      }
+      hideVisualReplayFrame();
+    }
+
+    function startSynchronizedVisualReplay(events, endAtSec, target = null) {
+      if (!visualOutputEnabled() || !a11ySettings.syncVisualReplay) return;
+      stopVisualReplay();
+      const context = ensureAudioContext();
+      visualReplayState.events = [...events].sort((a, b) => a.timeSec - b.timeSec);
+      visualReplayState.nextIndex = 0;
+      visualReplayState.endAtSec = endAtSec;
+      visualReplayState.replayStartTime = context.currentTime;
+      visualReplayState.userFlashUntilSec = 0;
+      visualReplayState.referenceUntilSec = 0;
+      visualReplayState.currentReferenceType = null;
+      visualReplayState.target = target;
+
+      const frame = () => {
+        const elapsedSec = context.currentTime - visualReplayState.replayStartTime;
+        while (
+          visualReplayState.nextIndex < visualReplayState.events.length &&
+          elapsedSec >= visualReplayState.events[visualReplayState.nextIndex].timeSec
+        ) {
+          triggerVisualReplayEvent(visualReplayState.events[visualReplayState.nextIndex], elapsedSec);
+          visualReplayState.nextIndex += 1;
+        }
+        applyVisualReplayFrame(elapsedSec);
+        const done =
+          elapsedSec >= visualReplayState.endAtSec &&
+          visualReplayState.nextIndex >= visualReplayState.events.length &&
+          elapsedSec >= visualReplayState.userFlashUntilSec &&
+          elapsedSec >= visualReplayState.referenceUntilSec;
+        if (done) {
+          stopVisualReplay();
+          return;
+        }
+        visualReplayState.rafId = requestAnimationFrame(frame);
+      };
+
+      visualReplayState.rafId = requestAnimationFrame(frame);
+    }
+
+    /* ---------------- Exemplars ---------------- */
+    function playExemplar(mode) {
+      const labels = modes[mode]?.labels;
+      if (!labels) return;
+      if (!requireTimingInputs()) {
+        emitCue("validation_error", { message: getTimingRequirementMessage() });
+        return;
+      }
+      const times = getReferenceTimes(mode);
+
+      clearTimeout(exemplarTimeout);
+      clearExemplarVisuals();
+      suppressSrAnnouncements = true;
+      actionBtn.classList.remove("idle");
+      actionBtn.classList.add("running");
+      actionBtn.disabled = true;
+      setActionButtonLabel("Exemplar");
+      setActionButtonHint("Listen");
+      const sequenceLabel = labels.join(" to ");
+      setStatus(`Playing exemplar: ${sequenceLabel}.`);
+      emitCue("replay_start", { mode, exemplar: true });
+
+      const baseDelay = TEST_TUNING.exemplarLeadInSec;
+      const visualEvents = labels.map((_, index) => ({
+        timeSec: baseDelay + (times[index] ?? 0),
+        type: "user"
+      }));
+      const doneAtSec = baseDelay + Math.max(...times) + TEST_TUNING.exemplarEndPadSec;
+      const exemplarVisualTarget = settingsModal.open ? {
+        overlay: settingsVisualPreview,
+        flash: settingsVisualPreviewFlash,
+        shape: settingsVisualPreviewShape
+      } : null;
+      startSynchronizedVisualReplay(visualEvents, doneAtSec, exemplarVisualTarget);
+
+      labels.forEach((label, index) => {
+        const time = times[index] ?? 0;
+        exemplarVisualTimeouts.push(
+          setTimeout(() => { setActionButtonStageByLabel(label); }, (baseDelay + time) * 1000)
+        );
+        playUserMarkerTone(baseDelay + time);
+      });
+
+      exemplarTimeout = setTimeout(() => {
+        suppressSrAnnouncements = false;
+        actionBtn.classList.remove("running");
+        actionBtn.classList.add("idle");
+        actionBtn.disabled = false;
+        setActionButtonLabel("Begin");
+        setActionButtonHint("Tap when you step off");
+        setActionButtonStageByLabel("");
+        setStatus("Exemplar complete. Ready.");
+        emitCue("replay_end", { message: "Exemplar complete. Ready." });
+      }, doneAtSec * 1000);
+    }
+
+    /* ---------------- Markers / stage UI ---------------- */
+    function updateMode() {
+      const selected = modeInputs.find((input) => input.checked);
+      currentMode = selected?.value || "2b";
+      localStorage.setItem("om-mode", currentMode);
+      renderMarkers();
+      resetState();
+    }
+
+    function renderMarkers() {
+      markersEl.innerHTML = "";
+      const { labels } = modes[currentMode];
+      labels.forEach((label, index) => {
+        const item = document.createElement("div");
+        item.className = "marker";
+        item.dataset.index = String(index);
+        item.dataset.label = label;
+        const shape = document.createElement("div");
+        shape.className = "marker-shape";
+        shape.setAttribute("aria-hidden", "true");
+        shape.textContent = getIndicatorSymbolForLabel(label);
+        const text = document.createElement("span");
+        text.className = "marker-label";
+        text.setAttribute("aria-hidden", "true");
+        text.textContent = label;
+        item.append(shape, text);
+        markersEl.appendChild(item);
+      });
+      updateMarkerStates();
+    }
+
+    function updateMarkerStates() {
+      const markerNodes = [...markersEl.querySelectorAll(".marker")];
+      markerNodes.forEach((node, index) => {
+        node.classList.toggle("complete", index < stage);
+        node.classList.toggle("current", index === stage && started);
+      });
+      updateMarkersSummary();
+      updateActionButtonStage();
+    }
+
+    function updateMarkersSummary() {
+      const markerNodes = [...markersEl.querySelectorAll(".marker")];
+      const summaries = markerNodes.map((node) => {
+        const label = node.dataset.label || "";
+        if (node.classList.contains("complete")) return `${label} complete`;
+        if (node.classList.contains("current")) return `${label} current`;
+        return `${label} not reached`;
+      });
+      markersEl.setAttribute("aria-label", `Progress markers: ${summaries.join(", ")}`);
+    }
+
+    function getStageClassForLabel(label) {
+      const normalized = String(label || "").trim().toLowerCase();
+      if (normalized === "start") return "stage-start";
+      if (normalized === "halfway") return "stage-halfway";
+      if (normalized === "finish") return "stage-finish";
+      return "";
+    }
+
+    function getIndicatorSymbolForLabel(label) {
+      const normalized = String(label || "").trim().toLowerCase();
+      if (normalized === "start") return "●";
+      if (normalized === "halfway") return "▲";
+      if (normalized === "finish") return "■";
+      return "○";
+    }
+
+    function setActionButtonStageByLabel(label) {
+      actionBtn.classList.remove("stage-start", "stage-halfway", "stage-finish");
+      const stageClass = getStageClassForLabel(label);
+      if (stageClass) actionBtn.classList.add(stageClass);
+      actionBtnIndicator.textContent = getIndicatorSymbolForLabel(label);
+    }
+
+    function updateActionButtonStage() {
+      setActionButtonStageByLabel("");
+      if (!started || stage <= 0) return;
+      const labels = modes[currentMode]?.labels || [];
+      if (labels.length === 0) return;
+      const clampedIndex = Math.min(stage - 1, labels.length - 1);
+      setActionButtonStageByLabel(labels[clampedIndex]);
+    }
+
+    function clearExemplarVisuals() {
+      exemplarVisualTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+      exemplarVisualTimeouts = [];
+      stopVisualReplay();
+    }
+
+    function setStatus(message, tone = "neutral") {
+      cueBannerText.textContent = message;
+      cueBanner.dataset.tone = tone;
+      syncCueBannerVisibility();
+    }
+
+    function announceScreenReader(message) {
+      if (!a11ySettings.announceCues) return;
+      if (suppressSrAnnouncements) return;
+      srAnnouncer.textContent = "";
+      setTimeout(() => {
+        if (suppressSrAnnouncements) return;
+        srAnnouncer.textContent = message;
+      }, 20);
+    }
+
+    function visualOutputEnabled() {
+      return a11ySettings.outputMode !== "audio-only";
+    }
+
+    function applyDebugAccessibility() {
+      debugText.setAttribute("aria-live", showDebug ? "polite" : "off");
+      debugText.setAttribute("aria-hidden", showDebug ? "false" : "true");
+      if (!showDebug) debugText.textContent = "";
+    }
+
+    function lockModeSelection(lock) {
+      modeInputs.forEach((input) => { input.disabled = lock; });
+    }
+
+    function setActionButtonLabel(label) {
+      actionBtnLabel.textContent = label;
+      actionBtn.setAttribute("aria-label", label);
+    }
+
+    function setActionButtonHint(hint) {
+      actionBtnHint.textContent = hint;
+      actionBtnHint.style.display = hint ? "" : "none";
+    }
+
+    function resetState(message = "Ready.") {
+      clearTimeout(exemplarTimeout);
+      clearExemplarVisuals();
+      suppressSrAnnouncements = false;
+      markerTimes = [];
+      stage = 0;
+      started = false;
+      actionBtn.disabled = false;
+      actionBtn.classList.remove("running");
+      actionBtn.classList.add("idle");
+      setActionButtonLabel("Begin");
+      setActionButtonHint("Tap when you step off");
+      setStatus(message);
+      updateNextPrompt();
+      debugText.textContent = "";
+      updateMarkerStates();
+      lockModeSelection(false);
+      lockSettings(false);
+      setActionButtonStageByLabel("");
+    }
+
+    function updateNextPrompt(justMarkedLabel = "") {
+      if (!started) {
+        if (!refreshTimingRequirementPrompt()) {
+          setStatus("");
+          return;
+        }
+        setStatus("");
+        return;
+      }
+      const labels = modes[currentMode].labels;
+      const nextLabel = labels[stage] || "Next";
+      // The old build emitted a "Marker recorded" banner and then overwrote it
+      // on the very next statement, so it was never actually readable. Both
+      // facts now live in one message.
+      const prefix = justMarkedLabel ? `${justMarkedLabel} marked. ` : "";
+      setStatus(`${prefix}Press Mark for ${nextLabel}.`);
+    }
+
+    /* ---------------- Practice flow ---------------- */
+    function recordMarker() {
+      if (!started) {
+        if (!validateSetup()) return;
+        started = true;
+        lockModeSelection(true);
+        lockSettings(true);
+        markerTimes = [0];
+        stage = 1;
+        setActionButtonLabel("Mark");
+        setActionButtonHint("Tap at each point");
+        playConfirmTone();
+        actionBtn.classList.remove("idle");
+        actionBtn.classList.add("running");
+        emitCue("start", { mode: currentMode });
+        updateNextPrompt();
+        updateMarkerStates();
+        return;
+      }
+
+      const elapsed = (performance.now() - startTimestamp) / 1000;
+      markerTimes.push(elapsed);
+      playConfirmTone();
+      stage += 1;
+      const markedLabel = modes[currentMode].labels[stage - 1];
+      // skipBanner: the banner text is owned by updateNextPrompt / the replay
+      // message below. Haptics and the screen-reader announcement still fire.
+      emitCue("marker", { stageLabel: markedLabel, skipBanner: true });
+
+      if (stage >= modes[currentMode].labels.length) {
+        actionBtn.disabled = true;
+        setActionButtonLabel("Replay");
+        setActionButtonHint("Listen");
+        setStatus("Replaying your markers and the reference.");
+        updateMarkerStates();
+        beginReplay();
+      } else {
+        updateNextPrompt(markedLabel);
+        updateMarkerStates();
+      }
+    }
+
+    function beginReplay() {
+      const reference = getReferenceTimes();
+      const labels = modes[currentMode].labels;
+      const baseDelay = TEST_TUNING.replayLeadInSec;
+      const maxTime = Math.max(...markerTimes, ...reference);
+      clearExemplarVisuals();
+      emitCue("replay_start", { referenceTimes: reference, markerTimes });
+      suppressSrAnnouncements = true;
+
+      if (labels[0]) {
+        exemplarVisualTimeouts.push(
+          setTimeout(() => { setActionButtonStageByLabel(labels[0]); }, baseDelay * 1000)
+        );
+      }
+
+      markerTimes.forEach((time) => {
+        if (replayUsesConfirmTone) {
+          playConfirmTone(baseDelay + time);
+          return;
+        }
+        playUserMarkerTone(baseDelay + time);
+      });
+
+      if (showDebug) {
+        const userTimes = markerTimes.map((time) => time.toFixed(2)).join(", ");
+        const refTimes = reference.map((time) => time.toFixed(2)).join(", ");
+        debugText.textContent = `User: ${userTimes}s | Ref: ${refTimes}s`;
+      } else {
+        debugText.textContent = "";
+      }
+
+      // One classification pass drives audio, visuals, cues and haptics.
+      const marks = reference.slice(1).map((time, index) => ({
+        time,
+        index,
+        label: labels[index + 1] || "Reference",
+        ...classifyMark(markerTimes[index + 1], time)
+      }));
+
+      marks.forEach(({ time, index, label, diff, feedbackType }) => {
+        playFeedbackTone(feedbackType, baseDelay + time);
+        exemplarVisualTimeouts.push(
+          setTimeout(() => { setActionButtonStageByLabel(labels[index + 1]); }, (baseDelay + time) * 1000)
+        );
+        const cueType = feedbackType === "acceptable" ? "reference_ok" : "reference_bad";
+        exemplarVisualTimeouts.push(
+          setTimeout(() => { emitCue(cueType, { stageLabel: label, diff }); }, (baseDelay + time) * 1000)
+        );
+      });
+
+      const visualEvents = [
+        ...markerTimes.map((time) => ({ timeSec: baseDelay + time, type: "user" })),
+        ...marks.map(({ time, feedbackType }) => ({
+          timeSec: baseDelay + time,
+          type: "reference",
+          feedbackType
+        }))
+      ];
+      const replayDoneAtSec = maxTime + baseDelay + TEST_TUNING.replayEndPadSec;
+      startSynchronizedVisualReplay(visualEvents, replayDoneAtSec);
+
+      clearTimeout(replayTimeout);
+      replayTimeout = setTimeout(() => {
+        suppressSrAnnouncements = false;
+        resetState("Ready for another try.");
+        emitCue("replay_end", { message: "Ready for another try." });
+      }, replayDoneAtSec * 1000);
+    }
+
+    /* ---------------- Cues ---------------- */
+    function emitCue(type, detail = {}) {
+      const messages = {
+        start: "Started.",
+        marker: `Marker recorded${detail.stageLabel ? `: ${detail.stageLabel}` : ""}.`,
+        replay_start: "Replay.",
+        replay_end: detail.message || "Ready for another try.",
+        validation_error: detail.message || "Need more information to start.",
+        reference_ok: `Reference: acceptable${detail.stageLabel ? ` for ${detail.stageLabel}` : ""}.`,
+        reference_bad: `Reference: outside tolerance${detail.stageLabel ? ` for ${detail.stageLabel}` : ""}.`
+      };
+      // Named bannerTones, not tones — the module-level `tones` object holds
+      // oscillator frequencies and must not be shadowed here.
+      const bannerTones = {
+        reference_ok: "ok",
+        reference_bad: "warn",
+        validation_error: "warn"
+      };
+      const message = messages[type] || "Updated.";
+
+      // During replay the banner is the only visual channel a Deaf or
+      // DeafBlind user has, so reference results are allowed through even
+      // while screen-reader speech is suppressed.
+      const isReplayResult = type === "reference_ok" || type === "reference_bad";
+      const bannerAllowed = a11ySettings.showBanner && !detail.skipBanner &&
+        (!suppressSrAnnouncements || isReplayResult);
+      if (bannerAllowed) {
+        cueBannerText.textContent = message;
+        cueBanner.dataset.tone = bannerTones[type] || "neutral";
+      }
+      syncCueBannerVisibility();
+      announceScreenReader(message);
+      hapticCue(type);
+
+      if (a11ySettings.flashAction && !prefersReducedMotion.matches) {
+        actionBtn.classList.add("flash");
+        clearTimeout(flashTimeout);
+        flashTimeout = setTimeout(() => { actionBtn.classList.remove("flash"); }, 160);
+      }
+    }
+
+    /* ---------------- Settings application ---------------- */
+    function applyA11ySettings() {
+      document.body.dataset.textSize = a11ySettings.textSize;
+      document.documentElement.style.fontSize = `${18 * getTextSizeScale(a11ySettings.textSize)}px`;
+      cueBannerText.classList.toggle("sr-only", !a11ySettings.useTextLabels);
+      document.body.classList.toggle("high-contrast", a11ySettings.highContrast);
+      document.body.classList.toggle("focus-boost", a11ySettings.focusBoost);
+      const resolvedTheme = a11ySettings.theme === "system"
+        ? (prefersDarkScheme.matches ? "dark" : "light")
+        : a11ySettings.theme;
+      document.body.dataset.theme = resolvedTheme;
+      textSizeLandscapeHint.hidden = !["huge", "xl", "xxl", "max"].includes(a11ySettings.textSize);
+      textSizeLandscapeHint.textContent = textSizeLandscapeHint.hidden
+        ? ""
+        : "At this size, portrait orientation keeps every control reachable.";
+      const visualReplayAvailable = visualOutputEnabled();
+      a11ySyncVisualReplay.disabled = !visualReplayAvailable;
+      if (!visualReplayAvailable) a11ySyncVisualReplay.checked = false;
+      syncCueBannerVisibility();
+      applyLayoutMode();
+      updateNativeStatusBar(resolvedTheme);
+    }
+
+    function updateNativeStatusBar(resolvedTheme) {
+      const StatusBar = CapacitorGlobal?.Plugins?.StatusBar;
+      if (!isNativeShell || !StatusBar) return;
+      try {
+        StatusBar.setStyle({ style: resolvedTheme === "light" ? "LIGHT" : "DARK" });
+      } catch (error) {
+        /* non-fatal */
+      }
+    }
+
+    function restoreStoredSettings() {
+      const storedClear = localStorage.getItem("om-clear-time");
+      const storedFull = localStorage.getItem("om-full-time");
+      const storedMargin = localStorage.getItem("om-margin");
+      const storedMode = localStorage.getItem("om-mode");
+      const storedReplay = localStorage.getItem("om-replay-use-confirm");
+      const storedDebug = localStorage.getItem("om-debug-replay");
+      const storedOutputMode = localStorage.getItem("om-a11y-output-mode");
+      const storedShowBanner = localStorage.getItem("om-a11y-show-banner");
+      const storedFlashAction = localStorage.getItem("om-a11y-flash-action");
+      const storedVibrate = localStorage.getItem("om-a11y-vibrate");
+      const storedUseTextLabels = localStorage.getItem("om-a11y-use-text-labels");
+      const storedTheme = localStorage.getItem("om-a11y-theme");
+      const storedTextSize = localStorage.getItem("om-a11y-text-size");
+      const storedHighContrast = localStorage.getItem("om-a11y-high-contrast");
+      const storedFocusBoost = localStorage.getItem("om-a11y-focus-boost");
+      const storedAnnounceCues = localStorage.getItem("om-a11y-announce-cues");
+      const storedSyncVisualReplay = localStorage.getItem("om-a11y-sync-visual-replay");
+      const storedOutsideVisualVariant = localStorage.getItem("om-a11y-outside-visual-variant");
+      const storedUserFlashContrast = localStorage.getItem("om-a11y-user-flash-contrast");
+
+      if (storedClear) clearTimeInput.value = storedClear;
+      if (storedFull) fullTimeInput.value = storedFull;
+      if (storedMargin) marginInput.value = storedMargin;
+      if (storedMode && modes[storedMode]) {
+        currentMode = storedMode;
+        modeInputs.forEach((input) => { input.checked = input.value === storedMode; });
+      }
+      replayUsesConfirmTone = storedReplay === "true";
+      replayUsesConfirm.checked = replayUsesConfirmTone;
+      showDebug = storedDebug === "true";
+      debugToggle.checked = showDebug;
+      applyDebugAccessibility();
+
+      if (storedOutputMode) {
+        a11ySettings.outputMode = storedOutputMode;
+        outputModeInputs.forEach((input) => { input.checked = input.value === storedOutputMode; });
+      }
+      if (storedShowBanner) a11ySettings.showBanner = storedShowBanner === "true";
+      if (storedFlashAction) a11ySettings.flashAction = storedFlashAction === "true";
+      if (storedVibrate) a11ySettings.vibrate = storedVibrate === "true";
+      if (storedUseTextLabels) a11ySettings.useTextLabels = storedUseTextLabels === "true";
+      if (storedTheme) a11ySettings.theme = storedTheme;
+      if (storedTextSize) a11ySettings.textSize = storedTextSize;
+      if (storedHighContrast) a11ySettings.highContrast = storedHighContrast === "true";
+      if (storedFocusBoost) a11ySettings.focusBoost = storedFocusBoost === "true";
+      if (storedAnnounceCues) a11ySettings.announceCues = storedAnnounceCues === "true";
+      if (storedSyncVisualReplay) a11ySettings.syncVisualReplay = storedSyncVisualReplay === "true";
+      if (storedOutsideVisualVariant === "up" || storedOutsideVisualVariant === "down") {
+        a11ySettings.outsideVisualVariant = storedOutsideVisualVariant;
+      }
+      if (storedUserFlashContrast && VISUAL_USER_FLASH_COLORS[storedUserFlashContrast]) {
+        a11ySettings.userFlashContrast = storedUserFlashContrast;
+      }
+
+      a11yShowBanner.checked = a11ySettings.showBanner;
+      a11yFlashAction.checked = a11ySettings.flashAction;
+      a11yVibrate.checked = a11ySettings.vibrate;
+      a11yUseTextLabels.checked = a11ySettings.useTextLabels;
+      a11ySyncVisualReplay.checked = a11ySettings.syncVisualReplay;
+      outsideVisualVariantInputs.forEach((input) => {
+        input.checked = input.value === a11ySettings.outsideVisualVariant;
+      });
+      userFlashContrastInputs.forEach((input) => {
+        input.checked = input.value === a11ySettings.userFlashContrast;
+      });
+      a11yTheme.value = a11ySettings.theme;
+      a11yTextSize.value = a11ySettings.textSize;
+      a11yHighContrast.checked = a11ySettings.highContrast;
+      a11yFocusBoost.checked = a11ySettings.focusBoost;
+      a11yAnnounceCues.checked = a11ySettings.announceCues;
+      applyA11ySettings();
+    }
+
+    /* ---------------- Event wiring ---------------- */
+    actionBtn.addEventListener("click", () => {
+      ensureAudioContext();
+      if (!started) startTimestamp = performance.now();
+      recordMarker();
+    });
+
+    modeInputs.forEach((input) => { input.addEventListener("change", updateMode); });
+
+    settingsTrigger.addEventListener("click", () => {
+      lastDialogTrigger = settingsTrigger;
+      lockPageScroll();
+      setMainContentInert(true);
+      settingsModal.showModal();
+      settingsTitle.focus();
+    });
+
+    closeSettings.addEventListener("click", () => { settingsModal.close(); });
+
+    a11yTrigger.addEventListener("click", () => {
+      lastDialogTrigger = a11yTrigger;
+      lockPageScroll();
+      setMainContentInert(true);
+      a11yModal.showModal();
+      a11yTitle.focus();
+    });
+
+    closeA11y.addEventListener("click", () => { a11yModal.close(); });
+
+    timingRequiredPromptButton.addEventListener("click", () => { openSettingsForTimingEntry(); });
+
+    settingsModal.addEventListener("close", () => {
+      settingsVisualPreview.dataset.active = "false";
+      settingsVisualPreviewFlash.style.background = "transparent";
+      settingsVisualPreviewShape.style.display = "none";
+      if (!a11yModal.open) {
+        unlockPageScroll();
+        setMainContentInert(false);
+      }
+      lastDialogTrigger?.focus();
+    });
+
+    a11yModal.addEventListener("close", () => {
+      if (!settingsModal.open) {
+        unlockPageScroll();
+        setMainContentInert(false);
+      }
+      lastDialogTrigger?.focus();
+    });
+
+    acceptableInputs.forEach((input) => {
+      input.addEventListener("change", () => { storeSelection("acceptable", input.value); });
+    });
+
+    outsideInputs.forEach((input) => {
+      input.addEventListener("change", () => { storeSelection("outside", input.value); });
+    });
+
+    previewButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        ensureAudioContext();
+        const soundId = button.dataset.sound;
+        if (feedbackOptions.acceptable[soundId]) {
+          playSoundOption(feedbackOptions.acceptable[soundId], 0, TEST_TUNING.feedbackVolume);
+          return;
+        }
+        if (feedbackOptions.outside[soundId]) {
+          playSoundOption(feedbackOptions.outside[soundId], 0, TEST_TUNING.feedbackVolume);
+        }
+      });
+    });
+
+    previewUserSoundBtn.addEventListener("click", () => {
+      ensureAudioContext();
+      if (replayUsesConfirmTone) {
+        playConfirmTone(0);
+        return;
+      }
+      playUserMarkerTone(0);
+    });
+
+    visualPreviewButtons.forEach((button) => {
+      button.addEventListener("click", () => { playVisualPreview(button.dataset.visualType); });
+    });
+
+    outsideVisualVariantInputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        a11ySettings.outsideVisualVariant = input.value;
+        localStorage.setItem("om-a11y-outside-visual-variant", a11ySettings.outsideVisualVariant);
+      });
+    });
+
+    userFlashContrastInputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        a11ySettings.userFlashContrast = input.value;
+        localStorage.setItem("om-a11y-user-flash-contrast", a11ySettings.userFlashContrast);
+      });
+    });
+
+    exemplarButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        ensureAudioContext();
+        playExemplar(button.dataset.exemplarMode);
+      });
+    });
+
+    replayUsesConfirm.addEventListener("change", () => {
+      replayUsesConfirmTone = replayUsesConfirm.checked;
+      localStorage.setItem("om-replay-use-confirm", String(replayUsesConfirmTone));
+    });
+
+    debugToggle.addEventListener("change", () => {
+      showDebug = debugToggle.checked;
+      localStorage.setItem("om-debug-replay", String(showDebug));
+      applyDebugAccessibility();
+    });
+
+    clearTimeInput.addEventListener("input", () => { refreshTimingRequirementPrompt(); });
+    clearTimeInput.addEventListener("change", () => {
+      localStorage.setItem("om-clear-time", clearTimeInput.value);
+      refreshTimingRequirementPrompt();
+      updateNextPrompt();
+    });
+
+    fullTimeInput.addEventListener("input", () => { refreshTimingRequirementPrompt(); });
+    fullTimeInput.addEventListener("change", () => {
+      localStorage.setItem("om-full-time", fullTimeInput.value);
+      refreshTimingRequirementPrompt();
+      updateNextPrompt();
+    });
+
+    marginInput.addEventListener("change", () => {
+      localStorage.setItem("om-margin", marginInput.value);
+    });
+
+    outputModeInputs.forEach((input) => {
+      input.addEventListener("change", () => {
+        a11ySettings.outputMode = input.value;
+        localStorage.setItem("om-a11y-output-mode", input.value);
+        const wantsVisual = a11ySettings.outputMode !== "audio-only";
+        a11ySettings.syncVisualReplay = wantsVisual;
+        a11ySyncVisualReplay.checked = wantsVisual;
+        localStorage.setItem("om-a11y-sync-visual-replay", String(wantsVisual));
+        applyA11ySettings();
+      });
+    });
+
+    a11yShowBanner.addEventListener("change", () => {
+      a11ySettings.showBanner = a11yShowBanner.checked;
+      localStorage.setItem("om-a11y-show-banner", String(a11ySettings.showBanner));
+      applyA11ySettings();
+    });
+
+    a11yFlashAction.addEventListener("change", () => {
+      a11ySettings.flashAction = a11yFlashAction.checked;
+      localStorage.setItem("om-a11y-flash-action", String(a11ySettings.flashAction));
+    });
+
+    a11yVibrate.addEventListener("change", () => {
+      a11ySettings.vibrate = a11yVibrate.checked;
+      localStorage.setItem("om-a11y-vibrate", String(a11ySettings.vibrate));
+    });
+
+    a11yUseTextLabels.addEventListener("change", () => {
+      a11ySettings.useTextLabels = a11yUseTextLabels.checked;
+      localStorage.setItem("om-a11y-use-text-labels", String(a11ySettings.useTextLabels));
+      applyA11ySettings();
+    });
+
+    a11yTheme.addEventListener("change", () => {
+      a11ySettings.theme = a11yTheme.value;
+      localStorage.setItem("om-a11y-theme", a11ySettings.theme);
+      applyA11ySettings();
+    });
+
+    a11yTextSize.addEventListener("change", () => {
+      a11ySettings.textSize = a11yTextSize.value;
+      localStorage.setItem("om-a11y-text-size", a11ySettings.textSize);
+      applyA11ySettings();
+    });
+
+    a11yHighContrast.addEventListener("change", () => {
+      a11ySettings.highContrast = a11yHighContrast.checked;
+      localStorage.setItem("om-a11y-high-contrast", String(a11ySettings.highContrast));
+      applyA11ySettings();
+    });
+
+    a11yFocusBoost.addEventListener("change", () => {
+      a11ySettings.focusBoost = a11yFocusBoost.checked;
+      localStorage.setItem("om-a11y-focus-boost", String(a11ySettings.focusBoost));
+      applyA11ySettings();
+    });
+
+    a11yAnnounceCues.addEventListener("change", () => {
+      a11ySettings.announceCues = a11yAnnounceCues.checked;
+      localStorage.setItem("om-a11y-announce-cues", String(a11ySettings.announceCues));
+    });
+
+    a11ySyncVisualReplay.addEventListener("change", () => {
+      a11ySettings.syncVisualReplay = a11ySyncVisualReplay.checked;
+      localStorage.setItem("om-a11y-sync-visual-replay", String(a11ySettings.syncVisualReplay));
+      if (!a11ySettings.syncVisualReplay) stopVisualReplay();
+    });
+
+    hapticsTestBtn.addEventListener("click", () => {
+      if (!hapticsAvailable()) {
+        setStatus("No haptics available on this platform.", "warn");
+        announceScreenReader("No haptics available on this platform.");
+        return;
+      }
+      const wasEnabled = a11ySettings.vibrate;
+      a11ySettings.vibrate = true;
+      hapticCue("marker");
+      setTimeout(() => { hapticCue("reference_ok"); }, 420);
+      setTimeout(() => {
+        hapticCue("reference_bad");
+        a11ySettings.vibrate = wasEnabled;
+      }, 900);
+      setStatus("Playing three test pulses: marker, acceptable, outside.");
+      announceScreenReader("Playing three test pulses: marker, acceptable, outside.");
+    });
+
+    prefersDarkScheme.addEventListener("change", () => {
+      if (a11ySettings.theme === "system") applyA11ySettings();
+    });
+
+    window.addEventListener("hashchange", () => {
+      if (!importSharedTimingSettings()) return;
+      if (pendingStatusMessage) {
+        setStatus(pendingStatusMessage);
+        announceScreenReader(pendingStatusMessage);
+      }
+    });
+
+    window.addEventListener("resize", syncViewportHeight);
+    window.visualViewport?.addEventListener("resize", syncViewportHeight);
+    window.visualViewport?.addEventListener("scroll", syncViewportHeight);
+
+    numberInputs.forEach((input) => {
+      input.addEventListener("focus", () => {
+        setTimeout(() => { input.select(); }, 0);
+      });
+    });
+
+    const unlockAudio = () => {
+      ensureAudioContext();
+      document.removeEventListener("pointerdown", unlockAudio);
+      document.removeEventListener("keydown", unlockAudio);
+    };
+    document.addEventListener("pointerdown", unlockAudio, { once: true });
+    document.addEventListener("keydown", unlockAudio, { once: true });
+
+    shareTimingSettingsBtn.addEventListener("click", () => { copyShareTimingLink(); });
+
+    copySetupTimingMessageBtn.addEventListener("click", async () => {
+      if (!setupTimingMessage.value) {
+        if (!validateSetup()) return;
+        populateShareMessagePreviews();
+      }
+      await copyTextToClipboard(setupTimingMessage.value);
+      setStatus("Copied the setup message.");
+      announceScreenReader("Copied the setup message.");
+    });
+
+    copyPracticeTimingMessageBtn.addEventListener("click", async () => {
+      if (!practiceTimingMessage.value) {
+        if (!validateSetup()) return;
+        populateShareMessagePreviews();
+      }
+      await copyTextToClipboard(practiceTimingMessage.value);
+      setStatus("Copied the practice message.");
+      announceScreenReader("Copied the practice message.");
+    });
+
+    /* ---------------- Boot ---------------- */
+    syncViewportHeight();
+    importSharedTimingSettings();
+    applyStoredSelections();
+    restoreStoredSettings();
+    renderMarkers();
+    updateNextPrompt();
+    hapticsSupportNote.textContent = describeHapticsSupport();
+
+    if (pendingStatusMessage) {
+      setStatus(pendingStatusMessage);
+      announceScreenReader(pendingStatusMessage);
+    }
+
+    // Offline support for the web/PWA build. Harmless inside the native shell,
+    // where files are already local.
+    if ("serviceWorker" in navigator && location.protocol !== "file:" && !isNativeShell) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(() => { /* offline is best-effort */ });
+      });
+    }
+  </script>
+</body>
+</html>

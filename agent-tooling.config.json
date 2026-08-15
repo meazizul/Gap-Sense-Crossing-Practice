@@ -1,0 +1,46 @@
+{
+  "repo": "Streets",
+  "beadPrefix": "uc",
+  "vale": {
+    "accept": ["beads", "bd", "Next.js", "Tailwind"],
+    "reject": []
+  },
+  "biome": {
+    "quoteStyle": "double",
+    "fileExcludes": [
+      "!.claude",
+      "!.vexp",
+      "!index.html",
+      "!public/legacy-prototype.html",
+      "!RESEARCH.md"
+    ]
+  },
+  "preflight": {
+    "readmeTriggerPatterns": [
+      "^app/.+",
+      "^src/.+",
+      "^lib/.+",
+      "^hooks/.+",
+      "^components/.+",
+      "^scripts/.+",
+      "^db/.+",
+      "^package\\.json$",
+      "^\\.claude/.+"
+    ],
+    "docsTriggerPatterns": ["^docs/.+"],
+    "docsIgnorePatterns": ["^docs/README\\.md$", "^docs/AI_CONTEXT\\.md$"],
+    "structureScriptPath": "scripts/check-structure.mjs",
+    "structureRulesDoc": "docs/NEXTJS_CODE_STRUCTURE.md",
+    "docsLinks": {
+      "readme": "README.md",
+      "docs-readme": "docs/README.md",
+      "biome": "docs/SCRIPTS_GUIDE.md",
+      "gitleaks": "docs/SCRIPTS_GUIDE.md",
+      "structure": "docs/NEXTJS_CODE_STRUCTURE.md",
+      "commit-title": "docs/COMMIT_MESSAGE_SPEC.md",
+      "commit-body": "docs/COMMIT_MESSAGE_SPEC.md",
+      "trailer": "docs/COMMIT_MESSAGE_SPEC.md",
+      "commitlint": "docs/COMMIT_MESSAGE_SPEC.md"
+    }
+  }
+}

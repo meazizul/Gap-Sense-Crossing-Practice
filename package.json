@@ -1,0 +1,16 @@
+{
+  "name": "streets",
+  "version": "1.0.0",
+  "description": "O&M Timing Practice Prototype",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "test": "echo \"No tests configured\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "@commitlint/cli": "^21.0.1"
+  }
+}
