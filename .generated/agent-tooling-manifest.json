@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-05-18T06:23:17.468Z",
+  "agentToolingCommit": "db65401eb332facc9f0dbaa9e59b597613d8311a",
+  "artifacts": [
+    "biome.json",
+    "commitlint.config.mjs",
+    ".beads/hooks/pre-commit",
+    ".beads/hooks/commit-msg",
+    ".agent-tooling/",
+    ".vale.ini",
+    ".vale/styles/AgentTooling/",
+    ".vale/styles/config/vocabularies/AgentTooling/",
+    ".vale/styles/config/vocabularies/Streets/accept.txt",
+    ".vale/styles/config/vocabularies/Streets/reject.txt",
+    ".markdownlint-cli2.jsonc"
+  ]
+}

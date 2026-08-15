@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# managed by materialization - do not edit directly
+# pre-commit hook — staged file checks (biome, gitleaks, readme, structure).
+# Copy to .beads/hooks/pre-commit in your product repo.
+#
+# Setup guide: agent-tooling/docs/PREFLIGHT_SETUP.md
+
+# --- BEGIN BEADS INTEGRATION ---
+# (beads section goes here — do not modify)
+# --- END BEADS INTEGRATION ---
+
+node .agent-tooling/commit-preflight.mjs \
+  --config ./preflight.config.mjs
+exit $?

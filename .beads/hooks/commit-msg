@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# managed by materialization - do not edit directly
+# commit-msg hook — commit message checks (title, body, trailer, bead ID).
+# Copy to .beads/hooks/commit-msg in your product repo.
+#
+# Setup guide: agent-tooling/docs/PREFLIGHT_SETUP.md
+
+COMMIT_MSG_FILE="$1"
+
+node .agent-tooling/commit-preflight.mjs \
+  --config ./preflight.config.mjs \
+  --commit-msg-file "$COMMIT_MSG_FILE"
+exit $?

@@ -1,0 +1,22 @@
+{
+  "appId": "com.gapsense.crossingpractice",
+  "appName": "Gap Sense — Crossing Practice",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#EEF2F7"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "launchAutoHide": true,
+      "backgroundColor": "#0F766E",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "DARK",
+      "backgroundColor": "#EEF2F7"
+    }
+  }
+}

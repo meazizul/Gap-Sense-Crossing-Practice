@@ -1,0 +1,5 @@
+# Beads Configuration File
+# This file configures default behavior for all bd commands in this repository.
+
+issue-prefix: "uc"
+sync.remote: "git+https://github.com/exploretry/streets.git"

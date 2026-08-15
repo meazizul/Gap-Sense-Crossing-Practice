@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local tooling state
+.beads/*
+!.beads/issues.jsonl
+!.beads/config.yaml
+!.beads/hooks/
+.beads/hooks/*
+!.beads/hooks/pre-commit
+!.beads/hooks/commit-msg
+.claude/
+.codex/
+openspec/
+.claude/worktrees/
+.vexp/index.db
+.vexp/index.db-shm
+.vexp/index.db-wal
+.vexp/daemon.log
+.vexp/daemon.pid
+.vexp/daemon.pipe
+.vexp/healthy
+.next-dev.err.log
+.next-dev.log
+
+# ---------------------------------------------------------------
+# iOS / Capacitor
+# ---------------------------------------------------------------
+# CocoaPods dependencies are restored with `pod install`; Podfile.lock IS
+# committed so everyone resolves identical versions.
+ios-app/ios/App/Pods/
+
+# Capacitor copies www/ into the native project on every `cap copy`. It is a
+# build artifact — editing it does nothing, since the next copy overwrites it.
+ios-app/ios/App/App/public/
+
+# Xcode build output and per-user state
+ios-app/ios/App/build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.ipa
+*.dSYM.zip
+*.dSYM
