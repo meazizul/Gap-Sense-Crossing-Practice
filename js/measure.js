@@ -268,6 +268,10 @@ function gsMeasurePlayback() {
   if (typeof gsShowIntervalVisual === "function") {
     gsShowIntervalVisual(0.25, seconds);
   }
+  // Feel the measured crossing as well as hear it.
+  if (typeof gsFeelInterval === "function") {
+    gsFeelInterval(0.25, seconds, "reference_ok");
+  }
   gsMeasureStatus("Listen: that gap is how long your crossing takes.");
 }
 
