@@ -67,3 +67,10 @@ ios-app/build/*.ipa
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Capacitor copies www/ into the native projects on every sync
+ios-app/android/app/src/main/assets/public/
+ios-app/android/.gradle/
+ios-app/android/app/build/
+ios-app/android/build/
+ios-app/android/local.properties

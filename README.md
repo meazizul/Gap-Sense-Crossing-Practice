@@ -59,6 +59,7 @@ Start here depending on what you want:
 |---|---|
 | **[`docs/PARTICIPANT_GUIDE.md`](docs/PARTICIPANT_GUIDE.md)** | **For people trying the app.** Simple English, screen-reader friendly |
 | **[`docs/CONFERENCE_TESTING_PLAN.md`](docs/CONFERENCE_TESTING_PLAN.md)** | How to get the app onto ~100 participants' phones at a conference |
+| **[`docs/HAPTICS_DISTRIBUTION.md`](docs/HAPTICS_DISTRIBUTION.md)** | **Getting vibration to DeafBlind participants** — the only routes that work, and what each costs |
 | **[`docs/FEATURE_STATUS.md`](docs/FEATURE_STATUS.md)** | Line-by-line trace of the feature proposal to what exists |
 | **[`docs/APP_GUIDE.md`](docs/APP_GUIDE.md)** | How the app works and how to operate it — every screen, setting, and mode |
 | **[`docs/TESTING.md`](docs/TESTING.md)** | How to test it: step-by-step procedures and pass/fail checklists |
