@@ -54,10 +54,17 @@
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" role="img" focusable="false">
-            <path d="M4 20h16" />
-            <path d="M7 20V9l5-5 5 5v11" />
-            <path d="M12 20v-5" />
-            <circle cx="12" cy="10.5" r="1.4" />
+            <!-- A traveller crossing with a white cane: the project in one mark. -->
+            <circle cx="9.4" cy="4.4" r="2" fill="currentColor" stroke="none" />
+            <path d="M9.7 6.6 L10.4 12.4" />
+            <path d="M10.4 12.2 L8 17" />
+            <path d="M10.4 12.2 L12.7 16.6" />
+            <path d="M10 8 L8 10.5" />
+            <path d="M10.2 8 L13.3 9.5" />
+            <path d="M13.3 9.5 L17.4 16.2" />
+            <circle cx="17.6" cy="16.7" r="0.95" fill="currentColor" stroke="none" />
+            <path d="M7 19.4 H16.4" />
+            <path d="M5 21.7 H18.6" />
           </svg>
         </span>
         <div class="brand-text">
@@ -88,6 +95,11 @@
     <!-- ================= HOME ================= -->
     <section id="screen-home" class="screen">
       <h2 class="screen-heading sr-only">Home</h2>
+
+      <button class="settings-action primary try-demo" id="tryDemoBtn" type="button">
+        Try it now with example times
+      </button>
+      <p class="demo-note" hidden>Using example times. Measure your own crossing when you are ready.</p>
 
       <section class="setup-required-prompt" id="homeSetupBanner" hidden>
         <p class="setup-required-prompt-title">Start here</p>
@@ -178,6 +190,7 @@
     <!-- ================= PRACTICE ================= -->
     <section id="screen-practice" class="screen" hidden>
       <h2 class="screen-heading sr-only">Practise my timing</h2>
+      <p class="demo-note" hidden>Using example times. Measure your own crossing when you are ready.</p>
 
     <section class="card" aria-labelledby="modeCardLabel">
       <p class="card-label" id="modeCardLabel">Practice mode</p>

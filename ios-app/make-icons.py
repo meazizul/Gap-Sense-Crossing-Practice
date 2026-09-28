@@ -1,59 +1,72 @@
-"""Generate app icons: a zebra-crossing glyph on the brand gradient.
-Re-run after changing BRAND_TOP / BRAND_BOTTOM to refresh every size."""
+"""Gap Sense app icon: a traveller with a white cane crossing a marked street.
+
+Drawn programmatically so the mark can be regenerated at any size and the brand
+colours changed in one place. Everything is bold and high-contrast: the icon has
+to survive being shown at 60 px on a home screen.
+"""
 from PIL import Image, ImageDraw
 
-BRAND_TOP = (15, 118, 110)     # teal-700
-BRAND_BOTTOM = (14, 116, 144)  # cyan-700
-STRIPE = (255, 255, 255)
+BRAND_TOP = (15, 118, 110)      # teal-700
+BRAND_BOTTOM = (14, 116, 144)   # cyan-700
+WHITE = (255, 255, 255)
+CANE_TIP = (255, 214, 102)      # amber — the one accent, marks the cane tip
 
-SS = 4  # supersample factor for clean edges
+SS = 4  # supersample for clean edges
 
 
 def lerp(a, b, t):
     return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
 
 
+def draw_mark(d, S):
+    """Draw into a S x S box. Coordinates are written in 0-100 space."""
+    u = S / 100.0
+
+    def P(x, y):
+        return (x * u, y * u)
+
+    def line(p1, p2, width, fill=WHITE):
+        d.line([P(*p1), P(*p2)], fill=fill, width=max(1, int(width * u)), joint="curve")
+
+    def dot(cx, cy, r, fill=WHITE):
+        d.ellipse([P(cx - r, cy - r), P(cx + r, cy + r)], fill=fill)
+
+    # --- crossing stripes: a clean ground band, clear of the figure ----
+    for y, half, h in ((74.0, 26.0, 6.5), (86.0, 33.0, 7.0)):
+        d.rounded_rectangle(
+            [P(50 - half, y), P(50 + half, y + h)],
+            radius=(h * u) * 0.42,
+            fill=WHITE,
+        )
+
+    # --- the traveller, walking to the right ---------------------------
+    dot(41, 18, 7.6)                      # head
+    line((41.5, 26), (43.5, 45), 6.8)     # torso
+    line((43.5, 44), (34, 68), 6.0)       # rear leg, pushing off
+    line((43.5, 44), (52, 66), 6.0)       # front leg, mid-stride
+    line((42.5, 30), (34.5, 41), 5.0)     # trailing arm
+    line((43.0, 30), (55, 37), 5.0)       # leading arm, holding the cane
+
+    # --- white cane, sweeping ahead and down ---------------------------
+    line((55, 37), (73, 65), 3.8)
+    dot(73.5, 66.5, 4.2, CANE_TIP)
+
+
 def make(size, rounded=True):
-    w = size * SS
-    img = Image.new("RGBA", (w, w), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
+    S = size * SS
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img, "RGBA")
 
-    # Diagonal-ish vertical gradient.
-    for y in range(w):
-        d.line([(0, y), (w, y)], fill=lerp(BRAND_TOP, BRAND_BOTTOM, y / max(1, w - 1)))
+    for y in range(S):
+        d.line([(0, y), (S, y)], fill=lerp(BRAND_TOP, BRAND_BOTTOM, y / max(1, S - 1)))
 
-    # Zebra-crossing stripes in perspective: bars get narrower toward the top.
-    n = 4
-    top_margin = w * 0.20
-    bottom_margin = w * 0.14
-    band = w - top_margin - bottom_margin
-    gap_ratio = 0.42
-    bar_h = band / (n + (n - 1) * gap_ratio)
-    gap = bar_h * gap_ratio
-
-    for i in range(n):
-        y0 = top_margin + i * (bar_h + gap)
-        y1 = y0 + bar_h
-        # Perspective: narrowest at the top (i == 0), widest at the bottom.
-        t = i / (n - 1)
-        half = (0.20 + 0.14 * t) * w
-        cx = w / 2
-        r = bar_h * 0.34
-        d.rounded_rectangle([cx - half, y0, cx + half, y1], radius=r, fill=STRIPE)
+    draw_mark(d, S)
 
     if rounded:
-        # iOS applies its own mask, but a rounded source looks right everywhere else.
-        mask = Image.new("L", (w, w), 0)
-        ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, w - 1], radius=int(w * 0.2237), fill=255)
+        mask = Image.new("L", (S, S), 0)
+        ImageDraw.Draw(mask).rounded_rectangle([0, 0, S - 1, S - 1], radius=int(S * 0.2237), fill=255)
         img.putalpha(mask)
-
     return img.resize((size, size), Image.LANCZOS)
-
-
-def make_square_opaque(size):
-    """App Store / Capacitor icons must be square with no alpha."""
-    img = make(size, rounded=False).convert("RGB")
-    return img
 
 
 targets = [
@@ -65,8 +78,8 @@ targets = [
 ]
 
 for path, size, rounded in targets:
-    if rounded:
-        make(size, rounded=True).save(path)
-    else:
-        make_square_opaque(size).save(path)
+    img = make(size, rounded=rounded)
+    if not rounded:
+        img = img.convert("RGB")
+    img.save(path)
     print("wrote", path, f"{size}x{size}")

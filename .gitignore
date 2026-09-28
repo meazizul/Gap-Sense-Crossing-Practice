@@ -63,3 +63,7 @@ xcuserdata/
 # Private: email correspondence archive — never publish
 correspondence/
 ios-app/build/*.ipa
+
+# Python bytecode
+__pycache__/
+*.pyc

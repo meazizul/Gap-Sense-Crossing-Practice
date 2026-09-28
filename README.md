@@ -27,7 +27,16 @@ heard as rhythm*, not read as a number.
 | **2** | 2 minutes | An iPhone on the same Wi-Fi | Real phone install via Safari → Add to Home Screen |
 | **3** | ~15 minutes | A Mac with Xcode + an Apple ID | The native iOS app, with real Taptic Engine haptics |
 
-Fastest path:
+**To try it instantly — nothing to install:**
+
+```
+https://azizulhaque.me/Gap-Sense-Crossing-Practice/?demo=1
+```
+
+That link loads example times and opens straight into practice, so you can press
+the button immediately.
+
+Fastest path to run it locally:
 
 ```sh
 cd ios-app
@@ -48,6 +57,9 @@ Start here depending on what you want:
 
 | Document | What it covers |
 |---|---|
+| **[`docs/PARTICIPANT_GUIDE.md`](docs/PARTICIPANT_GUIDE.md)** | **For people trying the app.** Simple English, screen-reader friendly |
+| **[`docs/CONFERENCE_TESTING_PLAN.md`](docs/CONFERENCE_TESTING_PLAN.md)** | How to get the app onto ~100 participants' phones at a conference |
+| **[`docs/FEATURE_STATUS.md`](docs/FEATURE_STATUS.md)** | Line-by-line trace of the feature proposal to what exists |
 | **[`docs/APP_GUIDE.md`](docs/APP_GUIDE.md)** | How the app works and how to operate it — every screen, setting, and mode |
 | **[`docs/TESTING.md`](docs/TESTING.md)** | How to test it: step-by-step procedures and pass/fail checklists |
 | **[`docs/HAPTICS.md`](docs/HAPTICS.md)** | Vibration and haptic feedback — how it works, why iOS needs a native app, how to verify it |
