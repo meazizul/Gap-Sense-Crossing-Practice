@@ -6,11 +6,17 @@
  *
  * Bump CACHE_VERSION whenever www/ changes, or the old files keep being served.
  */
-const CACHE_VERSION = "uc-v1";
+const CACHE_VERSION = "gapsense-v2";
 const PRECACHE = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./css/app.css",
+  "./js/engine.js",
+  "./js/history.js",
+  "./js/measure.js",
+  "./js/comparison.js",
+  "./js/app.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
