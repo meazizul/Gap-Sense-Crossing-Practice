@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Gap Sense</string>
+    <string name="title_activity_main">Gap Sense</string>
+    <string name="package_name">com.gapsense.crossingpractice</string>
+    <string name="custom_url_scheme">com.gapsense.crossingpractice</string>
+</resources>

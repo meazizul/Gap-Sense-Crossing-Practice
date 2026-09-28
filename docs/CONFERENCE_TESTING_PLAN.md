@@ -66,6 +66,11 @@ not part of the 30-second path.
 
 ### Tier 2 — iPhone haptics: TestFlight
 
+> **See [`HAPTICS_DISTRIBUTION.md`](HAPTICS_DISTRIBUTION.md) for the full
+> haptics-focused version of this, including the Android web-vibration test to
+> run first and the exact TestFlight setup steps.**
+
+
 This is the only way to give iOS haptics to people who are not you.
 
 **What it costs and takes:**
