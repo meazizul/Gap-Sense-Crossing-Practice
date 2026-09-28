@@ -187,10 +187,14 @@
     const hasWebVibrate = typeof navigator.vibrate === "function";
 
     const WEB_VIBRATION_PATTERNS = {
-      start: [25],
-      marker: [40],
-      reference_ok: [30, 30, 30],
-      reference_bad: [120]
+      start: [30],
+      // One short tick = "this is you".
+      marker: [45],
+      // Three quick ticks = within the margin.
+      reference_ok: [35, 45, 35, 45, 35],
+      // One long, heavy buzz = outside the margin. Deliberately several times
+      // longer than anything else so it cannot be mistaken by touch alone.
+      reference_bad: [240]
     };
 
     function hapticsAvailable() {
@@ -1000,7 +1004,10 @@
       labels.forEach((label, index) => {
         const time = times[index] ?? 0;
         exemplarVisualTimeouts.push(
-          setTimeout(() => { setActionButtonStageByLabel(label); }, (baseDelay + time) * 1000)
+          setTimeout(() => {
+            setActionButtonStageByLabel(label);
+            hapticCue("marker");
+          }, (baseDelay + time) * 1000)
         );
         playUserMarkerTone(baseDelay + time);
       });
@@ -1247,9 +1254,15 @@
       markerTimes.forEach((time) => {
         if (replayUsesConfirmTone) {
           playConfirmTone(baseDelay + time);
-          return;
+        } else {
+          playUserMarkerTone(baseDelay + time);
         }
-        playUserMarkerTone(baseDelay + time);
+        // Vibrate at the user's own tap too. Without this a DeafBlind user
+        // feels only the reference pulse, with nothing to compare it against —
+        // and the gap between the two IS the feedback.
+        exemplarVisualTimeouts.push(
+          setTimeout(() => { hapticCue("marker"); }, (baseDelay + time) * 1000)
+        );
       });
 
       if (showDebug) {

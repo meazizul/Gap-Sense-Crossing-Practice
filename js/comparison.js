@@ -31,6 +31,26 @@ const GS_ANSWER_LABELS = {
   longer: "Longer than my crossing"
 };
 
+/**
+ * Mark the two ends of an interval by touch. For a DeafBlind traveller this is
+ * the whole channel: they cannot hear the tone or see the shape, so the only
+ * thing carrying the duration is the time between two pulses on their hand.
+ */
+const gsHapticTimers = [];
+
+function gsHapticAt(delaySec, cue) {
+  gsHapticTimers.push(setTimeout(() => hapticCue(cue), Math.max(0, delaySec) * 1000));
+}
+
+function gsClearHaptics() {
+  while (gsHapticTimers.length) clearTimeout(gsHapticTimers.pop());
+}
+
+function gsFeelInterval(startDelaySec, durationSec, endCue = "marker") {
+  gsHapticAt(startDelaySec, "marker");
+  gsHapticAt(startDelaySec + durationSec, endCue);
+}
+
 function gsCrossingTimeFor(street) {
   const times = getTimingInputs();
   return street === "half" ? times.clearTime : times.fullTime;
@@ -66,6 +86,7 @@ function gsPlayInterval(intervalSec, startDelaySec = 0, style = "continuous") {
   if (typeof gsShowIntervalVisual === "function") {
     gsShowIntervalVisual(startDelaySec, intervalSec);
   }
+  gsFeelInterval(startDelaySec, intervalSec);
 }
 
 /** Replay the judged interval and then the true crossing time, back to back. */
@@ -79,6 +100,7 @@ function gsReplayComparison(intervalSec, crossingSec, style) {
   if (typeof gsShowIntervalVisual === "function") {
     gsShowIntervalVisual(secondStart, crossingSec, "acceptable");
   }
+  gsFeelInterval(secondStart, crossingSec, "reference_ok");
   return secondStart + crossingSec + 0.6;
 }
 
@@ -144,6 +166,7 @@ function gsCompareSetAnswersEnabled(enabled) {
 }
 
 function gsCompareNewTrial() {
+  gsClearHaptics();
   const crossingSec = gsCrossingTimeFor(gsCompareState.street);
   if (!Number.isFinite(crossingSec) || crossingSec <= 0) {
     gsCompareStatus("Set your crossing times first — measure them or enter them in Settings.", "warn");
