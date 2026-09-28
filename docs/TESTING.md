@@ -287,6 +287,64 @@ was discarded.)*
 
 ---
 
+## H. The new activities
+
+### H1 — Measure my crossing
+Home → **Measure my crossing** → keep "Both" → tap STEP OFF, walk, tap at the
+clear point, tap at the far side. Repeat three times.
+
+**Pass:**
+- [ ] Each walk appears in the list with two times
+- [ ] After three walks the average appears with a walk count
+- [ ] The duration plays back automatically after each walk
+- [ ] **Save as my crossing times** updates Settings
+- [ ] Walking deliberately inconsistently triggers the spread warning
+
+### H2 — Compare practice
+Home → **Compare practice** → **Play a gap** → answer.
+
+**Pass:**
+- [ ] The gap plays, then the three answer buttons become enabled
+- [ ] A correct answer chimes and moves on
+- [ ] A wrong answer plays the gap and then your crossing time, back to back
+- [ ] Switching to "Two taps with silence between" changes how the gap sounds
+- [ ] Enabling the follow-up asks you to tap out the difference after a correct answer
+- [ ] The score line updates
+
+### H3 — At the street ⭐ (outdoors, real traffic)
+Home → **At the street** → set direction → **Sample the quiet** → time a vehicle.
+
+**Pass:**
+- [ ] Microphone permission is requested once, with a clear explanation
+- [ ] Sampling completes and the note confirms a quiet level is recorded
+- [ ] Tap on detection, tap again as it passes → immediate longer/shorter/same
+- [ ] A vehicle giving more warning than your crossing time reports "enough warning"
+- [ ] **Cancel** discards the trial and records nothing
+- [ ] Starting a measurement next to a loud noise flags it
+
+### H4 — Adaptive margin
+Progress → tick **Adaptive margin of error**, then do 10 comparison attempts.
+
+**Pass:**
+- [ ] With ≥80% accuracy the margin shown shrinks
+- [ ] It never goes below 0.10 s, and never above the Settings margin
+- [ ] Sustained poor accuracy widens it again
+- [ ] **Clear learner floor** resets a pinned floor
+
+### H5 — Progress and report
+**Pass:**
+- [ ] Progress shows a card per activity and a strip of recent attempts
+- [ ] **Show me what would be sent** displays the full report before anything is copied
+- [ ] **Copy report** puts it on the clipboard
+- [ ] **Delete all my practice history** empties it
+
+### H6 — Gating
+Clear both times in Settings, then open Home.
+
+**Pass:** steps 2–4 are dimmed and their buttons disabled; step 1 stays available.
+
+---
+
 ## Reporting a problem
 
 Please include:

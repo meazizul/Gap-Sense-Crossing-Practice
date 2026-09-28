@@ -59,3 +59,7 @@ xcuserdata/
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+# Private: email correspondence archive — never publish
+correspondence/
+ios-app/build/*.ipa

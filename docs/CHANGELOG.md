@@ -8,6 +8,78 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-09-27 — The rest of the training sequence
+
+Until now the app covered one activity: practising your crossing time. The
+feature proposal describes four, and a meeting with Cindi confirmed a step was
+missing *before* the one that existed. All four now ship.
+
+### The missing first step: Measure my crossing
+
+The app used to *begin* from two numbers an instructor measured with a stopwatch
+and typed into Settings — the one place the whole method still depended on
+counting seconds, and the reason a student could never set themselves up at a new
+street alone. There is now a mode that walks the crossing: tap at each point,
+repeat, and the app averages the walks, warns if they are inconsistent, plays the
+duration back so the felt sense starts immediately, and saves it as the reference.
+
+### Practice Comparison Task
+
+The app plays a gap representing a vehicle's warning time; the student judges it
+longer, shorter, or about the same as their crossing. Categories are drawn evenly
+so no base rate can be learned, and magnitudes scale with the crossing time.
+A wrong answer replays the gap and the crossing time back to back so the error is
+felt. An optional follow-up asks the student to tap out *how much* longer or
+shorter. The gap can be one continuous sound or two taps with silence between,
+because which reads better is genuinely unresolved.
+
+### Actual Comparison Task — at the street
+
+Direction set first (left compares to half street, right to full), then one large
+button: tap on detection, tap again as the vehicle passes. Cancel discards a
+vehicle that turned off. **Ambient noise sampling** records a 3-second median
+baseline of "quiet"; any measurement started more than 6 dB above it is flagged,
+because a warning time heard over a running engine is not one to rely on. Audio is
+analysed on-device, never recorded or transmitted.
+
+### Adaptive margin of error
+
+Cindi asked for help with the mathematics. Implemented as behavioural shaping over
+a rolling window of 10 attempts: **× 0.85 per step** when accuracy is ≥ 80%, hold
+between 60–80%, step back to the last successful margin below 60%. Geometric so
+each tightening is proportionally the same challenge; from 0.40 s it takes about
+nine successful windows to reach the 0.10 s floor. Two successive failures pin a
+learner floor at the last margin they held, which an instructor can clear.
+
+### Progress and instructor reporting
+
+Every attempt is logged on the device. A Progress screen shows accuracy per
+activity and a strip of recent attempts. A plain-text report can be generated and
+copied for the instructor — shown in full to the student first, never sent
+automatically, with a one-tap delete for all history.
+
+### Help and first-run tutorial
+
+Separate guidance for clients and instructors, plus a tutorial that runs on first
+launch and plays each sound with an explanation of what it means.
+
+### Refactor
+
+The single 3,137-line `index.html` was split into `index.html` (markup),
+`css/app.css`, and five JavaScript modules. Still no build step. This was
+necessary — the new work would have pushed one file past 5,000 lines.
+
+### Environment
+
+Xcode's update raised the minimum iOS deployment target from 14.0 to 15.0,
+breaking the build. Fixed in the Podfile, the Xcode project, and with a
+`post_install` hook that forces every Capacitor pod to the same minimum. Note the
+simulator is currently unusable on this machine — CoreSimulator is older than the
+installed build and needs a reboot — so this build was verified by compiling
+against the device SDK and by full functional testing in the browser.
+
+---
+
 ## 2026-08-15 — Native iOS app, redesigned interface, project rename
 
 ### Renamed to "Gap Sense — Crossing Practice"
