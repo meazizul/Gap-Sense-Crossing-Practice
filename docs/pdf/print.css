@@ -1,0 +1,100 @@
+/* Print stylesheet for Gap Sense documents.
+   Type is deliberately large: readers of this guide may have low vision,
+   and a printed handout is often read in poor light. */
+@page { size: A4; margin: 20mm 18mm 18mm 18mm; }
+
+html { font-size: 12.5pt; }
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+  color: #14202b;
+  max-width: 100%;
+  margin: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+h1 {
+  font-size: 2.05rem;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: #0F766E;
+  margin: 0 0 0.15em;
+  padding-bottom: 0.35em;
+  border-bottom: 3px solid #0F766E;
+}
+
+h2 {
+  font-size: 1.4rem;
+  line-height: 1.2;
+  color: #0F766E;
+  margin: 1.9em 0 0.5em;
+  padding-top: 0.35em;
+  border-top: 1px solid #cfd9e2;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 1.12rem;
+  color: #14202b;
+  margin: 1.35em 0 0.4em;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+p, li { orphans: 3; widows: 3; }
+p { margin: 0 0 0.75em; }
+
+ul, ol { margin: 0 0 0.9em; padding-left: 1.35em; }
+li { margin-bottom: 0.4em; }
+
+strong { color: #0b3a4a; }
+
+hr { border: none; border-top: 1px solid #dde5ec; margin: 1.6em 0; }
+
+blockquote {
+  margin: 1em 0;
+  padding: 0.7em 1em;
+  border-left: 4px solid #0F766E;
+  background: #f3f8f8;
+  border-radius: 0 6px 6px 0;
+}
+blockquote p:last-child { margin-bottom: 0; }
+
+code {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: #eef3f7;
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+}
+
+pre {
+  background: #f5f8fa;
+  border: 1px solid #dde5ec;
+  border-radius: 6px;
+  padding: 0.8em 1em;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: 0.88em;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0 1.3em;
+  font-size: 0.95rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+th, td { border: 1px solid #cfd9e2; padding: 0.5em 0.65em; text-align: left; vertical-align: top; }
+th { background: #eaf2f2; color: #0b3a4a; font-weight: 700; }
+tr:nth-child(even) td { background: #f8fafb; }
+
+/* Keep a section heading with the text that follows it. */
+h2 + p, h2 + ul, h2 + ol, h3 + p, h3 + ul, h3 + ol {
+  break-before: avoid;
+  page-break-before: avoid;
+}

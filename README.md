@@ -60,12 +60,24 @@ Start here depending on what you want:
 | **[`docs/PARTICIPANT_GUIDE.md`](docs/PARTICIPANT_GUIDE.md)** | **For people trying the app.** Simple English, screen-reader friendly |
 | **[`docs/CONFERENCE_TESTING_PLAN.md`](docs/CONFERENCE_TESTING_PLAN.md)** | How to get the app onto ~100 participants' phones at a conference |
 | **[`docs/HAPTICS_DISTRIBUTION.md`](docs/HAPTICS_DISTRIBUTION.md)** | **Getting vibration to DeafBlind participants** — the only routes that work, and what each costs |
+| **[`docs/APPLE_TESTFLIGHT_SETUP.md`](docs/APPLE_TESTFLIGHT_SETUP.md)** | Step-by-step Apple Developer enrolment and TestFlight setup |
 | **[`docs/FEATURE_STATUS.md`](docs/FEATURE_STATUS.md)** | Line-by-line trace of the feature proposal to what exists |
 | **[`docs/APP_GUIDE.md`](docs/APP_GUIDE.md)** | How the app works and how to operate it — every screen, setting, and mode |
 | **[`docs/TESTING.md`](docs/TESTING.md)** | How to test it: step-by-step procedures and pass/fail checklists |
 | **[`docs/HAPTICS.md`](docs/HAPTICS.md)** | Vibration and haptic feedback — how it works, why iOS needs a native app, how to verify it |
 | **[`docs/CHANGELOG.md`](docs/CHANGELOG.md)** | Every change made, what it fixed, and when |
 | **[`ios-app/README-IOS.md`](ios-app/README-IOS.md)** | Installing and running on an iPhone (both paths) |
+
+### Printable versions
+
+Every guide below is also in `docs/pdf/` as a PDF, for reading away from a code
+editor or handing to someone:
+
+- `Gap-Sense-Participant-Guide.pdf` — for people trying the app
+- `Gap-Sense-Apple-TestFlight-Setup.pdf` — the Apple enrolment walkthrough
+- `Gap-Sense-Haptics-Distribution.pdf` — getting vibration to participants
+- `Gap-Sense-Conference-Plan.pdf` — session-day logistics
+- `Gap-Sense-Feature-Status.pdf` — the proposal traced to what is built
 
 Historical engineering records, kept as dated artifacts:
 
