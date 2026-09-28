@@ -1,0 +1,379 @@
+/* ============================================================
+ * Gap Sense — attempt history, adaptive margin, and reporting
+ * ============================================================
+ *
+ * Every practice attempt is recorded here so that:
+ *   1. the adaptive margin-of-error can shape difficulty over time;
+ *   2. the instructor can see progress at a lesson;
+ *   3. the student can (opt-in) send a summary to their instructor.
+ *
+ * Everything stays in localStorage on the student's own device. Nothing is
+ * transmitted anywhere unless the student explicitly chooses to share it.
+ * ============================================================ */
+
+const GS_HISTORY_KEY = "om-attempt-log";
+const GS_HISTORY_LIMIT = 800; // ~ a year of heavy practice; old entries roll off
+
+/**
+ * One attempt.
+ * @typedef {Object} GsAttempt
+ * @property {number} time        epoch ms
+ * @property {string} activity    "practice" | "compare" | "live" | "measure"
+ * @property {string} street      "half" | "full"
+ * @property {number} userSec     what the student produced/judged
+ * @property {number} refSec      the reference they were judged against
+ * @property {number} diffSec     signed: positive = student was long
+ * @property {boolean} correct    within the margin in force at the time
+ * @property {number} marginSec   the margin in force at the time
+ * @property {string} [answer]    comparison tasks: "longer"|"shorter"|"same"
+ * @property {string} [expected]  comparison tasks: the true category
+ * @property {boolean} [noisy]    live task: ambient noise was above baseline
+ */
+
+function gsLoadHistory() {
+  try {
+    const raw = localStorage.getItem(GS_HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function gsSaveHistory(entries) {
+  try {
+    const trimmed = entries.slice(-GS_HISTORY_LIMIT);
+    localStorage.setItem(GS_HISTORY_KEY, JSON.stringify(trimmed));
+  } catch (error) {
+    /* storage full or unavailable — practice must still work */
+  }
+}
+
+function gsLogAttempt(entry) {
+  const entries = gsLoadHistory();
+  entries.push({ time: Date.now(), ...entry });
+  gsSaveHistory(entries);
+  gsUpdateAdaptiveMargin(entry.activity, entry.street);
+  return entries.length;
+}
+
+function gsClearHistory() {
+  try {
+    localStorage.removeItem(GS_HISTORY_KEY);
+    localStorage.removeItem(GS_ADAPTIVE_KEY);
+  } catch (error) {
+    /* ignore */
+  }
+}
+
+function gsHistoryFor(activity, street, limit = 0) {
+  const all = gsLoadHistory().filter(
+    (e) => (!activity || e.activity === activity) && (!street || e.street === street)
+  );
+  return limit > 0 ? all.slice(-limit) : all;
+}
+
+function gsAccuracy(entries) {
+  if (!entries.length) return null;
+  const correct = entries.filter((e) => e.correct).length;
+  return correct / entries.length;
+}
+
+/* ============================================================
+ * ADAPTIVE MARGIN OF ERROR
+ * ------------------------------------------------------------
+ * Cindi's request, and the maths she asked for help with.
+ *
+ * The idea is behavioural shaping / zone of proximal development: hold the
+ * student just past comfortable, but never so tight that the task becomes
+ * impossible and demoralising.
+ *
+ *   CEILING  the margin the instructor set (default 0.40 s). The task never
+ *            gets easier than this — it is the clinical target.
+ *   FLOOR    a hard 0.10 s. Below this we would be measuring the student's
+ *            reaction time and the touchscreen's latency, not their sense of
+ *            duration, so tightening further would teach nothing.
+ *   WINDOW   the last 10 attempts of the same activity and street type.
+ *
+ * Rules, evaluated after each attempt once the window is full:
+ *
+ *   accuracy >= 80%   tighten:  margin x 0.85  (bounded below by the floor
+ *                               and by any learner floor, see below)
+ *   accuracy <  60%   loosen:   step back to the last margin at which the
+ *                               student was succeeding, or margin / 0.85 if
+ *                               there isn't one; never easier than the ceiling
+ *   60-80%            hold      the student is in the productive struggle band
+ *
+ * Why 0.85: a geometric step means each tightening is proportionally the same
+ * challenge rather than getting brutally harder as the margin shrinks. From
+ * 0.40 s it takes about 9 successful windows to reach the 0.10 s floor, which
+ * is a realistic training arc rather than something achievable in one sitting.
+ *
+ * Learner floor: if two successive tightenings both drop the student below
+ * 60%, we conclude that level is beyond them for now, and pin the floor at the
+ * last margin where they held >= 80%. This stops the algorithm oscillating and
+ * repeatedly failing them. An instructor can clear it to allow progression.
+ * ============================================================ */
+
+const GS_ADAPTIVE_KEY = "om-adaptive-margin";
+const GS_ADAPTIVE = {
+  windowSize: 10,
+  tightenAt: 0.8,
+  loosenBelow: 0.6,
+  factor: 0.85,
+  hardFloor: 0.1
+};
+
+function gsAdaptiveDefaults() {
+  return {
+    enabled: false,
+    // per "activity:street" key
+    lanes: {}
+  };
+}
+
+function gsLoadAdaptive() {
+  try {
+    const raw = localStorage.getItem(GS_ADAPTIVE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== "object") return gsAdaptiveDefaults();
+    return { ...gsAdaptiveDefaults(), ...parsed, lanes: parsed.lanes || {} };
+  } catch (error) {
+    return gsAdaptiveDefaults();
+  }
+}
+
+function gsSaveAdaptive(state) {
+  try {
+    localStorage.setItem(GS_ADAPTIVE_KEY, JSON.stringify(state));
+  } catch (error) {
+    /* ignore */
+  }
+}
+
+function gsAdaptiveEnabled() {
+  return gsLoadAdaptive().enabled === true;
+}
+
+function gsSetAdaptiveEnabled(on) {
+  const state = gsLoadAdaptive();
+  state.enabled = Boolean(on);
+  gsSaveAdaptive(state);
+}
+
+function gsLaneKey(activity, street) {
+  return `${activity || "practice"}:${street || "full"}`;
+}
+
+function gsCeilingMargin() {
+  // The instructor-set margin is always the ceiling.
+  const value = Number(typeof marginInput !== "undefined" ? marginInput.value : 0.4);
+  return Number.isFinite(value) && value > 0 ? value : 0.4;
+}
+
+function gsLane(state, activity, street) {
+  const key = gsLaneKey(activity, street);
+  if (!state.lanes[key]) {
+    state.lanes[key] = {
+      margin: gsCeilingMargin(),
+      lastGood: null,
+      learnerFloor: null,
+      consecutiveFails: 0,
+      lastEvaluatedAt: 0
+    };
+  }
+  return state.lanes[key];
+}
+
+/**
+ * The margin actually in force right now for a given activity/street.
+ * Falls back to the instructor's fixed margin when adaptive mode is off.
+ */
+function gsEffectiveMargin(activity, street) {
+  const ceiling = gsCeilingMargin();
+  const state = gsLoadAdaptive();
+  if (!state.enabled) return ceiling;
+  const lane = gsLane(state, activity, street);
+  // The ceiling can be edited at any time; never let a stored value exceed it.
+  return Math.min(ceiling, Math.max(gsFloorFor(lane), lane.margin));
+}
+
+function gsFloorFor(lane) {
+  return Math.max(GS_ADAPTIVE.hardFloor, lane.learnerFloor || 0);
+}
+
+/**
+ * Re-evaluate the lane after an attempt. Safe to call unconditionally.
+ */
+function gsUpdateAdaptiveMargin(activity, street) {
+  const state = gsLoadAdaptive();
+  if (!state.enabled) return;
+  if (activity !== "practice" && activity !== "compare") return;
+
+  const lane = gsLane(state, activity, street);
+  const window = gsHistoryFor(activity, street, GS_ADAPTIVE.windowSize);
+  if (window.length < GS_ADAPTIVE.windowSize) {
+    gsSaveAdaptive(state);
+    return;
+  }
+
+  // Only evaluate once per fresh window, so one attempt can't cascade steps.
+  const newest = window[window.length - 1].time;
+  if (newest === lane.lastEvaluatedAt) return;
+
+  const accuracy = gsAccuracy(window);
+  const ceiling = gsCeilingMargin();
+  const floor = gsFloorFor(lane);
+
+  if (accuracy >= GS_ADAPTIVE.tightenAt) {
+    lane.lastGood = lane.margin;
+    lane.margin = Math.max(floor, lane.margin * GS_ADAPTIVE.factor);
+    lane.consecutiveFails = 0;
+  } else if (accuracy < GS_ADAPTIVE.loosenBelow) {
+    lane.consecutiveFails += 1;
+    const relaxed = lane.lastGood !== null ? lane.lastGood : lane.margin / GS_ADAPTIVE.factor;
+    lane.margin = Math.min(ceiling, relaxed);
+    if (lane.consecutiveFails >= 2 && lane.lastGood !== null) {
+      // Pin the floor so we stop pushing past what they can hold.
+      lane.learnerFloor = lane.lastGood;
+    }
+  }
+  // 60-80%: hold. Productive struggle.
+
+  lane.lastEvaluatedAt = newest;
+  gsSaveAdaptive(state);
+}
+
+function gsResetLearnerFloor() {
+  const state = gsLoadAdaptive();
+  Object.values(state.lanes).forEach((lane) => {
+    lane.learnerFloor = null;
+    lane.consecutiveFails = 0;
+  });
+  gsSaveAdaptive(state);
+}
+
+/* ============================================================
+ * PROGRESS SUMMARY + INSTRUCTOR REPORT
+ * ============================================================ */
+
+const GS_ACTIVITY_LABELS = {
+  practice: "Crossing-time practice",
+  compare: "Comparison practice",
+  live: "At the street",
+  measure: "Crossing measured"
+};
+
+const GS_STREET_LABELS = { half: "Half street", full: "Full street" };
+
+function gsSummary() {
+  const all = gsLoadHistory();
+  const byActivity = {};
+  all.forEach((entry) => {
+    const key = entry.activity;
+    if (!byActivity[key]) byActivity[key] = { total: 0, correct: 0, last: 0 };
+    byActivity[key].total += 1;
+    if (entry.correct) byActivity[key].correct += 1;
+    byActivity[key].last = Math.max(byActivity[key].last, entry.time || 0);
+  });
+
+  const days = new Set(
+    all.map((entry) => new Date(entry.time).toISOString().slice(0, 10))
+  );
+
+  return {
+    total: all.length,
+    daysPracticed: days.size,
+    firstAt: all.length ? all[0].time : null,
+    lastAt: all.length ? all[all.length - 1].time : null,
+    byActivity
+  };
+}
+
+function gsFormatDate(ms) {
+  if (!ms) return "—";
+  return new Date(ms).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+/**
+ * Plain-text report for the instructor. Deliberately readable in any email
+ * client, with no attachment and no tracking.
+ */
+function gsBuildReport(options = {}) {
+  const summary = gsSummary();
+  const lines = [];
+  lines.push("Gap Sense — practice report");
+  lines.push("=".repeat(34));
+  if (options.studentName) lines.push(`Student: ${options.studentName}`);
+  lines.push(`Generated: ${new Date().toLocaleString()}`);
+  lines.push("");
+
+  if (!summary.total) {
+    lines.push("No practice recorded yet.");
+    return lines.join("\n");
+  }
+
+  lines.push(`Total attempts: ${summary.total}`);
+  lines.push(`Days practised: ${summary.daysPracticed}`);
+  lines.push(`First: ${gsFormatDate(summary.firstAt)}`);
+  lines.push(`Most recent: ${gsFormatDate(summary.lastAt)}`);
+  lines.push("");
+
+  lines.push("By activity");
+  lines.push("-".repeat(34));
+  Object.entries(summary.byActivity).forEach(([activity, stats]) => {
+    const label = GS_ACTIVITY_LABELS[activity] || activity;
+    if (activity === "measure") {
+      lines.push(`${label}: ${stats.total} measurement(s)`);
+      return;
+    }
+    const pct = Math.round((stats.correct / stats.total) * 100);
+    lines.push(`${label}: ${stats.correct}/${stats.total} within margin (${pct}%)`);
+  });
+  lines.push("");
+
+  // Recent trend, most recent last — useful at a lesson.
+  const recent = gsLoadHistory().slice(-15);
+  lines.push("Most recent attempts");
+  lines.push("-".repeat(34));
+  recent.forEach((entry) => {
+    const label = GS_ACTIVITY_LABELS[entry.activity] || entry.activity;
+    const street = GS_STREET_LABELS[entry.street] || entry.street || "";
+    const when = new Date(entry.time).toLocaleDateString();
+    if (entry.activity === "measure") {
+      lines.push(`${when}  ${label} (${street}): ${entry.userSec.toFixed(2)}s`);
+      return;
+    }
+    if (entry.activity === "compare" || entry.activity === "live") {
+      const mark = entry.correct ? "correct" : "incorrect";
+      const noisy = entry.noisy ? " [noisy sample]" : "";
+      lines.push(
+        `${when}  ${label} (${street}): answered "${entry.answer}", was "${entry.expected}" — ${mark}${noisy}`
+      );
+      return;
+    }
+    const sign = entry.diffSec >= 0 ? "+" : "";
+    const mark = entry.correct ? "within margin" : "outside margin";
+    lines.push(
+      `${when}  ${label} (${street}): ${sign}${entry.diffSec.toFixed(2)}s — ${mark}`
+    );
+  });
+
+  const adaptive = gsLoadAdaptive();
+  if (adaptive.enabled) {
+    lines.push("");
+    lines.push("Adaptive margin (current)");
+    lines.push("-".repeat(34));
+    Object.entries(adaptive.lanes).forEach(([key, lane]) => {
+      lines.push(`${key}: ${lane.margin.toFixed(2)}s (ceiling ${gsCeilingMargin().toFixed(2)}s)`);
+    });
+  }
+
+  lines.push("");
+  lines.push("Sent by the student from Gap Sense. No data leaves the device unless sent.");
+  return lines.join("\n");
+}

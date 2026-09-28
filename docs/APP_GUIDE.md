@@ -20,6 +20,56 @@ a number.
 
 ---
 
+## 1b. The four activities
+
+The home screen presents them in the order the skill is taught. Each one
+depends on the one before it, so steps 2-4 stay locked until crossing times
+exist.
+
+| # | Activity | What you do | Why |
+|---|---|---|---|
+| **1** | **Measure my crossing** | Walk the street, tapping at each point. Three walks are averaged. | Establishes your reference time — no stopwatch, no numbers typed in |
+| **2** | **Practise my timing** | Tap out how long you think the crossing takes | Builds the felt sense of that duration |
+| **3** | **Compare practice** | Judge a played gap as longer/shorter/same vs your crossing | The actual safety skill, practised without traffic |
+| **4** | **At the street** | Tap when you hear a vehicle, again when it passes | The same judgement against real traffic |
+
+### 1. Measure my crossing
+
+Pick what to measure — both points, clear-from-left only, or full street only —
+then walk it, tapping at each point. The app shows each walk, averages them, and
+warns if your walks vary by more than 0.75 s. It then plays the measured
+duration straight back so you begin feeling it immediately. **Save as my
+crossing times** writes them into Settings.
+
+### 3. Compare practice
+
+Choose which crossing, and whether the gap is one continuous sound or two taps
+with silence between. Press **Play a gap**, listen, then answer with one of three
+full-width buttons. Get it wrong and you hear the gap and your crossing time back
+to back, so the error is felt. Optionally, after a correct answer, the app asks
+you to tap out *how much* longer or shorter it was.
+
+### 4. At the street
+
+Set the direction the vehicle is coming from — from the left compares against
+your half-street time, from the right against your full-street time. Then one
+big button: tap when you first hear it, tap again as it reaches you. **Cancel**
+discards the trial if the vehicle turned off or never came.
+
+Before you start, **Sample the quiet** records a 3-second baseline of the ambient
+noise. Any measurement started more than 6 dB above that is flagged, because a
+warning time heard over a running engine is not one you can rely on. The audio is
+analysed on the device and never recorded or transmitted.
+
+### Progress
+
+Accuracy per activity, a strip showing your recent attempts, and the
+**adaptive margin** switch. It also generates a written report you can copy and
+send to your instructor — shown to you in full first, and never sent
+automatically.
+
+---
+
 ## 2. Setting up (do this once per street)
 
 Open **Settings** (gear icon, top right). Under **Time entry**:
