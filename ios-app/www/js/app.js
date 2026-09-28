@@ -135,6 +135,8 @@ function gsRenderHome() {
       : "No practice recorded yet";
   }
 
+  if (typeof gsRenderDemoNote === "function") gsRenderDemoNote();
+
   const times = document.getElementById("homeTimes");
   if (times) {
     const { clearTime, fullTime } = getTimingInputs();
@@ -269,6 +271,65 @@ function gsTutorialDemo(kind) {
   }
 }
 
+
+/* ============================================================
+ * QUICK-START / DEMO MODE
+ * ------------------------------------------------------------
+ * A conference participant has about thirty seconds and is often using a
+ * screen reader on a phone they are holding one-handed. Asking them to measure
+ * a crossing, or to type two numbers into Settings, before anything works at
+ * all is far too much.
+ *
+ * So: example times can be loaded in one tap, and the link handed out at the
+ * conference can carry "?demo=1" to do it automatically. The app then opens
+ * straight into the practice screen, ready to use, with a clearly announced
+ * note that the times are examples rather than the participant's own.
+ * ============================================================ */
+
+const GS_DEMO_KEY = "om-demo-times";
+const GS_DEMO_CLEAR = "4.0";   // typical half-street clear time
+const GS_DEMO_FULL = "8.0";    // typical full-street crossing
+const GS_DEMO_MARGIN = "0.5";  // the value historically taught in workshops
+
+function gsUsingDemoTimes() {
+  return localStorage.getItem(GS_DEMO_KEY) === "true";
+}
+
+function gsLoadDemoTimes({ goToPractice = true } = {}) {
+  clearTimeInput.value = GS_DEMO_CLEAR;
+  fullTimeInput.value = GS_DEMO_FULL;
+  marginInput.value = GS_DEMO_MARGIN;
+  localStorage.setItem("om-clear-time", GS_DEMO_CLEAR);
+  localStorage.setItem("om-full-time", GS_DEMO_FULL);
+  localStorage.setItem("om-margin", GS_DEMO_MARGIN);
+  localStorage.setItem(GS_DEMO_KEY, "true");
+
+  refreshTimingRequirementPrompt();
+  updateNextPrompt();
+  gsRenderHome();
+  gsRenderDemoNote();
+
+  if (goToPractice) {
+    gsShowScreen("practice");
+    announceScreenReader(
+      "Example times loaded. Press the big button to begin, then press it again when you think you would have reached the other side."
+    );
+  }
+}
+
+function gsClearDemoFlag() {
+  localStorage.removeItem(GS_DEMO_KEY);
+  gsRenderDemoNote();
+}
+
+function gsRenderDemoNote() {
+  document.querySelectorAll(".demo-note").forEach((el) => {
+    el.hidden = !gsUsingDemoTimes();
+  });
+  const btn = document.getElementById("tryDemoBtn");
+  if (btn) btn.hidden = gsHasTimes() && !gsUsingDemoTimes();
+}
+
 /* ============================================================
  * Boot
  * ============================================================ */
@@ -322,9 +383,15 @@ function gsBindShell() {
     btn.addEventListener("click", () => gsTutorialDemo(btn.dataset.demo));
   });
 
-  // Keep home in step with times edited in Settings.
+  document.getElementById("tryDemoBtn")?.addEventListener("click", () => gsLoadDemoTimes());
+
+  // Keep home in step with times edited in Settings. Editing a time by hand, or
+  // saving a measured one, means these are no longer the example values.
   [clearTimeInput, fullTimeInput].forEach((input) => {
-    input?.addEventListener("change", () => gsRenderHome());
+    input?.addEventListener("change", () => {
+      gsClearDemoFlag();
+      gsRenderHome();
+    });
   });
 }
 
@@ -332,7 +399,24 @@ function gsBoot() {
   gsBindShell();
   gsMeasureInit();
   gsComparisonInit();
+
+  // ?demo=1 — the conference link. Straight in, nothing to set up.
+  const params = new URLSearchParams(window.location.search);
+  const wantsDemo = params.get("demo") === "1";
+
+  if (wantsDemo) {
+    localStorage.setItem(GS_TUTORIAL_KEY, "true"); // no modal in the way
+    if (!gsHasTimes() || gsUsingDemoTimes()) {
+      gsLoadDemoTimes();
+    } else {
+      gsShowScreen("practice");
+    }
+    gsRenderDemoNote();
+    return;
+  }
+
   gsShowScreen("home");
+  gsRenderDemoNote();
 
   if (!localStorage.getItem(GS_TUTORIAL_KEY)) {
     // Let the first paint settle before taking over the screen.

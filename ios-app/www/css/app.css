@@ -1361,3 +1361,108 @@ body.large-text-layout .progress-grid { grid-template-columns: minmax(0, 1fr); }
 body.large-text-layout .answer-btn { grid-template-columns: minmax(0, 1fr); }
 body.large-text-layout .screen-heading { text-transform: none; letter-spacing: 0; }
 body.large-text-layout .trial-row { flex-direction: column; gap: 4px; }
+
+/* ---------------- Quick-start / demo ---------------- */
+.try-demo {
+  width: 100%;
+  min-height: 3.6rem;
+  font-size: 1.08rem;
+}
+
+.try-demo[hidden] { display: none; }
+
+.demo-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.demo-note[hidden] { display: none; }
+
+/* ============================================================
+   POLISH
+   Restrained on purpose. Decoration that reduces clarity would be a
+   regression for this audience, so this is limited to depth, press
+   feedback, and a per-step accent that adds a second, redundant cue
+   to the step number.
+   ============================================================ */
+
+.step-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+/* A colour bar per step, echoing the stage colours used on the action
+   button. Never the only signal — the number and title always carry it. */
+.step-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--accent);
+}
+
+.step-card[data-screen="measure"]::before { background: var(--brand-1); }
+.step-card[data-screen="practice"]::before { background: var(--stage-start-2); }
+.step-card[data-screen="compare"]::before { background: var(--stage-half-2); }
+.step-card[data-screen="live"]::before { background: var(--stage-finish-2); }
+
+.step-card:not(.locked):active { transform: scale(0.995); }
+
+.step-card:focus-within {
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+}
+
+/* Depth on the primary controls, so the thing to press reads as raised. */
+.settings-action.primary,
+.answer-btn {
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.settings-action.primary:active:not(:disabled) { transform: scale(0.985); }
+
+.answer-btn:not(:disabled):hover { border-color: var(--accent); }
+
+/* A very soft brand glow behind the header, which lifts the whole screen
+   without introducing any new foreground colour. */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, 120vw);
+  height: 220px;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(60% 100% at 50% 0%, var(--bg-tint-1) 0%, transparent 70%);
+}
+
+body.high-contrast::before,
+body[data-theme="inverted"]::before { display: none; }
+
+.card,
+.step-card,
+.progress-card,
+.stat { transition: border-color 120ms ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .step-card,
+  .settings-action.primary,
+  .answer-btn,
+  .card,
+  .progress-card,
+  .stat { transition: none; }
+  .step-card:not(.locked):active,
+  .settings-action.primary:active:not(:disabled) { transform: none; }
+}
