@@ -142,6 +142,32 @@
 
     html { font-size: 18px; }
 
+/* First paint on a dark-mode device, before JS sets body[data-theme].
+   Without this the page flashes light for a frame on launch. */
+@media (prefers-color-scheme: dark) {
+  body:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #070C14;
+    --surface: #131C2B;
+    --surface-2: #1B2637;
+    --text: #E8EEF7;
+    --muted: #A8B6C8;
+    --outline: #E8EEF7;
+    --border: #2C3A4E;
+    --brand-1: #2DD4BF;
+    --brand-2: #38BDF8;
+    --accent: #2DD4BF;
+    --on-accent: #04141A;
+    --bg-tint-1: rgba(45, 212, 191, 0.10);
+    --bg-tint-2: rgba(56, 189, 248, 0.08);
+  }
+}
+
+/* Paint the canvas edge to edge (under the status bar and home indicator);
+   .panel already pads for the safe areas. */
+html { background: var(--bg); min-height: 100%; }
+
+
     *, *::before, *::after { box-sizing: border-box; }
 
     body {
