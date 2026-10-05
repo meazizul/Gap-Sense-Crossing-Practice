@@ -215,14 +215,24 @@
       if (!a11ySettings.vibrate) return;
       if (isNativeShell && HapticsPlugin) {
         try {
-          if (type === "reference_ok") {
-            HapticsPlugin.notification({ type: "SUCCESS" });
-          } else if (type === "reference_bad") {
-            HapticsPlugin.notification({ type: "ERROR" });
+          // iOS's "notification" haptics are deliberately subtle, and MEDIUM
+          // impacts barely register through fabric. These are tuned for a
+          // hand in a pocket or holding a cane, not a palm in a quiet room.
+          if (type === "reference_bad") {
+            // One long, full-intensity buzz via Core Haptics: the plugin's
+            // vibrate(duration) runs a continuous event at intensity 1.0.
+            // Several times longer than anything else, so it cannot be
+            // mistaken by touch alone.
+            HapticsPlugin.vibrate({ duration: 450 });
+          } else if (type === "reference_ok") {
+            // Three heavy knocks, spaced so they read as a rhythm, not a lump.
+            HapticsPlugin.impact({ style: "HEAVY" });
+            setTimeout(() => HapticsPlugin.impact({ style: "HEAVY" }), 110);
+            setTimeout(() => HapticsPlugin.impact({ style: "HEAVY" }), 220);
           } else if (type === "marker") {
-            HapticsPlugin.impact({ style: "MEDIUM" });
+            HapticsPlugin.impact({ style: "HEAVY" });
           } else if (type === "start") {
-            HapticsPlugin.impact({ style: "LIGHT" });
+            HapticsPlugin.impact({ style: "MEDIUM" });
           }
           return;
         } catch (error) {
@@ -1703,8 +1713,58 @@
       });
     });
 
+    /* ------------------------------------------------------------------
+     * iOS silent-switch keep-alive.
+     * On iOS, WebKit plays Web Audio through its own *ambient* session, which
+     * obeys the hardware silent switch no matter what the host app sets. But
+     * once a media element is playing, WebKit moves to a *playback* session
+     * and the Web Audio tones follow. So: loop a silent clip, started from the
+     * first user gesture (autoplay rules require it). It pauses whenever the
+     * page is hidden, so it costs nothing in the background. For a tool used
+     * at a kerb with the switch flipped, this is the difference between
+     * hearing the cues and hearing nothing.
+     * ------------------------------------------------------------------ */
+    const isApplePlatform = isNativeShell || /iPhone|iPad|iPod/.test(navigator.userAgent);
+    let silentKeepAlive = null;
+
+    function buildSilentWavUrl() {
+      // 0.5 s of 8 kHz 8-bit mono silence; tiny and unambiguous.
+      const sampleRate = 8000, samples = 4000;
+      const buf = new ArrayBuffer(44 + samples);
+      const v = new DataView(buf);
+      const str = (o, t) => { for (let i = 0; i < t.length; i += 1) v.setUint8(o + i, t.charCodeAt(i)); };
+      str(0, "RIFF"); v.setUint32(4, 36 + samples, true); str(8, "WAVE");
+      str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate, true);
+      v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+      str(36, "data"); v.setUint32(40, samples, true);
+      new Uint8Array(buf, 44).fill(128);
+      return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+    }
+
+    function startSilentKeepAlive() {
+      if (!isApplePlatform || silentKeepAlive) return;
+      try {
+        const audio = new Audio(buildSilentWavUrl());
+        audio.loop = true;
+        audio.volume = 0.01; // not 0: some WebKit builds treat volume 0 as not playing
+        audio.setAttribute("playsinline", "");
+        audio.play().catch(() => { /* best effort */ });
+        silentKeepAlive = audio;
+      } catch (error) {
+        /* best effort */
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!silentKeepAlive) return;
+      if (document.hidden) silentKeepAlive.pause();
+      else silentKeepAlive.play().catch(() => {});
+    });
+
     const unlockAudio = () => {
       ensureAudioContext();
+      startSilentKeepAlive();
       document.removeEventListener("pointerdown", unlockAudio);
       document.removeEventListener("keydown", unlockAudio);
     };

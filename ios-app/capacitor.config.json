@@ -3,8 +3,8 @@
   "appName": "Gap Sense — Crossing Practice",
   "webDir": "www",
   "ios": {
-    "contentInset": "always",
-    "backgroundColor": "#EEF2F7"
+    "contentInset": "never",
+    "backgroundColor": "#0F766E"
   },
   "plugins": {
     "SplashScreen": {
@@ -14,9 +14,8 @@
       "showSpinner": false
     },
     "StatusBar": {
-      "overlaysWebView": false,
-      "style": "DARK",
-      "backgroundColor": "#EEF2F7"
+      "overlaysWebView": true,
+      "style": "DEFAULT"
     }
   }
 }
