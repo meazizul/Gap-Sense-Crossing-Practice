@@ -195,6 +195,112 @@ already have it, and tap Install. About 90 seconds.
 
 ---
 
+---
+
+## Copy-paste pack
+
+Everything you will be asked to type, written out so you are not composing text
+at the keyboard while a form waits.
+
+### App record (App Store Connect → Apps → +)
+
+| Field | Value |
+|---|---|
+| Platforms | iOS only |
+| Name | `Gap Sense` |
+| Primary Language | English (U.S.) |
+| Bundle ID | `com.gapsense.crossingpractice` |
+| SKU | `gapsense-001` |
+| User Access | Full Access |
+
+### Beta App Description
+
+```
+Gap Sense is an Orientation & Mobility training tool for blind and low-vision
+travellers. It builds an intuitive, felt sense of how long it takes the user to
+cross a street, so they can judge whether a gap in traffic is long enough.
+
+Feedback is given as duration - sounds, visual flashes and vibration - never as a
+number of seconds. The app has four activities: measuring your crossing, practising
+the timing, comparing a gap against your crossing time, and doing the same
+judgement with real traffic.
+```
+
+### Feedback Email
+
+```
+ahaque3@stevens.edu
+```
+
+### What to Test
+
+```
+Please test with VoiceOver enabled.
+
+1. Open Accessibility and turn on "Vibrate on cue", then press "Test haptic
+   pulse". You should feel three clearly different sensations: a single tap, a
+   light triple, and one long heavy buzz. Please tell us if they are hard to
+   tell apart, especially through a pocket or glove.
+
+2. From the home screen, work through the four activities in order. Each one is
+   numbered.
+
+3. In "Practise my timing", listen for the gap between your own tap and the
+   reference sound. That gap is the feedback. Please tell us if you found
+   yourself counting seconds instead of feeling the duration.
+
+4. Try the app outdoors near traffic if you can, and tell us whether the two
+   feedback sounds are audible and clearly different from each other.
+
+No account or login is needed. The app collects no data and makes no network
+calls. Everything stays on your device.
+```
+
+### Export compliance
+
+Already answered in the project (`ITSAppUsesNonExemptEncryption` = NO). If a form
+asks anyway: **No**, the app does not use encryption beyond standard HTTPS.
+
+### Demo account
+
+Not required — the app has no login.
+
+---
+
+## While you wait for activation
+
+The membership only gates TestFlight. Everything below works today with a free
+Apple account, and answers questions that waiting will not.
+
+**1. Put the app on your own iPhone (free, 7-day expiry)**
+
+```sh
+cd ~/Desktop/streets-main/ios-app
+npx cap sync ios
+npx cap open ios
+```
+
+Xcode → Settings → Accounts → add your Apple ID. Select your iPhone in the
+device dropdown. Press ⌘R. First launch fails with "Untrusted Developer" — on
+the phone go to Settings → General → VPN & Device Management → your Apple ID →
+Trust, then open the app.
+
+**2. Test the haptics.** Accessibility → "Vibrate on cue" → Test haptic pulse.
+Three distinct sensations? Try it through a trouser pocket and with the phone
+held loosely, not just flat on a palm.
+
+**3. Test the sounds outdoors.** Stand near real traffic. Are the within-margin
+chime and the outside-margin buzz each audible, and clearly different?
+
+**4. Test with VoiceOver on.** Run a full practice. Note especially whether the
+double-tap-to-activate delay throws off your marking accuracy.
+
+**5. Test the Android build.** `ios-app/build/GapSense-android-debug.apk` is
+signed and installs by sideload. Android vibrates in the browser too, so you can
+compare the native and web haptics directly.
+
+Anything that comes out of these is far more useful than more waiting.
+
 ## Timeline
 
 | | Time | Cost |
