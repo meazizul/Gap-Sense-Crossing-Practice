@@ -74,3 +74,5 @@ ios-app/android/.gradle/
 ios-app/android/app/build/
 ios-app/android/build/
 ios-app/android/local.properties
+
+ios-app/build/*.apk
