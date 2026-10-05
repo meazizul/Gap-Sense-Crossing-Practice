@@ -24,8 +24,5 @@ render() {
 }
 
 render PARTICIPANT_GUIDE.md       Gap-Sense-Participant-Guide.pdf       "Gap Sense — How to Use the App"
-render APPLE_TESTFLIGHT_SETUP.md  Gap-Sense-Apple-TestFlight-Setup.pdf  "Gap Sense — Apple Developer & TestFlight Setup"
-render HAPTICS_DISTRIBUTION.md    Gap-Sense-Haptics-Distribution.pdf    "Gap Sense — Getting Vibration to Participants"
-render CONFERENCE_TESTING_PLAN.md Gap-Sense-Conference-Plan.pdf         "Gap Sense — Conference Testing Plan"
 render FEATURE_STATUS.md          Gap-Sense-Feature-Status.pdf          "Gap Sense — Feature Status"
 echo "done."
