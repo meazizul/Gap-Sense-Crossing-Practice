@@ -27,5 +27,6 @@ render PARTICIPANT_GUIDE.md       Gap-Sense-Participant-Guide.pdf       "Gap Sen
 render INSTALL_GUIDE.md           Gap-Sense-Install-Guide.pdf           "Gap Sense — How to Get the App on Your Phone"
 render SESSION_SCRIPT.md          Gap-Sense-Facilitator-Script.pdf      "Gap Sense — Facilitator Script"
 render DEMO_SCRIPT.md             Gap-Sense-Demo-Script.pdf             "Gap Sense — 10-Minute Demo Script"
+render HOW_IT_WORKS.md            Gap-Sense-How-It-Works.pdf            "Gap Sense — How It Works, and Why"
 render FEATURE_STATUS.md          Gap-Sense-Feature-Status.pdf          "Gap Sense — Feature Status"
 echo "done."
