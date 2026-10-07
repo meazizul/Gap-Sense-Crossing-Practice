@@ -63,8 +63,12 @@ That space is the lesson. It is not a number. It is a feeling of time.
 
 ## 4. Trying the app quickly
 
-If someone gave you a link, open it. The app is ready to use straight away. It
-already has example times in it.
+First, get the app on your phone. The short guide **How to Get Gap Sense on
+Your Phone** explains it: on iPhone through TestFlight, on Android as a file.
+Your instructor has it.
+
+If someone gave you a web link instead, open it. The app is ready to use
+straight away. It already has example times in it.
 
 You can start pressing the button immediately.
 

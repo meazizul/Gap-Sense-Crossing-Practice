@@ -24,5 +24,7 @@ render() {
 }
 
 render PARTICIPANT_GUIDE.md       Gap-Sense-Participant-Guide.pdf       "Gap Sense — How to Use the App"
+render INSTALL_GUIDE.md           Gap-Sense-Install-Guide.pdf           "Gap Sense — How to Get the App on Your Phone"
+render SESSION_SCRIPT.md          Gap-Sense-Facilitator-Script.pdf      "Gap Sense — Facilitator Script"
 render FEATURE_STATUS.md          Gap-Sense-Feature-Status.pdf          "Gap Sense — Feature Status"
 echo "done."
