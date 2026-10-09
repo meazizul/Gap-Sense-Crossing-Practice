@@ -148,7 +148,7 @@ guide for each.
 
 ## Getting it onto a second phone today
 
-**Android.** Send the file `GapSense-android-debug.apk`. They open it, allow
+**Android.** Send the download link <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build1/GapSense-android-debug.apk>. They open it, allow
 installs from that source once, and tap **Install**. Two minutes.
 
 **iPhone, before the TestFlight review is approved.** Two routes:
