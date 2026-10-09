@@ -57,8 +57,9 @@ Gap Sense now appears on your home screen. Open it like any other app.
 
 ## If you have an Android phone
 
-The app comes as a file called **GapSense-android-debug.apk**. Your instructor
-will send you a link to it.
+The app comes as a file called **GapSense-android-debug.apk**. Download it from:
+
+**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build1/GapSense-android-debug.apk>**
 
 1. Open the link on your phone. The file downloads.
 2. Open the downloaded file. Your phone may say
