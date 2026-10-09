@@ -216,36 +216,50 @@ html { background: var(--bg); min-height: 100%; }
 
     /* ---------------- Header ---------------- */
     .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       min-width: 0;
+      /* Escape the panel's padding so the bar runs edge to edge and sits
+         behind the status bar; then pad for the safe area itself. */
+      margin: calc(-1 * (14px + env(safe-area-inset-top))) -18px 0;
+      padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+      background: color-mix(in srgb, var(--surface) 82%, transparent);
+      -webkit-backdrop-filter: saturate(160%) blur(18px);
+      backdrop-filter: saturate(160%) blur(18px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    @supports not (background: color-mix(in srgb, red 50%, transparent)) {
+      .app-header { background: var(--surface); }
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       min-width: 0;
       flex: 1 1 auto;
     }
 
     .brand-mark {
-      width: 2.9rem;
-      height: 2.9rem;
+      width: 2.25rem;
+      height: 2.25rem;
       flex: 0 0 auto;
-      border-radius: 14px;
-      background-image: linear-gradient(140deg, var(--brand-1), var(--brand-2));
+      border-radius: 10px;
+      background-image: linear-gradient(150deg, var(--brand-1), var(--brand-2));
       background-color: var(--brand-1);
       display: grid;
       place-items: center;
-      box-shadow: var(--shadow-sm);
-      border: 2px solid transparent;
+      border: 1px solid transparent;
     }
 
     .brand-mark svg {
-      width: 62%;
-      height: 62%;
+      width: 66%;
+      height: 66%;
       display: block;
       fill: none;
       stroke: var(--on-accent);
@@ -264,19 +278,19 @@ html { background: var(--bg); min-height: 100%; }
 
     .app-title {
       margin: 0;
-      font-size: 1.22rem;
-      font-weight: 800;
-      letter-spacing: -0.015em;
-      line-height: 1.15;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
       color: var(--text);
       overflow-wrap: anywhere;
     }
 
     .app-subtitle {
-      margin: 2px 0 0;
-      font-size: 0.82rem;
+      margin: 1px 0 0;
+      font-size: 0.68rem;
       font-weight: 600;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.09em;
       text-transform: uppercase;
       color: var(--muted);
       overflow-wrap: anywhere;
@@ -284,31 +298,40 @@ html { background: var(--bg); min-height: 100%; }
 
     .header-actions {
       display: flex;
-      gap: 8px;
+      gap: 2px;
       flex: 0 0 auto;
     }
 
     .icon-btn {
-      width: 3rem;
-      height: 3rem;
-      border-radius: 15px;
-      border: 2px solid var(--border);
-      background: var(--surface);
+      width: 2.6rem;
+      height: 2.6rem;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: transparent;
       color: var(--text);
       display: inline-grid;
       place-items: center;
       cursor: pointer;
       padding: 0;
-      box-shadow: var(--shadow-sm);
+      transition: background-color 120ms ease;
+    }
+
+    .icon-btn:hover { background: var(--surface-2); }
+    .icon-btn:active { background: var(--border); }
+
+    /* High-contrast and inverted themes keep an explicit outline on every control. */
+    body.high-contrast .icon-btn,
+    body[data-theme="inverted"] .icon-btn {
+      border-color: var(--outline);
     }
 
     .icon-btn svg {
-      width: 1.5rem;
-      height: 1.5rem;
+      width: 1.4rem;
+      height: 1.4rem;
       display: block;
       fill: none;
       stroke: currentColor;
-      stroke-width: 1.9;
+      stroke-width: 1.8;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
@@ -1063,14 +1086,14 @@ html { background: var(--bg); min-height: 100%; }
     body.large-text-layout .mode-toggle label { flex-direction: row; justify-content: flex-start; gap: 10px; }
     body.large-text-layout .markers { flex-direction: column; }
     body.large-text-layout .marker { flex-direction: row; justify-content: flex-start; gap: 12px; }
-    body.large-text-layout .app-header { flex-direction: column; align-items: stretch; }
+    body.large-text-layout .app-header { position: static; flex-direction: column; align-items: stretch; }
     body.large-text-layout .header-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     body.large-text-layout .icon-btn { width: 100%; height: auto; min-height: 3rem; padding: 10px; }
     body.large-text-layout .action-btn { height: auto; min-height: 8rem; padding: 1.25rem; }
 
     body.short-screen-layout .panel { gap: 12px; }
     body.short-screen-layout .action-btn { min-height: 6.5rem; height: auto; padding: 1rem; }
-    body.short-screen-layout .brand-mark { width: 2.4rem; height: 2.4rem; }
+    body.short-screen-layout .brand-mark { width: 2rem; height: 2rem; }
 
     body.phone-safe-layout .panel { width: min(44rem, 100vw); }
     body.phone-safe-layout .setup-group { padding: 12px; }
