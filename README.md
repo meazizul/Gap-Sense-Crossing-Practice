@@ -10,6 +10,12 @@ learns the *feel* of the gap, not a stopwatch reading.
 
 ---
 
+## Install on a phone
+
+- **iPhone:** open <https://testflight.apple.com/join/wYreYpF6> on the phone (TestFlight). About two minutes.
+- **Android:** install the APK; see `docs/INSTALL_GUIDE.md`.
+- **Any browser:** open `index.html` or the hosted page. Everything works except vibration.
+
 ## For reviewers: the 60-second version
 
 **What it does.** The student sets two reference times (how long to clear the

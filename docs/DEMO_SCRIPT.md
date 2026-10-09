@@ -114,10 +114,12 @@ Go back to the home screen.
 
 ## 7. Where the project stands (30 seconds)
 
-> "The iPhone build is uploaded to Apple and is in Beta App Review for
-> TestFlight. Once approved, one public link installs it on any iPhone. The
-> Android build is ready as a file. The participant guide, install guide and
-> facilitator script are written."
+> "The iPhone build has passed Apple's Beta App Review. One public TestFlight
+> link installs it on any iPhone in about two minutes. The Android build is
+> ready as a file. The participant guide, install guide and facilitator script
+> are written."
+
+The link: <https://testflight.apple.com/join/wYreYpF6>
 
 ---
 
@@ -163,4 +165,7 @@ installs from that source once, and tap **Install**. Two minutes.
    Developer Mode, then restart). Plug it in, tap **Trust**, and the build is
    installed directly. It stays valid for a year.
 
-**iPhone, after approval.** The TestFlight public link. Two minutes.
+**iPhone.** Send them the TestFlight public link <https://testflight.apple.com/join/wYreYpF6>.
+They install TestFlight from the App Store if they do not have it, open the
+link, tap Accept, tap Install. Two minutes. The internal-tester and cable
+routes below are no longer needed.

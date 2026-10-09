@@ -22,10 +22,12 @@ If you already have TestFlight, skip this step.
 
 ### Step 2. Open the Gap Sense link
 
-Your instructor will send you a link. It begins with
-`https://testflight.apple.com/join/`.
+The link is:
 
-1. Open the link on your iPhone. You can tap it in a message or an email.
+**<https://testflight.apple.com/join/wYreYpF6>**
+
+1. Open the link on your iPhone. You can tap it in a message or an email, or
+   type it into Safari.
 2. TestFlight opens.
 3. Press **Accept**.
 4. Press **Install**.
