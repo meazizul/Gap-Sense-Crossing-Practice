@@ -1654,3 +1654,11 @@ details.options-card > label[for] { display: block; min-height: 0; padding: 10px
 .card > .settings-action,
 details.options-card > .settings-action { display: block; width: 100%; margin: 10px 0; }
 details.options-card > .field-help { margin: 4px 0 8px; }
+
+/* No double-tap zoom anywhere (it trapped the native app in a zoomed state);
+   pinch zoom stays available in web browsers. */
+html, body {
+  touch-action: manipulation;
+  /* No double-tap zoom; see lockNativeViewport() in engine.js for the shell. */
+}
+button, label, input, select, textarea, summary, a { touch-action: manipulation; }

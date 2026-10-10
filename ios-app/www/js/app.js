@@ -21,6 +21,34 @@ const GS_STEP_ORDER = ["practice", "signal", "compare", "live"];
 
 let gsCurrentScreen = "home";
 
+/* Shown under Help → About so a tester can confirm which build they have.
+ * Bump GS_APP_BUILD with CURRENT_PROJECT_VERSION (iOS), versionCode (Android)
+ * and CACHE_VERSION (sw.js). In the native app the real bundle values are
+ * read from the App plugin and override these. */
+const GS_APP_VERSION = "1.0";
+const GS_APP_BUILD = "4";
+const GS_APP_DATE = "10 October 2026";
+
+async function gsRenderAbout() {
+  const el = document.getElementById("aboutVersion");
+  if (!el) return;
+  let version = GS_APP_VERSION;
+  let build = GS_APP_BUILD;
+  let channel = "web";
+  try {
+    const AppPlugin = window.Capacitor?.Plugins?.App;
+    if (window.Capacitor?.isNativePlatform?.() && AppPlugin?.getInfo) {
+      const info = await AppPlugin.getInfo();
+      if (info?.version) version = info.version;
+      if (info?.build) build = info.build;
+      channel = window.Capacitor.getPlatform?.() === "android" ? "Android app" : "iPhone app";
+    }
+  } catch (error) {
+    /* fall back to the constants */
+  }
+  el.textContent = `Gap Sense version ${version}, build ${build} (${channel}), ${GS_APP_DATE}.`;
+}
+
 /*
  * Stop whatever any activity is doing. Called on every screen change so that
  * leaving mid-run never leaves timers firing, speech suppressed, Settings
@@ -57,6 +85,7 @@ function gsShowScreen(name) {
 
   if (name === "progress") gsRenderProgress();
   if (name === "home") gsRenderHome();
+  if (name === "help") gsRenderAbout();
   if (name === "practice" && typeof renderPracticeScore === "function") renderPracticeScore();
   if (name === "signal" && typeof gsSignalRenderScore === "function") gsSignalRenderScore();
   if (name === "compare" && typeof gsCompareRenderScore === "function") gsCompareRenderScore();

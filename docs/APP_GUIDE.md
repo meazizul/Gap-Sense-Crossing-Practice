@@ -244,7 +244,7 @@ color-blind users. Triangle orientation (up/down) and the grey flash's brightnes
 are both adjustable under **Settings → Visual calibration**.
 
 ### Touch feedback
-**Vibrate on cue** plus a **Test haptic pulse** button. See
+**Vibrate on cue** (on by default) plus a **Test haptic pulse** button. See
 [`HAPTICS.md`](HAPTICS.md) — this behaves very differently on the native iOS app
 than in a browser, and the note under the button always states which is active.
 

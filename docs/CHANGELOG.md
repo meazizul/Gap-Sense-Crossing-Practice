@@ -8,6 +8,27 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-10 (build 4) — Vibration on by default, no zoom trap, visible build number
+
+Found by the user on TestFlight build 3 within minutes of it going live.
+
+- **Vibration is on from the first launch.** It was off until someone found the
+  switch under Accessibility. For a DeafBlind user it is the whole interface,
+  so the default is now on; an explicit opt-out is still remembered.
+- **Double-tap no longer zooms the iPhone app.** A double tap anywhere zoomed
+  the web view and there was no way back except relaunching. The native shell
+  now locks the viewport (WKWebView honours `user-scalable=no`; Safari does
+  not, so the web build is untouched and still pinch-zooms), and
+  `touch-action: manipulation` on the page removes double-tap zoom everywhere
+  while keeping pinch. Capacitor's `zoomEnabled` is set to false as well.
+- **Help → About shows the version and build**, read from the app bundle in
+  the native apps ("Gap Sense version 1.0, build 4 (iPhone app)"), so a tester
+  can confirm which build they are running. TestFlight itself only shows
+  "1.0" prominently.
+- iOS build 4, Android versionCode 4, service-worker cache v6. 41 browser tests.
+
+---
+
 ## 2026-10-10 — Cindi's review: measuring removed, a signal activity, overlapped replays, privacy in the share link
 
 Cindi reviewed the four activities in detail on 7 October (tracked changes on
