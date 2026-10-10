@@ -2,25 +2,46 @@
  * Gap Sense — shell: navigation, progress, sharing, help
  * ============================================================ */
 
-const GS_SCREENS = ["home", "measure", "practice", "compare", "live", "progress", "help"];
+const GS_SCREENS = ["home", "practice", "signal", "compare", "live", "progress", "help"];
 
 const GS_SCREEN_TITLES = {
   home: "Gap Sense",
-  measure: "Measure my crossing",
   practice: "Practise my timing",
+  signal: "Time it from a signal",
   compare: "Compare practice",
   live: "At the street",
   progress: "Progress",
   help: "Help"
 };
 
-/* The four activities, in the order the skill is actually taught. */
-const GS_STEP_ORDER = ["measure", "practice", "compare", "live"];
+/* The four activities, in the order the skill is taught. Crossing times are
+ * measured and set by the O&M instructor (Settings, or a link), not by the
+ * app: the "Measure my crossing" step was removed on Cindi's advice. */
+const GS_STEP_ORDER = ["practice", "signal", "compare", "live"];
 
 let gsCurrentScreen = "home";
 
+/*
+ * Stop whatever any activity is doing. Called on every screen change so that
+ * leaving mid-run never leaves timers firing, speech suppressed, Settings
+ * locked, or the microphone open.
+ */
+function gsCancelActivities() {
+  if (typeof cancelPractice === "function") cancelPractice();
+  if (typeof gsCompareCancel === "function") gsCompareCancel();
+  if (typeof gsLiveCancelFlow === "function") gsLiveCancelFlow();
+  if (typeof gsSignalCancel === "function") gsSignalCancel();
+  if (typeof gsClearHaptics === "function") gsClearHaptics();
+  suppressSrAnnouncements = false;
+  stopVisualReplay();
+  gsHideIntervalVisual();
+}
+
 function gsShowScreen(name) {
   if (!GS_SCREENS.includes(name)) name = "home";
+  const leaving = gsCurrentScreen;
+  gsCancelActivities();
+  if (leaving === "live" && name !== "live" && typeof gsLiveLeave === "function") gsLiveLeave();
   gsCurrentScreen = name;
 
   GS_SCREENS.forEach((screen) => {
@@ -34,14 +55,12 @@ function gsShowScreen(name) {
   const title = document.getElementById("screenTitle");
   if (title) title.textContent = GS_SCREEN_TITLES[name];
 
-  // Stop anything still playing from the previous screen.
-  stopVisualReplay();
-  gsHideIntervalVisual();
-
   if (name === "progress") gsRenderProgress();
   if (name === "home") gsRenderHome();
-  if (name === "live") gsNoiseStart().then(() => gsLiveRenderNoise());
-  if (name !== "live") gsNoiseStop();
+  if (name === "practice" && typeof renderPracticeScore === "function") renderPracticeScore();
+  if (name === "signal" && typeof gsSignalRenderScore === "function") gsSignalRenderScore();
+  if (name === "compare" && typeof gsCompareRenderScore === "function") gsCompareRenderScore();
+  if (name === "live" && typeof gsLiveEnter === "function") gsLiveEnter();
 
   // Move focus so screen-reader users land in the new screen, not nowhere.
   const heading = document.querySelector(`#screen-${name} .screen-heading`);
@@ -55,10 +74,10 @@ function gsShowScreen(name) {
 /* ============================================================
  * Visual channel for intervals
  * ------------------------------------------------------------
- * The existing replay overlay is driven by the AudioContext clock and owned by
- * the practice engine. The comparison tasks need something simpler: hold a
- * shape on screen for exactly as long as the interval lasts, so a Deaf user
- * sees the duration they cannot hear.
+ * The replay overlay is driven by the AudioContext clock and owned by the
+ * practice engine. Playing a sample needs something simpler: hold a flash on
+ * screen for exactly as long as the interval lasts, so a Deaf user sees the
+ * duration they cannot hear.
  * ============================================================ */
 
 let gsIntervalVisualTimers = [];
@@ -114,9 +133,9 @@ function gsRenderHome() {
   const banner = document.getElementById("homeSetupBanner");
   if (banner) banner.hidden = ready;
 
-  // Gate the later steps until there is something to compare against — the
-  // whole point is that each step depends on the one before it.
-  ["practice", "compare", "live"].forEach((step) => {
+  // Every activity compares against the crossing times, so all of them wait
+  // until the times exist.
+  GS_STEP_ORDER.forEach((step) => {
     const card = document.querySelector(`.step-card[data-screen="${step}"]`);
     if (!card) return;
     card.classList.toggle("locked", !ready);
@@ -135,13 +154,15 @@ function gsRenderHome() {
       : "No practice recorded yet";
   }
 
-  if (typeof gsRenderDemoNote === "function") gsRenderDemoNote();
+  gsRenderDemoNote();
 
+  // The numbers themselves stay in Settings. A student who reads "8.0 s" on
+  // the home screen is invited to count, which is the one thing the method
+  // forbids. Instructors see and edit the values in Settings.
   const times = document.getElementById("homeTimes");
   if (times) {
-    const { clearTime, fullTime } = getTimingInputs();
     times.textContent = ready
-      ? `Half street ${clearTime.toFixed(2)}s · Full street ${fullTime.toFixed(2)}s`
+      ? (gsUsingDemoTimes() ? "Using example crossing times" : "Crossing times set")
       : "Crossing times not set";
   }
 }
@@ -167,19 +188,17 @@ function gsRenderProgress() {
       return `<div class="progress-card"><span class="progress-label">${label}</span>
         <span class="progress-value">—</span><span class="progress-note">not started</span></div>`;
     }
-    if (activity === "measure") {
-      return `<div class="progress-card"><span class="progress-label">${label}</span>
-        <span class="progress-value">${stats.total}</span>
-        <span class="progress-note">walk${stats.total === 1 ? "" : "s"} recorded</span></div>`;
-    }
     const pct = Math.round((stats.correct / stats.total) * 100);
+    const noun = activity === "live" ? "gave enough warning" : "within margin";
     return `<div class="progress-card"><span class="progress-label">${label}</span>
       <span class="progress-value">${pct}%</span>
-      <span class="progress-note">${stats.correct} of ${stats.total}</span></div>`;
+      <span class="progress-note">${stats.correct} of ${stats.total} ${noun}</span></div>`;
   }).join("");
 
-  // A small sparkline-style run of the last 20 practice attempts.
-  const recent = gsHistoryFor("practice", "", 20);
+  // A small run of the last 20 timing attempts (practice and signal).
+  const recent = gsLoadHistory()
+    .filter((e) => e.activity === "practice" || e.activity === "signal")
+    .slice(-20);
   const dots = recent
     .map((e) => `<span class="run-dot ${e.correct ? "ok" : "miss"}" aria-hidden="true"></span>`)
     .join("");
@@ -195,12 +214,10 @@ function gsRenderProgress() {
   let adaptiveNote = "";
   if (adaptive.enabled) {
     const lanes = Object.entries(adaptive.lanes)
-      .map(([key, lane]) => `<li>${key}: margin now <strong>${lane.margin.toFixed(2)}s</strong>${
-        lane.learnerFloor ? ` (floor held at ${lane.learnerFloor.toFixed(2)}s)` : ""
-      }</li>`)
+      .map(([key, lane]) => `<li>${gsLaneLabel(key)}: margin now <strong>${Number(lane.margin).toFixed(2)}s</strong></li>`)
       .join("");
     adaptiveNote = lanes
-      ? `<div class="setup-group"><p class="setup-heading">Adaptive margin</p><ul class="plain-list">${lanes}</ul></div>`
+      ? `<div class="setup-group"><p class="setup-heading">Adaptive margin (experimental)</p><ul class="plain-list">${lanes}</ul></div>`
       : "";
   }
 
@@ -211,15 +228,33 @@ function gsRenderProgress() {
  * Sharing a report with the instructor
  * ------------------------------------------------------------
  * Fully opt-in: the student sees exactly what would be sent, in full, before
- * anything is copied anywhere. Nothing is transmitted by the app itself.
+ * anything is copied or handed to the mail app. Nothing is transmitted by the
+ * app itself. Identity is the short client code from Settings, never a name.
  * ============================================================ */
+
+function gsReportText() {
+  return gsBuildReport({ clientCode: typeof getClientCode === "function" ? getClientCode() : "" });
+}
+
+function gsRenderReportControls() {
+  const email = typeof getInstructorEmail === "function" ? getInstructorEmail() : "";
+  const emailBtn = document.getElementById("emailReportBtn");
+  if (emailBtn) emailBtn.hidden = !email;
+  const whom = document.getElementById("reportRecipient");
+  if (whom) {
+    whom.textContent = email
+      ? `Instructor email from Settings: ${email}`
+      : "No instructor email set. Add one in Settings to email the report directly, or copy it and paste it anywhere.";
+  }
+}
 
 function gsPreviewReport() {
   const box = document.getElementById("reportPreview");
   const wrap = document.getElementById("reportPreviewWrap");
   if (!box || !wrap) return;
-  box.value = gsBuildReport({ studentName: document.getElementById("studentName")?.value.trim() });
+  box.value = gsReportText();
   wrap.hidden = false;
+  gsRenderReportControls();
   announceScreenReader("Report ready to review. Nothing has been sent.");
 }
 
@@ -230,6 +265,22 @@ async function gsCopyReport() {
   announceScreenReader("Report copied. You can now paste it into an email or message.");
   const note = document.getElementById("reportNote");
   if (note) note.textContent = "Copied. Paste it into an email or message to send it.";
+}
+
+function gsEmailReport() {
+  const email = typeof getInstructorEmail === "function" ? getInstructorEmail() : "";
+  if (!email) return;
+  const box = document.getElementById("reportPreview");
+  if (!box || !box.value) gsPreviewReport();
+  const body = document.getElementById("reportPreview").value;
+  const code = typeof getClientCode === "function" ? getClientCode() : "";
+  const subject = `Gap Sense practice report${code ? ` — ${code}` : ""}`;
+  // Opens the student's own mail app with everything filled in. They still
+  // press Send themselves; the app sends nothing.
+  window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const note = document.getElementById("reportNote");
+  if (note) note.textContent = "Your mail app should open with the report. Check it, then send.";
+  announceScreenReader("Opening your mail app with the report. Check it, then send.");
 }
 
 function gsClearData() {
@@ -265,20 +316,24 @@ function gsTutorialDemo(kind) {
   } else if (kind === "outside") {
     playFeedbackTone("outside", 0.05);
     announceScreenReader("That is the outside-margin sound.");
+  } else if (kind === "sample") {
+    if (typeof gsPlaySample === "function") gsPlaySample(2.0, 0.05, "continuous", { visual: false, haptic: false });
+    announceScreenReader("That is a sample warning time. It grows louder like a vehicle approaching, then stops.");
+  } else if (kind === "signal") {
+    playReferenceTick(0.05);
+    announceScreenReader("That is the start signal.");
   } else {
     playUserMarkerTone(0.05);
     announceScreenReader("That is your own marker sound.");
   }
 }
 
-
 /* ============================================================
  * QUICK-START / DEMO MODE
  * ------------------------------------------------------------
  * A conference participant has about thirty seconds and is often using a
- * screen reader on a phone they are holding one-handed. Asking them to measure
- * a crossing, or to type two numbers into Settings, before anything works at
- * all is far too much.
+ * screen reader on a phone they are holding one-handed. Asking them to type
+ * two numbers into Settings before anything works at all is far too much.
  *
  * So: example times can be loaded in one tap, and the link handed out at the
  * conference can carry "?demo=1" to do it automatically. The app then opens
@@ -287,7 +342,7 @@ function gsTutorialDemo(kind) {
  * ============================================================ */
 
 const GS_DEMO_KEY = "om-demo-times";
-const GS_DEMO_CLEAR = "4.0";   // typical half-street clear time
+const GS_DEMO_CLEAR = "4.0";   // typical first-half time
 const GS_DEMO_FULL = "8.0";    // typical full-street crossing
 const GS_DEMO_MARGIN = "0.5";  // the value historically taught in workshops
 
@@ -296,30 +351,13 @@ function gsUsingDemoTimes() {
 }
 
 function gsLoadDemoTimes({ goToPractice = true } = {}) {
-  clearTimeInput.value = GS_DEMO_CLEAR;
-  fullTimeInput.value = GS_DEMO_FULL;
-  marginInput.value = GS_DEMO_MARGIN;
-  localStorage.setItem("om-clear-time", GS_DEMO_CLEAR);
-  localStorage.setItem("om-full-time", GS_DEMO_FULL);
-  localStorage.setItem("om-margin", GS_DEMO_MARGIN);
-  localStorage.setItem(GS_DEMO_KEY, "true");
-
-  refreshTimingRequirementPrompt();
-  updateNextPrompt();
-  gsRenderHome();
-  gsRenderDemoNote();
-
+  setReferenceTimes(GS_DEMO_CLEAR, GS_DEMO_FULL, GS_DEMO_MARGIN, { source: "demo" });
   if (goToPractice) {
     gsShowScreen("practice");
     announceScreenReader(
       "Example times loaded. Press the big button to begin, then press it again when you think you would have reached the other side."
     );
   }
-}
-
-function gsClearDemoFlag() {
-  localStorage.removeItem(GS_DEMO_KEY);
-  gsRenderDemoNote();
 }
 
 function gsRenderDemoNote() {
@@ -342,31 +380,39 @@ function gsBindShell() {
   const back = document.getElementById("backBtn");
   if (back) back.addEventListener("click", () => gsShowScreen("home"));
 
+  document.getElementById("homeOpenSettingsBtn")?.addEventListener("click", () => {
+    settingsTrigger.click();
+  });
+
   const adaptiveToggle = document.getElementById("adaptiveMarginToggle");
   if (adaptiveToggle) {
     adaptiveToggle.checked = gsAdaptiveEnabled();
     adaptiveToggle.addEventListener("change", () => {
       gsSetAdaptiveEnabled(adaptiveToggle.checked);
-      gsCompareRenderScore();
+      if (typeof gsCompareRenderScore === "function") gsCompareRenderScore();
+      if (typeof gsSignalRenderScore === "function") gsSignalRenderScore();
+      if (typeof renderPracticeScore === "function") renderPracticeScore();
+      gsRenderProgress();
       announceScreenReader(
         adaptiveToggle.checked
-          ? "Adaptive margin on. The margin will tighten as accuracy improves."
+          ? "Adaptive margin on. Experimental: each task's margin tightens slowly as accuracy improves and releases to the set margin when it drops."
           : "Adaptive margin off. The margin stays as set."
       );
     });
   }
 
-  const resetFloor = document.getElementById("resetLearnerFloorBtn");
-  if (resetFloor) {
-    resetFloor.addEventListener("click", () => {
-      gsResetLearnerFloor();
+  const resetLanes = document.getElementById("resetAdaptiveBtn");
+  if (resetLanes) {
+    resetLanes.addEventListener("click", () => {
+      gsResetAdaptiveLanes();
       gsRenderProgress();
-      announceScreenReader("Learner floor cleared.");
+      announceScreenReader("Adaptive margins reset to the set margin.");
     });
   }
 
   document.getElementById("previewReportBtn")?.addEventListener("click", gsPreviewReport);
   document.getElementById("copyReportBtn")?.addEventListener("click", gsCopyReport);
+  document.getElementById("emailReportBtn")?.addEventListener("click", gsEmailReport);
   document.getElementById("clearDataBtn")?.addEventListener("click", gsClearData);
 
   document.getElementById("openTutorialBtn")?.addEventListener("click", gsRunTutorial);
@@ -385,20 +431,30 @@ function gsBindShell() {
 
   document.getElementById("tryDemoBtn")?.addEventListener("click", () => gsLoadDemoTimes());
 
-  // Keep home in step with times edited in Settings. Editing a time by hand, or
-  // saving a measured one, means these are no longer the example values.
+  // Times edited by hand in Settings are no longer the example values.
   [clearTimeInput, fullTimeInput].forEach((input) => {
     input?.addEventListener("change", () => {
-      gsClearDemoFlag();
+      localStorage.removeItem(GS_DEMO_KEY);
       gsRenderHome();
     });
+  });
+
+  // Settings closing may have changed the margin or the instructor details.
+  settingsModal?.addEventListener("close", () => {
+    gsRenderHome();
+    gsRenderReportControls();
+    if (typeof renderPracticeScore === "function") renderPracticeScore();
+    if (typeof gsCompareRenderScore === "function") gsCompareRenderScore();
+    if (typeof gsSignalRenderScore === "function") gsSignalRenderScore();
   });
 }
 
 function gsBoot() {
   gsBindShell();
-  gsMeasureInit();
   gsComparisonInit();
+  gsSignalInit();
+  if (typeof renderPracticeScore === "function") renderPracticeScore();
+  gsRenderReportControls();
 
   // ?demo=1 — the conference link. Straight in, nothing to set up.
   const params = new URLSearchParams(window.location.search);

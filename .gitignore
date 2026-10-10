@@ -76,3 +76,7 @@ ios-app/android/build/
 ios-app/android/local.properties
 
 ios-app/build/*.apk
+
+# Playwright output
+ios-app/test-results/
+ios-app/playwright-report/

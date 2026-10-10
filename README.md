@@ -6,7 +6,7 @@ street.
 
 The core design principle: feedback is delivered as **felt duration** — sounds,
 visual flashes, and vibration — **never as a number of seconds**. The student
-learns the *feel* of the gap, not a stopwatch reading.
+learns the *feel* of the duration, not a stopwatch reading.
 
 ---
 
@@ -98,8 +98,11 @@ Historical engineering records, kept as dated artifacts:
 ```
 .
 ├── ios-app/                  ← THE CURRENT APP. Work here.
-│   ├── www/index.html          Entire app: UI + engine, one file, no build step
+│   ├── www/index.html          Markup. No build step, no framework
+│   ├── www/css/app.css         Styles, themes, large-text reflow
+│   ├── www/js/                 engine.js, history.js, comparison.js, signal.js, app.js
 │   ├── www/manifest.webmanifest, www/sw.js, www/icons/
+│   ├── tests/                  Playwright browser tests (`npm test`)
 │   ├── ios/                    Native Xcode project (Capacitor)
 │   ├── serve-lan.mjs           Dev server reachable from a phone over Wi-Fi
 │   └── README-IOS.md           Install / run / test guide
@@ -160,15 +163,14 @@ constrained accordingly:
 
 ## Known limitations
 
-- **No attempt history.** Results are discarded on reset, so an adaptive
-  margin-of-error feature and any data export are blocked until a persisted
-  attempt log exists.
-- **Not on the App Store.** That requires a paid Apple Developer account and
-  store assets. The privacy questionnaire would be trivial — the app collects
-  nothing — but it is separate work.
-- **No automated tests.** Verification to date has been manual plus scripted
-  in-browser runs.
-- **Android is not set up**, though the same Capacitor project would take it.
+- **Not on the App Store or Play Store.** Distribution is TestFlight and a
+  direct APK. Store assets and listings are separate work.
+- **No device automation.** Browser tests exist (`cd ios-app && npm test`, 38
+  Playwright tests in the installed Chrome) and cover the logic and the
+  accessibility wiring; audio quality, haptics and VoiceOver still need a real
+  phone. See `docs/TESTING.md`.
+- **Experimental features off by default.** The adaptive margin and the
+  background-noise check are unproven; the instructor switches them on.
 - **Inherited tooling.** `.agent-tooling/`, `preflight.config.mjs`, and about half
   of `.beads/issues.jsonl` were copied from a sibling Next.js project and refer to
   files that do not exist here. They are inert and can be ignored.
