@@ -31,10 +31,9 @@ Found by the user on TestFlight build 3 within minutes of it going live.
 
 ## 2026-10-10 — Cindi's review: measuring removed, a signal activity, overlapped replays, privacy in the share link
 
-Cindi reviewed the four activities in detail on 7 October (tracked changes on
-the 29 September email) and copied Dona. Everything below follows from that
-review and from a code review the same week. All three bugs she reported were
-real.
+Cindi reviewed the four activities in detail on 7 October. Everything below
+follows from that review and from a code review the same week. All three bugs
+she reported were real.
 
 ### Measure my crossing is gone
 
