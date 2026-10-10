@@ -35,9 +35,10 @@ On the home screen, under the four numbered parts, tap
 
 Say:
 
-> "Normally the user measures their own crossing first. For a demo I am loading
-> example times: 4 seconds to clear the near lane, 8 seconds for the full
-> street. The app says out loud that these are examples, not mine."
+> "Normally the O&M instructor times the person's crossing and sets the times
+> in the app, or sends them a link. For a demo I am loading example times:
+> four seconds for the first half of the street, eight for the full street.
+> The app says out loud that these are examples, not mine."
 
 The app opens the practice screen.
 
@@ -57,9 +58,9 @@ Then explain what they heard:
 
 > "You heard my taps as plain tones. Then at each correct moment, either a
 > short bright chime, meaning I was within half a second, or a long low buzz,
-> meaning I was outside it. What matters is the gap between my tone and the
+> meaning I was outside it. What matters is the distance between my tone and the
 > reference tone. If they land together, I was on time. The further apart, the
-> further off I was. That gap is the lesson. Nobody counts."
+> further off I was. That distance is the lesson. Nobody counts."
 
 Do it twice more, once deliberately early, once deliberately late, so they hear
 the chime and the buzz in contrast.
@@ -88,17 +89,22 @@ visual**, **Visual only**. And the text-size and colour options.
 
 Go back to the home screen.
 
-- **Measure my crossing**: "In real use, the person walks the actual street
-  three times, tapping at the kerb, the middle and the far side. The app stores
-  the average. That replaces the example times."
-- **Compare practice**: "The app plays a car's warning time as a sound. The user
-  says whether it is shorter than, about the same as, or longer than their own
-  crossing. Shorter means do not go. This can be practised anywhere."
-  If there is time, tap it and do two rounds.
+- **Where the times come from**: "In real use the instructor times at least
+  three crossings, uses the longest, and sets the times in Settings or sends
+  a link. The app never asks the student to measure."
+- **Time it from a signal**: "Same skill, but the app starts the clock. Press
+  Ready, wait, two blips, then press when your crossing time is up. At a kerb
+  nobody hands you the start." If there is time, do one round.
+- **Compare practice**: "The app plays a sample warning time as a sound that
+  grows louder like a car. The user says whether it is shorter than, about the
+  same as, or longer than their own crossing, by button or by swiping up or
+  down. Shorter means do not go. Then both play together so they feel the
+  difference. This can be practised anywhere."
+  If there is time, tap **Play a sample warning time** and do two rounds.
 - **At the street**: "From a safe spot, the user taps when they first hear a
-  car and again when it passes. The app says whether that car left enough time.
-  It samples background noise first, because in noise you hear cars later, and
-  it flags measurements taken in a noisy moment."
+  car and again when it passes. The app says whether that car left enough time
+  and replays the two durations together. An optional, experimental noise
+  check can flag measurements taken in a noisy moment."
 
 ---
 
@@ -106,9 +112,11 @@ Go back to the home screen.
 
 - **Progress**: practice history, kept on the phone only.
 - **Settings → Share time settings**: an instructor measures a student's times
-  once and sends a link. Opening it writes the times into the student's copy.
-- No account, no sign-in, no network. The microphone is only used to measure
-  loudness, never recorded.
+  once and sends a link. Opening it writes the times, the margin, the
+  instructor's email and a short client code into the student's copy. Never a
+  name.
+- No account, no sign-in, no network. The microphone is used only if the
+  optional noise check is switched on, and then only to measure loudness.
 
 ---
 
@@ -127,11 +135,11 @@ The link: <https://testflight.apple.com/join/wYreYpF6>
 
 **"Why not just show seconds?"** Counting replaces feeling. People who count
 stop learning the duration in their body, and at a real kerb they will not be
-counting. The sound gap teaches the duration directly.
+counting. The distance between the sounds teaches the duration directly.
 
 **"How accurate are the sounds?"** Playback is scheduled by the audio engine to
-the millisecond. The margin, half a second by default, is the tolerance, and it
-can be tightened as someone improves.
+the millisecond. The margin is the tolerance; the instructor chooses it. There
+is an experimental option that tightens it as someone improves, off by default.
 
 **"Does it work in the browser?"** Everything except vibration. On iPhone,
 Safari cannot vibrate at all. That is why there is a native app.

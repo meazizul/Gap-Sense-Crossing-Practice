@@ -13,7 +13,7 @@ haptics now reach the real iPhone Taptic Engine.
 ```
 ios-app/
 ├── www/                      The app itself (this is what you edit)
-│   ├── index.html            Entire app: UI + engine, one file, no build step
+│   ├── index.html            Markup; styles in css/, logic in js/ (five plain scripts)
 │   ├── manifest.webmanifest  PWA metadata (name, icons, standalone display)
 │   ├── sw.js                 Service worker — offline caching for the web build
 │   └── icons/                Generated app icons
@@ -211,7 +211,9 @@ The things that can only be judged on real hardware:
 
 ## Making changes
 
-The app is still one editable file: **`www/index.html`**.
+The app is plain files under **`www/`**: `index.html`, `css/app.css`, and
+`js/engine.js`, `history.js`, `comparison.js`, `signal.js`, `app.js`. Run
+`npm test` (Playwright, uses the installed Google Chrome) before committing.
 
 **For Path A (PWA):** just save the file and reload in Safari. If a stale
 version sticks, bump `CACHE_VERSION` in `www/sw.js`.
@@ -266,11 +268,8 @@ about 0.80 — beyond that you are just feeding the master limiter.
   privacy policy, and store assets. The app collects nothing and makes no
   network calls, so the privacy questionnaire is trivial — but it is still a
   separate piece of work.
-- **No attempt history.** Results are still discarded at reset, so the adaptive
-  margin-of-error feature and any data export remain blocked on a persisted
-  attempt log.
-- **Android is not set up.** The same project would take it — `npm i
-  @capacitor/android && npx cap add android` — but that was outside this task.
+- **No device automation.** `npm test` covers the logic in a browser; audio,
+  haptics and VoiceOver need a real phone.
 - **Two timing systems still coexist.** Audio runs on the drift-free
   AudioContext clock; UI stage changes and haptics run on `setTimeout`. Close
   enough in practice, but on a loaded device the visuals and haptics can drift

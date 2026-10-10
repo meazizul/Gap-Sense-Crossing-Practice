@@ -18,7 +18,9 @@ const GS_HISTORY_LIMIT = 800; // ~ a year of heavy practice; old entries roll of
  * One attempt.
  * @typedef {Object} GsAttempt
  * @property {number} time        epoch ms
- * @property {string} activity    "practice" | "compare" | "live" | "measure"
+ * @property {string} activity    "practice" | "signal" | "compare" | "live"
+ *                                ("measure" appears only in logs from builds
+ *                                before 10 Oct 2026)
  * @property {string} street      "half" | "full"
  * @property {number} userSec     what the student produced/judged
  * @property {number} refSec      the reference they were judged against
@@ -95,24 +97,23 @@ function gsAccuracy(entries) {
  *            duration, so tightening further would teach nothing.
  *   WINDOW   the last 10 attempts of the same activity and street type.
  *
+ * STATUS: EXPERIMENTAL, off by default. Cindi's review (7 Oct 2026): there is
+ * no research support for the window, the step or the stopping rule, and the
+ * first version "pinned the learner down" and tightened too fast. What is
+ * kept, per her notes:
+ *
+ *   - one margin PER TASK AND STREET TYPE (a "lane"), never one overall;
+ *     reproducing an interval, judging one, and tapping out a difference are
+ *     different skills, and a 3 s half street is not an 8 s full street;
+ *   - tighten slowly (x 0.92 per window) and release quickly: a bad window
+ *     goes straight back to the instructor's margin, not to a pinned level;
+ *   - there is no learner floor any more; nothing holds a student down.
+ *
  * Rules, evaluated after each attempt once the window is full:
  *
- *   accuracy >= 80%   tighten:  margin x 0.85  (bounded below by the floor
- *                               and by any learner floor, see below)
- *   accuracy <  60%   loosen:   step back to the last margin at which the
- *                               student was succeeding, or margin / 0.85 if
- *                               there isn't one; never easier than the ceiling
- *   60-80%            hold      the student is in the productive struggle band
- *
- * Why 0.85: a geometric step means each tightening is proportionally the same
- * challenge rather than getting brutally harder as the margin shrinks. From
- * 0.40 s it takes about 9 successful windows to reach the 0.10 s floor, which
- * is a realistic training arc rather than something achievable in one sitting.
- *
- * Learner floor: if two successive tightenings both drop the student below
- * 60%, we conclude that level is beyond them for now, and pin the floor at the
- * last margin where they held >= 80%. This stops the algorithm oscillating and
- * repeatedly failing them. An instructor can clear it to allow progression.
+ *   accuracy >= 80%   tighten:  margin x 0.92, never below the hard floor
+ *   accuracy <  60%   release:  margin = the instructor's margin (ceiling)
+ *   60-80%            hold
  * ============================================================ */
 
 const GS_ADAPTIVE_KEY = "om-adaptive-margin";
@@ -120,9 +121,12 @@ const GS_ADAPTIVE = {
   windowSize: 10,
   tightenAt: 0.8,
   loosenBelow: 0.6,
-  factor: 0.85,
+  factor: 0.92,
   hardFloor: 0.1
 };
+
+/* Activities whose attempts can move an adaptive lane. */
+const GS_ADAPTIVE_ACTIVITIES = ["practice", "signal", "compare"];
 
 function gsAdaptiveDefaults() {
   return {
@@ -176,12 +180,10 @@ function gsLane(state, activity, street) {
   if (!state.lanes[key]) {
     state.lanes[key] = {
       margin: gsCeilingMargin(),
-      lastGood: null,
-      learnerFloor: null,
-      consecutiveFails: 0,
-      lastEvaluatedAt: 0
+      attemptsSinceStep: 0
     };
   }
+  if (!Number.isFinite(state.lanes[key].attemptsSinceStep)) state.lanes[key].attemptsSinceStep = 0;
   return state.lanes[key];
 }
 
@@ -195,11 +197,23 @@ function gsEffectiveMargin(activity, street) {
   if (!state.enabled) return ceiling;
   const lane = gsLane(state, activity, street);
   // The ceiling can be edited at any time; never let a stored value exceed it.
-  return Math.min(ceiling, Math.max(gsFloorFor(lane), lane.margin));
+  const margin = Number.isFinite(lane.margin) ? lane.margin : ceiling;
+  return Math.min(ceiling, Math.max(GS_ADAPTIVE.hardFloor, margin));
 }
 
-function gsFloorFor(lane) {
-  return Math.max(GS_ADAPTIVE.hardFloor, lane.learnerFloor || 0);
+/**
+ * Pure step function, separated so it can be unit-tested without storage.
+ * Returns the new margin for a lane given the window accuracy.
+ */
+function gsAdaptiveStep(currentMargin, accuracy, ceiling) {
+  const bounded = Math.min(ceiling, Math.max(GS_ADAPTIVE.hardFloor, currentMargin));
+  if (accuracy >= GS_ADAPTIVE.tightenAt) {
+    return Math.max(GS_ADAPTIVE.hardFloor, bounded * GS_ADAPTIVE.factor);
+  }
+  if (accuracy < GS_ADAPTIVE.loosenBelow) {
+    return ceiling;
+  }
+  return bounded;
 }
 
 /**
@@ -208,48 +222,29 @@ function gsFloorFor(lane) {
 function gsUpdateAdaptiveMargin(activity, street) {
   const state = gsLoadAdaptive();
   if (!state.enabled) return;
-  if (activity !== "practice" && activity !== "compare") return;
+  if (!GS_ADAPTIVE_ACTIVITIES.includes(activity)) return;
 
   const lane = gsLane(state, activity, street);
-  const window = gsHistoryFor(activity, street, GS_ADAPTIVE.windowSize);
-  if (window.length < GS_ADAPTIVE.windowSize) {
+
+  // Evaluate in blocks of `windowSize` attempts, never a sliding window. The
+  // first version re-evaluated after every attempt once ten existed, so a
+  // student doing well was tightened on attempt 11, 12, 13… — the "reducing
+  // too quickly" Cindi saw. Now a lane moves at most once per ten attempts.
+  lane.attemptsSinceStep += 1;
+  if (lane.attemptsSinceStep < GS_ADAPTIVE.windowSize) {
     gsSaveAdaptive(state);
     return;
   }
-
-  // Only evaluate once per fresh window, so one attempt can't cascade steps.
-  const newest = window[window.length - 1].time;
-  if (newest === lane.lastEvaluatedAt) return;
-
-  const accuracy = gsAccuracy(window);
-  const ceiling = gsCeilingMargin();
-  const floor = gsFloorFor(lane);
-
-  if (accuracy >= GS_ADAPTIVE.tightenAt) {
-    lane.lastGood = lane.margin;
-    lane.margin = Math.max(floor, lane.margin * GS_ADAPTIVE.factor);
-    lane.consecutiveFails = 0;
-  } else if (accuracy < GS_ADAPTIVE.loosenBelow) {
-    lane.consecutiveFails += 1;
-    const relaxed = lane.lastGood !== null ? lane.lastGood : lane.margin / GS_ADAPTIVE.factor;
-    lane.margin = Math.min(ceiling, relaxed);
-    if (lane.consecutiveFails >= 2 && lane.lastGood !== null) {
-      // Pin the floor so we stop pushing past what they can hold.
-      lane.learnerFloor = lane.lastGood;
-    }
-  }
-  // 60-80%: hold. Productive struggle.
-
-  lane.lastEvaluatedAt = newest;
+  const block = gsHistoryFor(activity, street, GS_ADAPTIVE.windowSize);
+  lane.margin = gsAdaptiveStep(lane.margin, gsAccuracy(block), gsCeilingMargin());
+  lane.attemptsSinceStep = 0;
   gsSaveAdaptive(state);
 }
 
-function gsResetLearnerFloor() {
+/** Instructor action: forget every lane and start again from the set margin. */
+function gsResetAdaptiveLanes() {
   const state = gsLoadAdaptive();
-  Object.values(state.lanes).forEach((lane) => {
-    lane.learnerFloor = null;
-    lane.consecutiveFails = 0;
-  });
+  state.lanes = {};
   gsSaveAdaptive(state);
 }
 
@@ -259,12 +254,26 @@ function gsResetLearnerFloor() {
 
 const GS_ACTIVITY_LABELS = {
   practice: "Crossing-time practice",
+  signal: "Timing from a signal",
   compare: "Comparison practice",
   live: "At the street",
-  measure: "Crossing measured"
+  measure: "Crossing measured" // legacy entries from builds before 10 Oct 2026
 };
 
-const GS_STREET_LABELS = { half: "Half street", full: "Full street" };
+const GS_STREET_LABELS = { half: "First half", full: "Full street" };
+
+const GS_LANE_LABELS = {
+  "practice:half": "Crossing-time practice, first half",
+  "practice:full": "Crossing-time practice, full street",
+  "signal:half": "Timing from a signal, first half",
+  "signal:full": "Timing from a signal, full street",
+  "compare:half": "Comparison practice, first half",
+  "compare:full": "Comparison practice, full street"
+};
+
+function gsLaneLabel(key) {
+  return GS_LANE_LABELS[key] || key;
+}
 
 function gsSummary() {
   const all = gsLoadHistory();
@@ -308,7 +317,8 @@ function gsBuildReport(options = {}) {
   const lines = [];
   lines.push("Gap Sense — practice report");
   lines.push("=".repeat(34));
-  if (options.studentName) lines.push(`Student: ${options.studentName}`);
+  // A short code, never a name: the report travels by plain email.
+  if (options.clientCode) lines.push(`Client code: ${options.clientCode}`);
   lines.push(`Generated: ${new Date().toLocaleString()}`);
   lines.push("");
 
@@ -348,32 +358,47 @@ function gsBuildReport(options = {}) {
       lines.push(`${when}  ${label} (${street}): ${entry.userSec.toFixed(2)}s`);
       return;
     }
-    if (entry.activity === "compare" || entry.activity === "live") {
+    const sign = (entry.diffSec || 0) >= 0 ? "+" : "";
+    const diffText = `${sign}${Number(entry.diffSec || 0).toFixed(2)}s`;
+    if (entry.activity === "live") {
+      // A real vehicle is not a right or wrong answer. Report the verdict:
+      // was the warning time long enough for this crossing?
+      const verdict = {
+        longer: "longer than the crossing — enough warning",
+        same: "about the same as the crossing — too close to rely on",
+        shorter: "shorter than the crossing — not enough warning"
+      }[entry.expected] || entry.expected;
+      const noisy = entry.noisy ? " [not quiet when started]" : "";
+      lines.push(`${when}  ${label} (${street}): warning time ${diffText}, ${verdict}${noisy}`);
+      return;
+    }
+    if (entry.activity === "compare") {
+      if (entry.answer === "magnitude") {
+        const mark = entry.correct ? "within margin" : "outside margin";
+        lines.push(`${when}  ${label} (${street}): tapped out the difference ${diffText} — ${mark}`);
+        return;
+      }
       const mark = entry.correct ? "correct" : "incorrect";
-      const noisy = entry.noisy ? " [noisy sample]" : "";
       lines.push(
-        `${when}  ${label} (${street}): answered "${entry.answer}", was "${entry.expected}" — ${mark}${noisy}`
+        `${when}  ${label} (${street}): answered "${entry.answer}", it was "${entry.expected}" — ${mark}`
       );
       return;
     }
-    const sign = entry.diffSec >= 0 ? "+" : "";
     const mark = entry.correct ? "within margin" : "outside margin";
-    lines.push(
-      `${when}  ${label} (${street}): ${sign}${entry.diffSec.toFixed(2)}s — ${mark}`
-    );
+    lines.push(`${when}  ${label} (${street}): ${diffText} — ${mark}`);
   });
 
   const adaptive = gsLoadAdaptive();
   if (adaptive.enabled) {
     lines.push("");
-    lines.push("Adaptive margin (current)");
+    lines.push("Adaptive margin (experimental, current per task)");
     lines.push("-".repeat(34));
     Object.entries(adaptive.lanes).forEach(([key, lane]) => {
-      lines.push(`${key}: ${lane.margin.toFixed(2)}s (ceiling ${gsCeilingMargin().toFixed(2)}s)`);
+      lines.push(`${gsLaneLabel(key)}: ${Number(lane.margin).toFixed(2)}s (set margin ${gsCeilingMargin().toFixed(2)}s)`);
     });
   }
 
   lines.push("");
-  lines.push("Sent by the student from Gap Sense. No data leaves the device unless sent.");
+  lines.push("Sent by the client from Gap Sense. No data leaves the device unless sent.");
   return lines.join("\n");
 }

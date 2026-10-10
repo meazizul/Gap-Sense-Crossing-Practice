@@ -56,7 +56,7 @@ Inside that shell, JavaScript can call native iOS code — including
 ### The bridge
 
 All touch feedback goes through one function, `hapticCue(type)`, in
-`ios-app/www/index.html`. It picks the best available backend at runtime:
+`ios-app/www/js/engine.js`. It picks the best available backend at runtime:
 
 ```
 hapticCue(type)
@@ -70,7 +70,7 @@ hapticCue(type)
      └─ Otherwise (iOS Safari, desktop)     ──▶ nothing, silently
 ```
 
-This means **the same `index.html` file runs everywhere** and simply gets better
+This means **the same web code runs everywhere** and simply gets better
 feedback when it happens to be running inside the native app. Nothing needs to be
 conditionally compiled.
 
@@ -80,15 +80,19 @@ Each event type maps to a deliberately distinguishable sensation:
 
 | Cue | When it fires | Native iOS | Web fallback |
 |---|---|---|---|
-| `start` | Tapping **Begin** | Light impact | `[25]` ms |
-| `marker` | Tapping **Mark** | **Medium impact** | `[40]` ms |
-| `reference_ok` | Replay: within tolerance | Success notification (light double-tap) | `[30, 30, 30]` |
-| `reference_bad` | Replay: outside tolerance | Error notification (heavy stutter) | `[120]` |
+| `start` | Tapping **Begin**; the start signal in *Time it from a signal* | Medium impact | `[30]` ms |
+| `marker` | Tapping **Mark**; your own tap in a replay; each end of a sample | **Heavy impact** | `[45]` ms |
+| `reference_ok` | Replay: within tolerance | **Three heavy knocks**, 110 ms apart | `[35, 45, 35, 45, 35]` |
+| `reference_bad` | Replay: outside tolerance | **One 450 ms buzz** (Core Haptics continuous event at full intensity) | `[240]` |
 
-The two replay cues are the important pair. Apple's `SUCCESS` and `ERROR`
-notification haptics feel categorically different — a crisp double versus a heavy
-stutter — which is exactly the "within / outside" distinction the app teaches,
-delivered through skin instead of ears.
+The two replay cues are the important pair: a rhythm of three knocks versus one
+long buzz several times longer than anything else, which is exactly the
+"within / outside" distinction the app teaches, delivered through skin instead
+of ears. Apple's "notification" haptics were tried first and were too subtle
+through fabric or a glove; these are tuned for a hand in a pocket or holding a
+cane. In the comparison replays the sample's two ends are marker knocks and the
+crossing time ends with the ok/bad cue, so the direction and size of the
+difference are felt the same way they are heard.
 
 ### Where it fires from
 
@@ -185,27 +189,29 @@ suit this app's "feedback as felt duration" principle exactly — require iOS
 **Core Haptics** (`CHHapticEngine`) via a small custom plugin. This is the most
 promising next step for the DeafBlind use case.
 
-**Android not configured.** The bridge already falls back to `navigator.vibrate`,
-so Android web works today. A native Android build (`npx cap add android`) would
-map to `VibrationEffect` and gain amplitude control, but has not been set up.
+**Android.** The native Android project exists under `ios-app/android/`; the
+plugin maps the same calls to `VibrationEffect`. Android browsers use
+`navigator.vibrate` with the patterns above. Amplitude shaping is not used yet.
 
 ---
 
 ## 8. For developers
 
-**The relevant code** — in `ios-app/www/index.html`, search for:
+**The relevant code** — in `ios-app/www/js/engine.js`, search for:
 
 - `hapticCue` — the dispatcher
 - `describeHapticsSupport` — the text shown under the test button
 - `WEB_VIBRATION_PATTERNS` — the web fallback patterns
-- `emitCue` — the single event stream that calls it
+- `emitCue` — the single event stream that calls it from Practice
+- `gsHapticAt` / `gsFeelInterval` in `js/comparison.js` — timed pulses for the
+  comparison replays, tracked so a cancelled flow clears them
 
 **To add a new haptic cue:**
 
 1. Add the cue type to the `messages` map in `emitCue()`.
 2. Add a native mapping in `hapticCue()`.
 3. Add a web fallback pattern to `WEB_VIBRATION_PATTERNS`.
-4. Run `npx cap copy ios` and rebuild.
+4. Run `npx cap copy ios && npx cap copy android` and rebuild.
 
 **Plugin:** [`@capacitor/haptics`](https://capacitorjs.com/docs/apis/haptics).
 Already installed and registered — `packageClassList` in

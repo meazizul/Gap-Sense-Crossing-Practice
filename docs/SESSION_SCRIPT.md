@@ -16,8 +16,8 @@ Do not point. Put the phone in their hand and guide their fingers when asked.
 - [ ] Volume at about two-thirds. Silent switch position does not matter.
 - [ ] Phone screen locks set to **Never** for the session, so the app does not
       go dark mid-exercise.
-- [ ] A clear floor space of at least 10 metres for Part 1, or a measured
-      corridor.
+- [ ] The participant's crossing times entered in Settings (or their
+      instructor's link opened), or example times loaded for a first session.
 - [ ] This script, and the participant's consent form if your study uses one.
 
 ---
@@ -53,22 +53,19 @@ and repeat with sounds.
 
 ---
 
-## 3. Part 1, Measure my crossing (6 min)
+## 3. Where the times come from (1 min)
 
-Walk them to the start mark. Say:
+Say:
 
-> "Hold the phone. Press the big button when you step off. Press again at the
-> middle. Press again when you arrive. I will tell you where the middle is."
+> "The app already knows how long your crossing takes. Your instructor timed
+> it and set it. Today you will learn to feel that length of time."
 
-Three walks. After each, the app plays their time back. Say:
-
-> "That sound is the length of your crossing. Listen to how long it is."
-
-Do not comment on speed. Do not mention seconds.
+If no real times exist yet, use **Try it now with example times** and say that
+these are examples.
 
 ---
 
-## 4. Part 2, Practise my timing (6 min)
+## 4. Part 1, Practise my timing (6 min)
 
 Sit down. Say:
 
@@ -87,14 +84,33 @@ Note roughly how many attempts until the three-knock signal becomes common.
 
 ---
 
-## 5. Part 3, Compare practice (4 min)
+## 4b. Part 2, Time it from a signal (4 min)
 
 Say:
 
-> "You will hear a car's warning time as a sound. Decide if it is shorter than
-> your crossing, about the same, or longer. Press the matching button."
+> "This time the app starts the clock. Press Ready and wait. When you feel two
+> quick blips, that is the start. Press again when you think your crossing
+> time is up."
 
-Six to ten rounds. Note anything they say out loud about how they decide.
+Four to six rounds. If they press early, say: "That was before the signal.
+Nothing is saved. Press Ready again." Note whether the feeling holds without
+the rhythm of two taps.
+
+---
+
+## 5. Part 3, Compare practice (5 min)
+
+Say:
+
+> "You will hear a sample warning time: a sound that grows louder like a car
+> coming closer. Decide if it is shorter than your crossing, about the same,
+> or longer. Press the matching button, or swipe up for longer and down for
+> shorter. Then listen: both play together, and the space between the two
+> sounds is the difference."
+
+Press **Play a sample warning time** for each round. Six to ten rounds. Note
+anything they say out loud about how they decide, and whether they use the
+buttons or the swipe pad.
 
 ---
 
@@ -117,7 +133,7 @@ Thank them. Remind them the app is theirs to keep practising with.
 |---|---|
 | No vibration | Accessibility, check **Vibrate on cue** is on. On iPhone, confirm it is the installed app, not Safari. |
 | No sound | Volume buttons. The silent switch does not mute the app. |
-| Buttons locked | Part 1 has not been done. Do three walks first. |
+| Buttons locked | Crossing times are not set. Enter them in Settings, open the instructor's link, or load example times. |
 | App will not open after some weeks | TestFlight build expired. Tap the invite link again, press Install. |
 | Screen reader talks over the sounds | Normal. The app quietens the screen reader during playback on purpose. |
 
@@ -129,6 +145,6 @@ For each participant, in one message or spreadsheet row:
 
 - date, participant code, phone type
 - three-signals-by-touch: yes / no / partly, plus what helped
-- attempts until "within margin" became common in Part 2
+- attempts until "within margin" became common in Part 1, and whether it held in Part 2
 - the four wrap-up answers, verbatim where possible
 - anything that broke, with the exact words on screen

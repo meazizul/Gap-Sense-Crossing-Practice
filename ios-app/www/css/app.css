@@ -80,6 +80,7 @@
       /* Dark ink on the light teal accent (~10:1). White here was ~1.8:1. */
       --on-accent: #04141A;
       --ok: #34D399;
+      --on-ok: #04141A;
       --warn: #FB923C;
       --bg-tint-1: rgba(45, 212, 191, 0.10);
       --bg-tint-2: rgba(56, 189, 248, 0.08);
@@ -103,6 +104,7 @@
       /* Black on cyan; white on cyan fails contrast. */
       --on-accent: #000000;
       --ok: #00FF66;
+      --on-ok: #000000;
       --warn: #FF8C00;
       --bg-tint-1: transparent;
       --bg-tint-2: transparent;
@@ -472,7 +474,7 @@ html { background: var(--bg); min-height: 100%; }
     .marker.complete .marker-shape {
       background: var(--ok);
       border-color: var(--ok);
-      color: #FFFFFF;
+      color: var(--on-ok, #FFFFFF);
     }
     .marker.complete .marker-label { color: var(--text); }
 
@@ -535,10 +537,10 @@ html { background: var(--bg); min-height: 100%; }
     }
 
     .action-btn-hint {
-      font-size: 0.74rem;
+      font-size: 0.8rem;
       font-weight: 700;
       letter-spacing: 0.09em;
-      opacity: 0.9;
+      opacity: 1;
       text-transform: uppercase;
     }
 
@@ -1515,3 +1517,140 @@ body[data-theme="inverted"]::before { display: none; }
   .step-card:not(.locked):active,
   .settings-action.primary:active:not(:disabled) { transform: none; }
 }
+
+/* ---------------- Compare: swipe answer pad, sample loudness ---------------- */
+.swipe-pad {
+  width: 100%;
+  min-height: 7.5rem;
+  border-radius: var(--radius);
+  border: 2px dashed var(--accent);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.3;
+  display: grid;
+  gap: 6px;
+  place-items: center;
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  /* Swipes are read by the pad itself; the page must not scroll instead. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.swipe-pad[hidden] { display: none; }
+.swipe-pad .swipe-arrows {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+}
+.swipe-pad:focus-visible { outline: 4px solid var(--outline); outline-offset: 3px; }
+body.high-contrast .swipe-pad,
+body[data-theme="inverted"] .swipe-pad { border-style: solid; }
+body.high-contrast .swipe-pad .swipe-arrows,
+body[data-theme="inverted"] .swipe-pad .swipe-arrows { color: var(--text); }
+
+.range-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.range-row input[type="range"] {
+  width: 100%;
+  min-height: 2.75rem;
+  accent-color: var(--accent);
+}
+.range-row output {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 3.5ch;
+  text-align: right;
+}
+
+.setup input[type="text"],
+.setup input[type="email"] {
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.setup input[type="text"]:focus-visible,
+.setup input[type="email"]:focus-visible { outline: 4px solid var(--outline); outline-offset: 2px; }
+
+.badge-experimental {
+  white-space: nowrap;
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1.5px solid var(--warn);
+  color: var(--warn);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+body.high-contrast .badge-experimental { color: var(--text); border-color: var(--text); }
+
+.step-card[data-screen="signal"]::before { background: var(--brand-2); }
+
+/* The copy icon button was 36 px; iOS asks for 44. */
+.copy-icon-btn { min-width: 44px; min-height: 44px; }
+
+/* Collapsible option blocks keep the big controls near the top on a phone. */
+details.options-card > summary {
+  cursor: pointer;
+  list-style: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+details.options-card > summary::-webkit-details-marker { display: none; }
+details.options-card > summary::before {
+  content: "\25B8";
+  font-size: 1rem;
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+details.options-card[open] > summary::before { content: "\25BE"; }
+details.options-card[open] > summary { margin-bottom: 10px; }
+details.options-card > summary:focus-visible { outline: 4px solid var(--outline); outline-offset: 3px; border-radius: 8px; }
+body.high-contrast details.options-card > summary::before,
+body[data-theme="inverted"] details.options-card > summary::before { color: var(--text); }
+
+/* Checkbox and radio labels placed directly in a card or options block are
+   full-width rows with a 44 px touch height, never inline runs of text. */
+.card > label,
+details.options-card > label,
+#screen-progress .card label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 0;
+  line-height: 1.35;
+}
+.card > label input[type="checkbox"],
+details.options-card > label input[type="checkbox"],
+#screen-progress .card label input[type="checkbox"] {
+  width: 1.3rem;
+  height: 1.3rem;
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+}
+.card > label[for],
+details.options-card > label[for] { display: block; min-height: 0; padding: 10px 0 4px; font-weight: 700; }
+.card > .settings-action,
+details.options-card > .settings-action { display: block; width: 100%; margin: 10px 0; }
+details.options-card > .field-help { margin: 4px 0 8px; }

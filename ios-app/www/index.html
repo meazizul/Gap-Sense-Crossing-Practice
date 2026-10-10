@@ -42,7 +42,6 @@
 
   <link rel="stylesheet" href="css/app.css" />
 </head>
-</head>
 <body>
   <main class="panel" id="appMain">
     <header class="app-header">
@@ -99,38 +98,38 @@
       <button class="settings-action primary try-demo" id="tryDemoBtn" type="button">
         Try it now with example times
       </button>
-      <p class="demo-note" hidden>Using example times. Measure your own crossing when you are ready.</p>
+      <p class="demo-note" hidden>Using example times. Your instructor sets your real crossing times in Settings or by sending you a link.</p>
 
       <section class="setup-required-prompt" id="homeSetupBanner" hidden>
         <p class="setup-required-prompt-title">Start here</p>
-        <p>Measure your crossing first. Every other activity compares against it.</p>
-        <button class="settings-action primary" type="button" data-goto="measure">Measure my crossing</button>
+        <p>Your O&amp;M instructor measures your crossing times and sets them. Open the link your instructor sent, or enter the times in Settings.</p>
+        <button class="settings-action primary" type="button" id="homeOpenSettingsBtn">Open Settings</button>
       </section>
 
       <p class="home-times" id="homeTimes">Crossing times not set</p>
 
       <ol class="step-list">
-        <li class="step-card" data-screen="measure">
-          <span class="step-number" aria-hidden="true">1</span>
-          <div class="step-body">
-            <h3 class="step-title">Measure my crossing</h3>
-            <p class="step-desc">Walk the street and tap at each point. Sets your reference times — no stopwatch, no numbers to type.</p>
-            <button class="settings-action primary" type="button" data-goto="measure">Open</button>
-          </div>
-        </li>
         <li class="step-card" data-screen="practice">
-          <span class="step-number" aria-hidden="true">2</span>
+          <span class="step-number" aria-hidden="true">1</span>
           <div class="step-body">
             <h3 class="step-title">Practise my timing</h3>
             <p class="step-desc">Tap out how long you think your crossing takes, and feel how far off you were.</p>
             <button class="settings-action primary" type="button" data-goto="practice">Open</button>
           </div>
         </li>
+        <li class="step-card" data-screen="signal">
+          <span class="step-number" aria-hidden="true">2</span>
+          <div class="step-body">
+            <h3 class="step-title">Time it from a signal</h3>
+            <p class="step-desc">The app starts the clock for you. Wait for the signal, then press when your crossing time is up.</p>
+            <button class="settings-action primary" type="button" data-goto="signal">Open</button>
+          </div>
+        </li>
         <li class="step-card" data-screen="compare">
           <span class="step-number" aria-hidden="true">3</span>
           <div class="step-body">
             <h3 class="step-title">Compare practice</h3>
-            <p class="step-desc">Judge whether a gap is longer or shorter than your crossing. No traffic needed.</p>
+            <p class="step-desc">Hear a sample warning time. Judge whether it is longer or shorter than your crossing, then feel the difference.</p>
             <button class="settings-action primary" type="button" data-goto="compare">Open</button>
           </div>
         </li>
@@ -151,46 +150,10 @@
       <p class="field-help" id="homeProgressNote"></p>
     </section>
 
-    <!-- ================= MEASURE ================= -->
-    <section id="screen-measure" class="screen" hidden>
-      <h2 class="screen-heading">Measure my crossing</h2>
-      <p class="field-help">Stand at the kerb and walk across as you normally would, tapping at each point. Take at least three walks — the app averages them.</p>
-
-      <section class="card">
-        <fieldset class="option-group">
-          <legend class="option-group-title">What to measure</legend>
-          <label><input type="radio" name="measurePlan" value="both" checked /> Both (recommended)</label>
-          <label><input type="radio" name="measurePlan" value="half" /> Clear from left only</label>
-          <label><input type="radio" name="measurePlan" value="full" /> Full street only</label>
-        </fieldset>
-      </section>
-
-      <button class="action-btn idle" id="measureBtn" type="button">
-        <span class="action-btn-label" id="measureBtnLabel">STEP OFF</span>
-        <span class="action-btn-hint" id="measureBtnHint">Tap as you step off the kerb</span>
-      </button>
-
-      <div class="cue-banner" id="measureStatus" data-tone="neutral" data-visible="true" aria-live="off">
-        <span class="cue-dot" aria-hidden="true"></span>
-        <span id="measureStatusText">Choose what to measure, then start walking.</span>
-      </div>
-
-      <section class="card">
-        <p class="card-label">Your walks</p>
-        <ul class="trial-list" id="measureTrialList"></ul>
-        <div id="measureSummary"></div>
-        <div class="exemplar-actions">
-          <button class="settings-action" id="measurePlayBtn" type="button">Hear this duration</button>
-          <button class="settings-action primary" id="measureSaveBtn" type="button">Save as my crossing times</button>
-          <button class="settings-action" id="measureDiscardBtn" type="button">Clear walks</button>
-        </div>
-      </section>
-    </section>
-
     <!-- ================= PRACTICE ================= -->
     <section id="screen-practice" class="screen" hidden>
       <h2 class="screen-heading sr-only">Practise my timing</h2>
-      <p class="demo-note" hidden>Using example times. Measure your own crossing when you are ready.</p>
+      <p class="demo-note" hidden>Using example times. Your instructor sets your real crossing times.</p>
 
     <section class="card" aria-labelledby="modeCardLabel">
       <p class="card-label" id="modeCardLabel">Practice mode</p>
@@ -215,7 +178,7 @@
 
     <section class="setup-required-prompt" id="timingRequiredPrompt" hidden>
       <p class="setup-required-prompt-title">Times needed</p>
-      <p id="timingRequiredPromptText">Enter both street times in Settings before using practice or exemplars.</p>
+      <p id="timingRequiredPromptText">Enter both crossing times in Settings before practising.</p>
       <button class="settings-action primary" id="timingRequiredPromptButton" type="button">
         Open Settings to enter times
       </button>
@@ -236,35 +199,63 @@
       <span class="cue-text" id="cueBannerText">Ready.</span>
     </div>
 
+    <p class="field-help" id="practiceScore"></p>
     <div id="srAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     <div class="debug" id="debugText" aria-live="off" aria-hidden="true"></div>
+    </section>
+
+    <!-- ================= SIGNAL ================= -->
+    <section id="screen-signal" class="screen" hidden>
+      <h2 class="screen-heading">Time it from a signal</h2>
+      <p class="field-help">You do not choose when the clock starts. Press Ready, wait for the signal, then press again when you think your crossing time is up. Like hearing a car coming: wait… now.</p>
+
+      <section class="card">
+        <fieldset class="option-group">
+          <legend class="option-group-title">Which crossing</legend>
+          <label><input type="radio" name="signalStreet" value="full" checked /> Full street</label>
+          <label><input type="radio" name="signalStreet" value="half" /> First half (traffic from the left)</label>
+        </fieldset>
+        <label><input type="checkbox" id="signalLongWaits" /> Longer waits before the signal</label>
+      </section>
+
+      <button class="action-btn idle" id="signalBtn" type="button">
+        <span class="action-btn-label" id="signalBtnLabel">READY</span>
+        <span class="action-btn-hint" id="signalBtnHint">Press, then wait for the signal</span>
+      </button>
+
+      <div class="cue-banner" id="signalStatus" data-tone="neutral" data-visible="true" aria-live="off">
+        <span class="cue-dot" aria-hidden="true"></span>
+        <span id="signalStatusText">Choose a crossing, then press Ready.</span>
+      </div>
+      <p class="field-help" id="signalScore"></p>
     </section>
 
     <!-- ================= COMPARE ================= -->
     <section id="screen-compare" class="screen" hidden>
       <h2 class="screen-heading">Compare practice</h2>
-      <p class="field-help">The app plays a gap, like the warning time of an approaching vehicle. Judge it against your own crossing time.</p>
+      <p class="field-help">The app plays a sample warning time: the time from first hearing a vehicle until it passes you. Judge it against your own crossing time, then feel the difference.</p>
 
       <section class="card">
         <fieldset class="option-group">
           <legend class="option-group-title">Which crossing</legend>
           <label><input type="radio" name="compareStreet" value="full" checked /> Full street</label>
-          <label><input type="radio" name="compareStreet" value="half" /> Half street (clear from left)</label>
+          <label><input type="radio" name="compareStreet" value="half" /> First half (traffic from the left)</label>
         </fieldset>
-        <fieldset class="option-group">
-          <legend class="option-group-title">How the gap sounds</legend>
-          <label><input type="radio" name="gsIntervalStyle" value="continuous" checked /> One continuous sound</label>
-          <label><input type="radio" name="gsIntervalStyle" value="ticks" /> Two taps with silence between</label>
-        </fieldset>
-        <label><input type="checkbox" id="compareFollowUp" /> After a correct answer, ask how much longer or shorter</label>
       </section>
 
-      <button class="settings-action primary big-action" id="compareStartBtn" type="button">Play a gap</button>
+      <button class="settings-action primary big-action" id="compareStartBtn" type="button">Play a sample warning time</button>
 
       <div class="cue-banner" id="compareStatus" data-tone="neutral" data-visible="true" aria-live="off">
         <span class="cue-dot" aria-hidden="true"></span>
-        <span id="compareStatusText">Choose a crossing, then play a gap.</span>
+        <span id="compareStatusText">Choose a crossing, then press Play.</span>
       </div>
+
+      <button class="swipe-pad" id="compareSwipePad" type="button" hidden
+        aria-label="Answer pad. Swipe up for longer than my crossing, swipe down for shorter, tap for about the same. Or use the three buttons below.">
+        <span class="swipe-arrows" aria-hidden="true">&#9650;</span>
+        <span aria-hidden="true">Swipe up: longer · Swipe down: shorter · Tap: about the same</span>
+        <span class="swipe-arrows" aria-hidden="true">&#9660;</span>
+      </button>
 
       <div class="answer-grid" role="group" aria-label="Your judgement">
         <button class="answer-btn" data-answer="shorter" type="button" disabled>
@@ -286,26 +277,46 @@
       </div>
 
       <p class="field-help" id="compareScore"></p>
+
+      <details class="card options-card">
+        <summary class="card-label">Options: sound, loudness, pauses, how much</summary>
+        <fieldset class="option-group">
+          <legend class="option-group-title">How the sample sounds</legend>
+          <label><input type="radio" name="gsIntervalStyle" value="continuous" checked /> One sound that grows louder, like a vehicle approaching</label>
+          <label><input type="radio" name="gsIntervalStyle" value="ticks" /> Two taps with silence between</label>
+        </fieldset>
+        <label for="sampleVolume">Sample loudness</label>
+        <div class="range-row">
+          <input id="sampleVolume" type="range" min="20" max="100" step="5" value="85" aria-describedby="sampleVolumeHelp" />
+          <output for="sampleVolume" id="sampleVolumeOut" aria-hidden="true"></output>
+        </div>
+        <p class="field-help" id="sampleVolumeHelp">Set it so the quiet start of the sample is just audible where you practise.</p>
+        <button class="settings-action" id="previewSampleBtn" type="button">Play a two-second sample</button>
+        <label><input type="checkbox" id="compareRandomDelay" /> Start the sample after a short random pause</label>
+        <label><input type="checkbox" id="compareFollowUp" /> After answering, tap out how much longer or shorter it was</label>
+      </details>
     </section>
 
     <!-- ================= LIVE ================= -->
     <section id="screen-live" class="screen" hidden>
       <h2 class="screen-heading">At the street</h2>
-      <p class="field-help">Stand safely back from the kerb. Tap when you first hear a vehicle, then again the moment it reaches you.</p>
+      <p class="field-help">Stand safely back from the kerb. Tap when you first hear a vehicle, then again the moment it reaches you. The app compares that warning time with your crossing time.</p>
 
       <section class="card">
         <fieldset class="option-group">
           <legend class="option-group-title">Vehicle direction</legend>
-          <label><input type="radio" name="liveDirection" value="left" checked /> From the left — compare with half street</label>
-          <label><input type="radio" name="liveDirection" value="right" /> From the right — compare with full street</label>
+          <label><input type="radio" name="liveDirection" value="left" checked /> Approaching from the left — compared with the first half of the street</label>
+          <label><input type="radio" name="liveDirection" value="right" /> Approaching from the right — compared with the full street</label>
         </fieldset>
       </section>
 
-      <section class="card">
-        <p class="card-label">Ambient noise</p>
-        <p class="field-help" id="liveNoiseNote">Checking microphone…</p>
-        <button class="settings-action" id="liveSampleNoiseBtn" type="button">Sample the quiet (3 seconds)</button>
-      </section>
+      <details class="card options-card">
+        <summary class="card-label">Background noise check <span class="badge-experimental">Experimental</span></summary>
+        <label><input type="checkbox" id="liveNoiseEnabled" /> Check background noise while timing</label>
+        <p class="field-help" id="liveNoiseNote">Off. The microphone stays closed.</p>
+        <button class="settings-action" id="liveSampleNoiseBtn" type="button" disabled>Sample the quiet (3 seconds)</button>
+        <p class="field-help">Sound is measured on this phone only and never recorded or sent. Results vary between phones and positions; treat flags as a hint.</p>
+      </details>
 
       <button class="action-btn idle" id="liveBtn" type="button">
         <span class="action-btn-label" id="liveBtnLabel">DETECTED</span>
@@ -326,24 +337,26 @@
       <div id="progressBody"></div>
 
       <section class="card">
-        <p class="card-label">Difficulty</p>
+        <p class="card-label">Difficulty <span class="badge-experimental">Experimental</span></p>
         <label><input type="checkbox" id="adaptiveMarginToggle" /> Adaptive margin of error</label>
-        <p class="field-help">The margin tightens as accuracy improves and eases back if it drops, never going easier than the margin set in Settings, and never below 0.10 seconds.</p>
-        <button class="settings-action" id="resetLearnerFloorBtn" type="button">Clear learner floor</button>
+        <p class="field-help">Off by default; the instructor decides. When on, each task and street keeps its own margin. It tightens slowly while accuracy stays high and goes straight back to the set margin when accuracy drops. It never goes easier than the margin in Settings, and never below 0.10 seconds. The research on the right pace is not settled.</p>
+        <button class="settings-action" id="resetAdaptiveBtn" type="button">Reset adaptive margins</button>
       </section>
 
       <section class="card">
         <p class="card-label">Share with my instructor</p>
-        <p class="field-help">Nothing is ever sent automatically. You see the full report first, then copy it yourself.</p>
-        <label for="studentName">My name (optional)</label>
-        <input id="studentName" type="text" autocomplete="name" />
+        <p class="field-help">Nothing is ever sent automatically. You see the full report first. It carries your client code from Settings, never your name.</p>
+        <p class="field-help" id="reportRecipient"></p>
         <div class="exemplar-actions">
           <button class="settings-action" id="previewReportBtn" type="button">Show me what would be sent</button>
         </div>
         <div id="reportPreviewWrap" hidden>
           <label for="reportPreview">Report preview</label>
           <textarea id="reportPreview" class="share-message-output report-preview" readonly></textarea>
-          <button class="settings-action primary" id="copyReportBtn" type="button">Copy report</button>
+          <div class="exemplar-actions">
+            <button class="settings-action primary" id="emailReportBtn" type="button" hidden>Email it to my instructor</button>
+            <button class="settings-action" id="copyReportBtn" type="button">Copy report</button>
+          </div>
         </div>
         <p class="field-help" id="reportNote"></p>
       </section>
@@ -368,9 +381,10 @@
       <section class="card">
         <p class="card-label">For clients</p>
         <ul class="plain-list">
-          <li><strong>1. Measure my crossing.</strong> Walk the street a few times, tapping at each point. This is what everything else is compared to.</li>
-          <li><strong>2. Practise my timing.</strong> Tap Begin, then tap again when you think you would have arrived. You hear the difference rather than being told a number.</li>
-          <li><strong>3. Compare practice.</strong> The app plays a gap. Decide whether it was longer or shorter than the time you need.</li>
+          <li><strong>Your crossing times</strong> come from your O&amp;M instructor. They time you crossing and set the numbers in Settings, or send you a link that sets them.</li>
+          <li><strong>1. Practise my timing.</strong> Tap Begin, then tap again when you think you would have arrived. You hear the difference rather than being told a number.</li>
+          <li><strong>2. Time it from a signal.</strong> Press Ready and wait. When the signal comes, press again when your crossing time is up.</li>
+          <li><strong>3. Compare practice.</strong> The app plays a sample warning time. Decide whether it was longer or shorter than the time you need, then feel the difference.</li>
           <li><strong>4. At the street.</strong> The same judgement with real traffic.</li>
         </ul>
         <p class="field-help">Never count. The point is to feel the length of time, not to measure it.</p>
@@ -379,11 +393,12 @@
       <section class="card">
         <p class="card-label">For instructors</p>
         <ul class="plain-list">
-          <li><strong>Setting up.</strong> Crossing times can be measured in the app, or typed in Settings, or sent to the client as a link from Settings &rarr; Share time settings.</li>
-          <li><strong>Margin of error.</strong> Defaults to 0.40 s. Historically 0.50 s has been taught. Turn on the adaptive margin in Progress to have it shape difficulty automatically.</li>
-          <li><strong>Feedback modes.</strong> Audio, visual, or both, under Accessibility. Visual-only supports Deaf clients; vibration supports DeafBlind clients in the native app.</li>
-          <li><strong>Progress.</strong> The client can show you the Progress screen, or copy a written report to send you. Data never leaves their device unless they send it.</li>
-          <li><strong>At the street.</strong> Sample the quiet before starting so the app can flag measurements taken when it was too noisy to be representative.</li>
+          <li><strong>Setting up.</strong> Time at least three crossings and use the longest. Enter the first-half and full-street times in Settings, or send them to the client as a link from Settings &rarr; Share time settings. The link can carry your email and a short client code, never a name.</li>
+          <li><strong>Margin of error.</strong> You choose and set it. The app defaults to 0.40 s; 0.50 s has historically been taught with a stopwatch. There is no research yet on the right value.</li>
+          <li><strong>Directions.</strong> A vehicle approaching from the left is compared with the first-half time; from the right, with the full-street time.</li>
+          <li><strong>Feedback modes.</strong> Audio, visual, or both, under Accessibility. Visual-only supports Deaf clients; vibration supports DeafBlind clients in the installed app.</li>
+          <li><strong>Progress.</strong> The client can show you the Progress screen, or email or copy a written report. Data never leaves their device unless they send it.</li>
+          <li><strong>Experimental.</strong> The adaptive margin and the background-noise check are off by default. Both are unproven; turn them on only to try them.</li>
         </ul>
       </section>
     </section>
@@ -405,13 +420,15 @@
       </div>
       <div class="setup">
         <div class="setup-group">
-          <p class="setup-heading">Time entry</p>
-          <label for="clearTime">Time to clear from left (seconds)</label>
-          <input id="clearTime" type="number" step="0.1" min="0.1" inputmode="decimal" />
-          <label for="fullTime">Full street time (seconds)</label>
-          <input id="fullTime" type="number" step="0.1" min="0.1" inputmode="decimal" />
-          <label for="marginInput">Acceptable margin of error (seconds)</label>
-          <input id="marginInput" type="number" step="0.1" min="0" inputmode="decimal" value="0.4" />
+          <p class="setup-heading">Crossing times</p>
+          <p class="setup-note">Measured and set by the O&amp;M instructor. Time at least three crossings and use the longest.</p>
+          <label for="clearTime">First half of the street, traffic from the left (seconds)</label>
+          <input id="clearTime" type="number" step="0.1" min="0.1" max="600" inputmode="decimal" />
+          <label for="fullTime">Full street, traffic from the right (seconds)</label>
+          <input id="fullTime" type="number" step="0.1" min="0.1" max="600" inputmode="decimal" />
+          <label for="marginInput">Margin of error (seconds)</label>
+          <input id="marginInput" type="number" step="0.1" min="0" max="60" inputmode="decimal" value="0.4" />
+          <p class="setup-note">Chosen and set by the instructor. 0.50 s has historically been taught; there is no research yet on the right value.</p>
         </div>
 
         <div class="setup-group">
@@ -484,9 +501,18 @@
         </div>
 
         <div class="setup-group">
+          <p class="setup-heading">Instructor and client</p>
+          <label for="instructorEmail">Instructor email (optional)</label>
+          <input id="instructorEmail" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="120" />
+          <label for="clientCode">Client code (optional, letters and digits, up to 8)</label>
+          <input id="clientCode" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8" pattern="[A-Za-z0-9]{0,8}" />
+          <p class="setup-note">Links and reports travel by ordinary email or text, so they carry this code and never a name. Use a code that cannot be linked to the person.</p>
+        </div>
+
+        <div class="setup-group">
           <p class="setup-heading">Share &amp; debug</p>
           <button type="button" class="settings-action" id="shareTimingSettings">Share time settings</button>
-          <p class="setup-note">Generates two separate messages so rich link previews stay cleaner in RCS and iMessage.</p>
+          <p class="setup-note">Makes a link that sets the crossing times, margin, instructor email and client code on the client's phone in one tap. Two separate messages, so rich link previews stay cleaner in RCS and iMessage.</p>
           <div class="share-message-group">
             <label for="setupTimingMessage">Setup message</label>
             <div class="share-message-wrap">
@@ -620,17 +646,27 @@
           <button class="settings-action" type="button" data-demo="outside">Play the outside-margin sound</button>
         </div>
         <div class="setup-group">
+          <p class="setup-heading">A sample warning time</p>
+          <p class="field-help">In Compare practice: one sound that grows louder, like a vehicle approaching, then stops. Its length is the warning time.</p>
+          <button class="settings-action" type="button" data-demo="sample">Play a sample warning time</button>
+        </div>
+        <div class="setup-group">
+          <p class="setup-heading">The start signal</p>
+          <p class="field-help">In Time it from a signal: two quick blips mean the clock has started.</p>
+          <button class="settings-action" type="button" data-demo="signal">Play the start signal</button>
+        </div>
+        <div class="setup-group">
           <p class="setup-heading">The important part</p>
-          <p class="field-help">What matters is the gap between your tap and the reference sound. The further apart they are, the further off you were. Never count seconds — listen for the distance between them.</p>
+          <p class="field-help">What matters is the distance between your sound and the reference sound. The further apart they are, the further off you were. Never count seconds — listen for the distance between them.</p>
         </div>
       </div>
     </div>
   </dialog>
-  <!-- Engine (existing practice/replay logic), then feature modules. -->
+  <!-- Engine (practice/replay logic), then feature modules, then the shell. -->
   <script src="js/engine.js"></script>
   <script src="js/history.js"></script>
-  <script src="js/measure.js"></script>
   <script src="js/comparison.js"></script>
+  <script src="js/signal.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

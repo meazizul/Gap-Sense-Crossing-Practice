@@ -136,7 +136,9 @@ app; "No haptics on this browser" in iOS Safari.
 ### C2 — Test pulse (real device, native app)
 Tick **Vibrate on cue** → **Test haptic pulse**. Hold the phone loosely.
 
-**Pass:** three *distinct* sensations — medium tap, light double, heavy stutter.
+**Pass:** three *distinct* sensations — one heavy knock (marker), three heavy
+knocks (within margin), one long buzz of about half a second (outside). On
+Android web: 45 ms, 35-45-35-45-35 ms, 240 ms.
 
 ### C3 — Haptics during practice
 Enable vibration, run A1 and A2.
@@ -225,17 +227,23 @@ Set times, close the app fully, reopen.
 **Pass:** times, theme, text size, and sound choices are all retained.
 
 ### E2 — Share link round trip
-1. Settings → **Share time settings**.
+1. Settings → fill **Instructor email** and a **Client code** → **Share time
+   settings**.
 2. Copy the **setup message**, open its link on another device or browser.
 
-**Pass:** the second device receives the same three values, and shows "Time
-settings updated for this device."
+**Pass:** the second device receives both crossing times, the margin, the
+instructor email and the client code (upper-cased), shows "Time settings
+updated for this device.", and Home reads "Crossing times set" with no
+example-times note.
 
 ### E3 — Corrupted link is rejected
-Take a setup link and change one character in the middle of the token.
+Take a setup link and change one character in the middle of the token. Also try
+a link whose client code is longer than 8 characters or whose email is not an
+address (build one with `buildShareTimingLink()` after typing bad values).
 
 **Pass:** the app reports "This time settings link is invalid." and does **not**
-apply bad values. (The token carries a checksum for exactly this reason.)
+apply any value. (The token carries a checksum, and every field is validated.)
+A link made by the September build (version `v1`) still imports.
 
 ---
 
@@ -287,61 +295,103 @@ was discarded.)*
 
 ---
 
-## H. The new activities
+## H. The activities after Cindi's review (10 Oct 2026)
 
-### H1 — Measure my crossing
-Home → **Measure my crossing** → keep "Both" → tap STEP OFF, walk, tap at the
-clear point, tap at the far side. Repeat three times.
-
-**Pass:**
-- [ ] Each walk appears in the list with two times
-- [ ] After three walks the average appears with a walk count
-- [ ] The duration plays back automatically after each walk
-- [ ] **Save as my crossing times** updates Settings
-- [ ] Walking deliberately inconsistently triggers the spread warning
-
-### H2 — Compare practice
-Home → **Compare practice** → **Play a gap** → answer.
+### H1 — Practice logs and score line
+Settings 4 / 8 / 0.4. Home → **Practise my timing** → Begin, Mark after about
+four seconds.
 
 **Pass:**
-- [ ] The gap plays, then the three answer buttons become enabled
-- [ ] A correct answer chimes and moves on
-- [ ] A wrong answer plays the gap and then your crossing time, back to back
-- [ ] Switching to "Two taps with silence between" changes how the gap sounds
-- [ ] Enabling the follow-up asks you to tap out the difference after a correct answer
-- [ ] The score line updates
+- [ ] After the replay the line under the button reads "Last 1: 1 within margin · margin 0.40s"
+- [ ] Progress shows the attempt and one dot in the run strip
+- [ ] Settings and Accessibility are enabled again
+- [ ] Begin, then **Back** mid-run: Settings and the mode radios are enabled on Home; nothing was recorded
 
-### H3 — At the street ⭐ (outdoors, real traffic)
-Home → **At the street** → set direction → **Sample the quiet** → time a vehicle.
+### H2 — Time it from a signal
+Home → **Time it from a signal** → **READY**.
 
 **Pass:**
-- [ ] Microphone permission is requested once, with a clear explanation
-- [ ] Sampling completes and the note confirms a quiet level is recorded
-- [ ] Tap on detection, tap again as it passes → immediate longer/shorter/same
-- [ ] A vehicle giving more warning than your crossing time reports "enough warning"
+- [ ] The button reads WAIT, then after a random pause two blips sound (and a pulse with vibration on) and it reads NOW
+- [ ] Pressing after about the crossing time replays your press against the crossing time, with the chime
+- [ ] Pressing before the signal says "Too early", resets to READY, records nothing
+- [ ] **Longer waits before the signal** makes the wait noticeably longer
+- [ ] Leaving the screen while waiting cancels the pending signal
+
+### H3 — Compare practice
+Home → **Compare practice** → **Play a sample warning time**.
+
+**Pass:**
+- [ ] The sample grows louder and stops; then the three buttons and the answer pad become active, and (with a screen reader) focus is on **About the same**
+- [ ] After any answer the status says what it was, then the replay plays: marker, sample, marker, feedback cue at the crossing time
+- [ ] Nothing starts by itself; **Play** is needed for the next sample
+- [ ] Swipe up on the pad = longer, swipe down = shorter, tap = about the same; a swipe never also counts as a tap
+- [ ] **Two taps with silence between** changes the sample
+- [ ] **Sample loudness** changes the preview and the next sample, and survives a reload
+- [ ] **Start the sample after a short random pause** delays the sample
+- [ ] **After answering, tap out how much…**: after the answer you tap start and end, then hear the comparison replay and then your estimate against the real difference
+- [ ] Pressing Play during a trial restarts cleanly; leaving mid-trial cancels and the next visit starts idle
+- [ ] Nowhere on the screen does the word "gap" appear
+
+### H4 — At the street ⭐ (outdoors, real traffic)
+Home → **At the street** → set direction → time a vehicle.
+
+**Pass:**
+- [ ] With the noise check off (default) no microphone permission is requested and the system microphone indicator never appears
+- [ ] Tap on detection, tap again as it passes → verdict (enough / too close / not enough), then the overlapped replay
+- [ ] "Approaching from the right" compares against the full-street time
 - [ ] **Cancel** discards the trial and records nothing
-- [ ] Starting a measurement next to a loud noise flags it
+- [ ] Switch on **Check background noise while timing**: permission is asked once; **Sample the quiet** becomes available and completes
+- [ ] Leaving the screen closes the microphone (indicator goes away); switching the check off closes it too
+- [ ] Starting a measurement next to a loud noise, with a quiet level recorded, flags it
 
-### H4 — Adaptive margin
-Progress → tick **Adaptive margin of error**, then do 10 comparison attempts.
+### H5 — Share link v2 and report
+See E2/E3 for the link. Then Progress → **Show me what would be sent**.
 
 **Pass:**
-- [ ] With ≥80% accuracy the margin shown shrinks
-- [ ] It never goes below 0.10 s, and never above the Settings margin
-- [ ] Sustained poor accuracy widens it again
-- [ ] **Clear learner floor** resets a pinned floor
+- [ ] The report starts with "Client code: …" and contains no name
+- [ ] Live vehicles read as verdicts ("warning time … — not enough warning"), never "incorrect"
+- [ ] **Email it to my instructor** appears only when an instructor email is set, and opens the mail app with the report
+- [ ] **Copy report** puts it on the clipboard; **Delete all my practice history** empties everything
 
-### H5 — Progress and report
+### H6 — Adaptive margin (experimental)
+Progress → tick **Adaptive margin of error**. Do ten practice attempts on one crossing.
+
 **Pass:**
-- [ ] Progress shows a card per activity and a strip of recent attempts
-- [ ] **Show me what would be sent** displays the full report before anything is copied
-- [ ] **Copy report** puts it on the clipboard
-- [ ] **Delete all my practice history** empties it
+- [ ] Nothing changes before the tenth attempt; after it, the margin shown for that lane (and only that lane) is 8% tighter
+- [ ] Ten poor attempts in a row return it to the Settings margin
+- [ ] It never goes below 0.10 s or above the Settings margin
+- [ ] **Reset adaptive margins** clears every lane
+- [ ] Practice, the signal activity and Compare each show "(adaptive)" in their score line
 
-### H6 — Gating
+### H7 — Gating
 Clear both times in Settings, then open Home.
 
-**Pass:** steps 2–4 are dimmed and their buttons disabled; step 1 stays available.
+**Pass:** all four steps are dimmed and their buttons disabled; the "Start here"
+box offers **Open Settings**.
+
+---
+
+## I. Automated tests
+
+From `ios-app/`:
+
+```sh
+npm install        # once
+npm test           # Playwright, in the Google Chrome installed on the Mac
+```
+
+Thirty-eight browser tests cover: boot with no console errors, every screen and
+dialog, the demo link, Practice logging and per-lane margins, leaving mid-run,
+screen-reader announcement order, Compare (no auto-advance, replay, swipe and
+arrow keys, random pause, how much, cancel, restart, trial consistency), Time it
+from a signal (on time, false start, leaving), At the street (verdicts,
+microphone closed by default, noise check on/off, the permission race), share
+link v2 and rejected links, the report wording, deleting data, the adaptive
+maths, and the visual-only / 300% / high-contrast / reduced-motion
+configuration.
+
+They cannot hear or feel anything. Still manual, on a real phone: B1 roadside
+audio, B2 ringer switch, every test in C, D4 VoiceOver, F, and H4 outdoors.
 
 ---
 
