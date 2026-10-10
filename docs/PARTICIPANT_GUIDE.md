@@ -215,8 +215,9 @@ Open **Accessibility** from the top of the screen.
 - Audio and visual
 - Visual only, with no sound
 
-**Vibration.** Turn on **Vibrate on cue**. Then you feel the app as well as hear
-it. Press **Test haptic pulse** to try it.
+**Vibration.** It is on from the start. You feel the app as well as hear it.
+Press **Test haptic pulse** to try it. You can turn it off with **Vibrate on
+cue** if you prefer.
 
 Vibration works in the installed app. It does not work in the Safari browser on
 iPhone. Apple does not allow it there.
@@ -257,7 +258,7 @@ instructor can set new times for each street you use often.
 the side of the phone.
 
 **I feel no vibration.** Vibration only works in the installed app, not in the
-browser on iPhone. Also check that **Vibrate on cue** is turned on.
+browser on iPhone. Also check that **Vibrate on cue** has not been turned off.
 
 **The app says "Times needed".** Your crossing times are not set yet. Open the
 link your instructor sent you, or ask your instructor to enter the times in

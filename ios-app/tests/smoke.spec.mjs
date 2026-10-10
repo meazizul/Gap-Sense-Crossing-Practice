@@ -81,3 +81,45 @@ test("demo link loads example times and lands on practice", async ({ page }) => 
   await expect(page.locator("#screen-home .demo-note")).toBeHidden();
   expect(errors).toEqual([]);
 });
+
+test("vibration is on by default, and an explicit opt-out is respected", async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator("#a11yVibrate")).toBeChecked();
+  expect(await page.evaluate(() => a11ySettings.vibrate)).toBe(true);
+  await openApp(page, { storage: { "om-a11y-vibrate": "false" } });
+  await expect(page.locator("#a11yVibrate")).not.toBeChecked();
+  expect(await page.evaluate(() => a11ySettings.vibrate)).toBe(false);
+});
+
+test("web build keeps pinch zoom but blocks double-tap zoom; Help shows the build", async ({ page }) => {
+  await openApp(page);
+  const meta = await page.getAttribute("meta[name='viewport']", "content");
+  expect(meta).not.toContain("user-scalable=no");
+  expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).toBe("manipulation");
+  expect(await page.evaluate(() => getComputedStyle(document.getElementById("settingsTrigger")).touchAction)).toBe("manipulation");
+  await page.evaluate(() => gsShowScreen("help"));
+  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 4 (web), 10 October 2026.");
+});
+
+test("native shell locks the viewport and reads the bundle version", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.addInitScript(() => {
+    window.Capacitor = {
+      isNativePlatform: () => true,
+      getPlatform: () => "ios",
+      Plugins: {
+        Haptics: { impact: async () => {}, vibrate: async () => {} },
+        App: { getInfo: async () => ({ version: "1.0", build: "4" }) },
+        StatusBar: { setStyle: async () => {} }
+      }
+    };
+  });
+  await openApp(page);
+  const meta = await page.getAttribute("meta[name='viewport']", "content");
+  expect(meta).toContain("user-scalable=no");
+  expect(meta).toContain("maximum-scale=1.0");
+  await page.evaluate(() => gsShowScreen("help"));
+  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 4 (iPhone app), 10 October 2026.");
+  await expect(page.locator("#hapticsSupportNote")).toContainText("Native haptics active");
+  expect(errors).toEqual([]);
+});

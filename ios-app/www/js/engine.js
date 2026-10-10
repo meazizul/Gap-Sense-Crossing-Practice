@@ -165,7 +165,10 @@
       outputMode: "audio-only",
       showBanner: true,
       flashAction: false,
-      vibrate: false,
+      // On by default (10 Oct 2026): vibration is the whole interface for a
+      // DeafBlind user and the user asked that nobody should have to find the
+      // switch. A stored "false" from an explicit opt-out still wins.
+      vibrate: true,
       useTextLabels: true,
       syncVisualReplay: true,
       outsideVisualVariant: "up",
@@ -204,6 +207,26 @@
     function hapticsAvailable() {
       return (isNativeShell && Boolean(HapticsPlugin)) || hasWebVibrate;
     }
+
+    /*
+     * Inside the native shell a double tap zoomed the web view and there was
+     * no way back short of relaunching. WKWebView, unlike Safari, honours
+     * user-scalable=no, so the viewport is locked there. On the web the meta
+     * tag is left alone: browsers need pinch-zoom for accessibility, and the
+     * app's own text-size setting goes to 300%. touch-action: manipulation in
+     * the stylesheet removes double-tap zoom everywhere without touching
+     * pinch.
+     */
+    function lockNativeViewport() {
+      if (!isNativeShell) return;
+      const meta = document.querySelector("meta[name='viewport']");
+      if (!meta) return;
+      meta.setAttribute(
+        "content",
+        "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      );
+    }
+    lockNativeViewport();
 
     function describeHapticsSupport() {
       if (isNativeShell && HapticsPlugin) {

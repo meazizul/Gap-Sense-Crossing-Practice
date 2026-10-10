@@ -102,10 +102,13 @@ from one event stream and cannot fall out of sync with each other.
 
 ---
 
-## 4. Turning it on
+## 4. Turning it on (it is on by default)
+
+Since build 4 (10 Oct 2026) **Vibrate on cue** is on from the first launch;
+nobody has to find the switch. To check or change it:
 
 1. Open **Accessibility** (person icon, top right).
-2. Under **Touch feedback (haptics)**, tick **Vibrate on cue**.
+2. Under **Touch feedback (haptics)**, **Vibrate on cue** should be ticked.
 3. Read the note underneath — it always tells you which backend is live:
 
 | Note text | Meaning |

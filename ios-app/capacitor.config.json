@@ -1,6 +1,6 @@
 {
   "appId": "com.gapsense.crossingpractice",
-  "appName": "Gap Sense — Crossing Practice",
+  "appName": "Gap Sense \u2014 Crossing Practice",
   "webDir": "www",
   "ios": {
     "contentInset": "never",
@@ -17,5 +17,6 @@
       "overlaysWebView": true,
       "style": "DEFAULT"
     }
-  }
+  },
+  "zoomEnabled": false
 }

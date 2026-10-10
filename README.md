@@ -13,7 +13,7 @@ learns the *feel* of the duration, not a stopwatch reading.
 ## Install on a phone
 
 - **iPhone:** open <https://testflight.apple.com/join/wYreYpF6> on the phone (TestFlight). About two minutes.
-- **Android:** download the APK from <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build3/GapSense-android-debug.apk> and open it on the phone. Steps in `docs/INSTALL_GUIDE.md`.
+- **Android:** download the APK from <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build4/GapSense-android-debug.apk> and open it on the phone. Steps in `docs/INSTALL_GUIDE.md`.
 - **Any browser:** open `index.html` or the hosted page. Everything works except vibration.
 
 ## For reviewers: the 60-second version
