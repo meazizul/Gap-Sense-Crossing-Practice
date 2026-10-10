@@ -112,9 +112,7 @@ Historical engineering records, kept as dated artifacts:
 │
 ├── REPO_ANALYSIS.md          Historical: audit
 ├── CHANGES_REPORT.md         Historical: fix pass log
-├── RESEARCH.md               Historical: accessibility research
-└── .agent-tooling/, .beads/, .github/    Commit tooling inherited from a
-                                          sibling project (see caveat below)
+└── RESEARCH.md               Historical: accessibility research
 ```
 
 **Which file is the app?** `ios-app/www/index.html`. That is the one to edit.
@@ -171,9 +169,6 @@ constrained accordingly:
   phone. See `docs/TESTING.md`.
 - **Experimental features off by default.** The adaptive margin and the
   background-noise check are unproven; the instructor switches them on.
-- **Inherited tooling.** `.agent-tooling/`, `preflight.config.mjs`, and about half
-  of `.beads/issues.jsonl` were copied from a sibling Next.js project and refer to
-  files that do not exist here. They are inert and can be ignored.
 
 ---
 

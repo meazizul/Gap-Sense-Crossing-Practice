@@ -17,27 +17,8 @@ Thumbs.db
 *.swo
 *~
 
-# Local tooling state
-.beads/*
-!.beads/issues.jsonl
-!.beads/config.yaml
-!.beads/hooks/
-.beads/hooks/*
-!.beads/hooks/pre-commit
-!.beads/hooks/commit-msg
 .claude/
-.codex/
-openspec/
 .claude/worktrees/
-.vexp/index.db
-.vexp/index.db-shm
-.vexp/index.db-wal
-.vexp/daemon.log
-.vexp/daemon.pid
-.vexp/daemon.pipe
-.vexp/healthy
-.next-dev.err.log
-.next-dev.log
 
 # ---------------------------------------------------------------
 # iOS / Capacitor

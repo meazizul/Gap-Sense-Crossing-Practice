@@ -1,4 +1,0 @@
-beads
-bd
-Next.js
-Tailwind
