@@ -6,7 +6,7 @@
  *
  * Bump CACHE_VERSION whenever www/ changes, or the old files keep being served.
  */
-const CACHE_VERSION = "gapsense-v6";
+const CACHE_VERSION = "gapsense-v7";
 const PRECACHE = [
   "./",
   "./index.html",
@@ -43,6 +43,14 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/*
+ * Network first, cache as the offline fallback. The earlier cache-first
+ * strategy served whatever was cached on the first visit, so a tester who had
+ * opened the demo once kept seeing that old version (with the removed
+ * "Measure my crossing" step) after every update. Now, whenever the phone is
+ * online it gets the current files and refreshes the cache; offline, at a
+ * street corner without signal, the cached copy still works.
+ */
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
@@ -51,31 +59,16 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(request, { ignoreSearch: true }).then((cached) => {
-      if (cached) {
-        // Refresh in the background so the next launch is current.
-        event.waitUntil(
-          fetch(request)
-            .then((response) => {
-              if (response && response.ok) {
-                return caches.open(CACHE_VERSION).then((cache) => cache.put(request, response.clone()));
-              }
-              return undefined;
-            })
-            .catch(() => undefined)
-        );
-        return cached;
-      }
-
-      return fetch(request)
-        .then((response) => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy)));
-          }
-          return response;
-        })
-        .catch(() => caches.match("./index.html"));
-    })
+    fetch(request, { cache: "no-cache" })
+      .then((response) => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy)));
+        }
+        return response;
+      })
+      .catch(() =>
+        caches.match(request, { ignoreSearch: true }).then((cached) => cached || caches.match("./index.html"))
+      )
   );
 });

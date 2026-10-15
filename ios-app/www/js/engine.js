@@ -2056,6 +2056,17 @@
     // where files are already local.
     if ("serviceWorker" in navigator && location.protocol !== "file:" && !isNativeShell) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("sw.js").catch(() => { /* offline is best-effort */ });
+        navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+          .then((registration) => registration.update())
+          .catch(() => { /* offline is best-effort */ });
+      });
+      // When an updated worker takes over a page that an older worker served,
+      // reload once so the tester sees the new version straight away.
+      const hadController = Boolean(navigator.serviceWorker.controller);
+      let reloadedForUpdate = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hadController || reloadedForUpdate) return;
+        reloadedForUpdate = true;
+        window.location.reload();
       });
     }

@@ -98,7 +98,7 @@ test("web build keeps pinch zoom but blocks double-tap zoom; Help shows the buil
   expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).toBe("manipulation");
   expect(await page.evaluate(() => getComputedStyle(document.getElementById("settingsTrigger")).touchAction)).toBe("manipulation");
   await page.evaluate(() => gsShowScreen("help"));
-  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 4 (web), 10 October 2026.");
+  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 6 (web), 14 October 2026.");
 });
 
 test("native shell locks the viewport and reads the bundle version", async ({ page }) => {
@@ -119,7 +119,27 @@ test("native shell locks the viewport and reads the bundle version", async ({ pa
   expect(meta).toContain("user-scalable=no");
   expect(meta).toContain("maximum-scale=1.0");
   await page.evaluate(() => gsShowScreen("help"));
-  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 4 (iPhone app), 10 October 2026.");
+  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 4 (iPhone app), 14 October 2026.");
   await expect(page.locator("#hapticsSupportNote")).toContainText("Native haptics active");
   expect(errors).toEqual([]);
+});
+
+test("service worker: fetches fresh files online and still works offline", async ({ page, context }) => {
+  await page.goto("/index.html");
+  await page.evaluate(async () => {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister()));
+    localStorage.setItem("om-tutorial-seen", "true");
+  });
+  await page.goto("/index.html");
+  await page.waitForFunction(async () => (await navigator.serviceWorker.ready).active?.state === "activated", null, { timeout: 15000 });
+  await page.reload();
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), null, { timeout: 15000 });
+  expect(await page.evaluate(async () => (await caches.keys()))).toContain("gapsense-v7");
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator("#screen-home")).toBeVisible();
+  await expect(page.locator(".step-card")).toHaveCount(4);
+  await expect(page.locator("#screen-home")).not.toContainText("Measure my crossing");
+  await context.setOffline(false);
 });
