@@ -8,6 +8,30 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-14 (iOS build 6) — Hardened for every iPhone and iPad a participant might bring
+
+After the iOS 27 crash, the native shell was audited for anything else that
+could stop the app opening on a participant's phone.
+
+- **Minimum iOS pinned to 16.0.** It was left to Xcode, which silently chose
+  iOS 17, so anyone on iOS 16 (iPhone 8, 8 Plus, X) could not install it. The
+  web code was checked against iOS 16 WebKit: everything it uses is supported
+  from iOS 15.4, and the one newer CSS feature already had a fallback.
+- **Device requirement corrected** from `armv7` (a 32-bit leftover in the
+  template) to `arm64`.
+- **Launch tested in the simulator** on 11 models on iOS 27 (iPhone SE 2nd
+  and 3rd generation, 11, 13 mini, 14 Pro Max, 16e, 17 Pro Max, Air, iPad
+  A16, iPad mini, iPad Pro 13-inch) and 7 models each on iOS 26.0 and 26.4:
+  first launch, a second cold launch, and background then foreground, with
+  no crash reports and the home screen rendered.
+- Checked that the app package contains every web file and Capacitor's
+  bridge scripts, whose absence is the only other way Capacitor aborts at
+  launch.
+
+Apple does not provide iOS 16, 17 or 18 simulators for the current Xcode, so
+those versions are covered by the build settings and the web-feature check
+rather than a simulated launch.
+
 ## 2026-10-14 (iOS build 5) — Launch crash on iOS 27 fixed
 
 A tester on an iPhone 14 Pro Max running iOS 27.0.1 reported "crashes as soon
