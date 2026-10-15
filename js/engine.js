@@ -59,6 +59,8 @@
     const clearTimeInput = document.getElementById("clearTime");
     const fullTimeInput = document.getElementById("fullTime");
     const marginInput = document.getElementById("marginInput");
+    const instructorEmailInput = document.getElementById("instructorEmail");
+    const clientCodeInput = document.getElementById("clientCode");
     const numberInputs = [...document.querySelectorAll("input[type='number']")];
     const acceptableInputs = [...document.querySelectorAll("input[name='acceptableSound']")];
     const outsideInputs = [...document.querySelectorAll("input[name='outsideSound']")];
@@ -80,6 +82,8 @@
       clearTimeInput,
       fullTimeInput,
       marginInput,
+      instructorEmailInput,
+      clientCodeInput,
       replayUsesConfirm,
       debugToggle,
       shareTimingSettingsBtn,
@@ -161,7 +165,10 @@
       outputMode: "audio-only",
       showBanner: true,
       flashAction: false,
-      vibrate: false,
+      // On by default (10 Oct 2026): vibration is the whole interface for a
+      // DeafBlind user and the user asked that nobody should have to find the
+      // switch. A stored "false" from an explicit opt-out still wins.
+      vibrate: true,
       useTextLabels: true,
       syncVisualReplay: true,
       outsideVisualVariant: "up",
@@ -201,6 +208,26 @@
       return (isNativeShell && Boolean(HapticsPlugin)) || hasWebVibrate;
     }
 
+    /*
+     * Inside the native shell a double tap zoomed the web view and there was
+     * no way back short of relaunching. WKWebView, unlike Safari, honours
+     * user-scalable=no, so the viewport is locked there. On the web the meta
+     * tag is left alone: browsers need pinch-zoom for accessibility, and the
+     * app's own text-size setting goes to 300%. touch-action: manipulation in
+     * the stylesheet removes double-tap zoom everywhere without touching
+     * pinch.
+     */
+    function lockNativeViewport() {
+      if (!isNativeShell) return;
+      const meta = document.querySelector("meta[name='viewport']");
+      if (!meta) return;
+      meta.setAttribute(
+        "content",
+        "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      );
+    }
+    lockNativeViewport();
+
     function describeHapticsSupport() {
       if (isNativeShell && HapticsPlugin) {
         return "Native haptics active — this build drives the iPhone Taptic Engine directly.";
@@ -215,14 +242,24 @@
       if (!a11ySettings.vibrate) return;
       if (isNativeShell && HapticsPlugin) {
         try {
-          if (type === "reference_ok") {
-            HapticsPlugin.notification({ type: "SUCCESS" });
-          } else if (type === "reference_bad") {
-            HapticsPlugin.notification({ type: "ERROR" });
+          // iOS's "notification" haptics are deliberately subtle, and MEDIUM
+          // impacts barely register through fabric. These are tuned for a
+          // hand in a pocket or holding a cane, not a palm in a quiet room.
+          if (type === "reference_bad") {
+            // One long, full-intensity buzz via Core Haptics: the plugin's
+            // vibrate(duration) runs a continuous event at intensity 1.0.
+            // Several times longer than anything else, so it cannot be
+            // mistaken by touch alone.
+            HapticsPlugin.vibrate({ duration: 450 });
+          } else if (type === "reference_ok") {
+            // Three heavy knocks, spaced so they read as a rhythm, not a lump.
+            HapticsPlugin.impact({ style: "HEAVY" });
+            setTimeout(() => HapticsPlugin.impact({ style: "HEAVY" }), 110);
+            setTimeout(() => HapticsPlugin.impact({ style: "HEAVY" }), 220);
           } else if (type === "marker") {
-            HapticsPlugin.impact({ style: "MEDIUM" });
+            HapticsPlugin.impact({ style: "HEAVY" });
           } else if (type === "start") {
-            HapticsPlugin.impact({ style: "LIGHT" });
+            HapticsPlugin.impact({ style: "MEDIUM" });
           }
           return;
         } catch (error) {
@@ -383,6 +420,14 @@
         duration: 0.14,
         partials: [{ freq: tones.user.base, gain: 0.75 }]
       },
+      // Neutral reference tick: marks "this is the real crossing time" in the
+      // comparison replays. Played as two very short blips so it is told apart
+      // by rhythm from the single marker tone and from the feedback cues. It
+      // must never be the "acceptable" chime, which means "you were close".
+      reference_tick: {
+        duration: 0.05,
+        partials: [{ freq: 494, gain: 0.5 }, { freq: 988, gain: 0.18 }]
+      },
       confirm_chime: {
         duration: 0.18,
         partials: [{ freq: tones.confirm.base, gain: 0.5 }, { freq: tones.confirm.harmonic, gain: 0.22 }]
@@ -410,7 +455,8 @@
       "outside-a": presetTone("pulse_low"),
       "outside-b": presetTone("pulse_dull"),
       "user-marker": presetTone("marker_tone"),
-      "user-confirm": presetTone("confirm_chime")
+      "user-confirm": presetTone("confirm_chime"),
+      "reference-tick": presetTone("reference_tick")
     };
 
     const feedbackOptions = {
@@ -451,6 +497,30 @@
       }
     };
 
+    let audioWarmedUp = false;
+
+    /*
+     * The first tone used to land late: the AudioContext is created suspended,
+     * resume() is asynchronous, and the first tap's tone waited for it. So the
+     * context is created at load, resumed on the very first touch (pointerdown
+     * fires before click), and a silent buffer is played once to spin the
+     * output up. By the time the click handler runs, the clock is live.
+     */
+    function warmUpAudio() {
+      const context = ensureAudioContext();
+      if (audioWarmedUp) return;
+      try {
+        const buffer = context.createBuffer(1, 1, context.sampleRate);
+        const source = context.createBufferSource();
+        source.buffer = buffer;
+        source.connect(context.destination);
+        source.start(0);
+        audioWarmedUp = true;
+      } catch (error) {
+        /* non-fatal: the next tone will still play */
+      }
+    }
+
     function ensureAudioContext() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -472,22 +542,35 @@
       return audioContext;
     }
 
-    function playCompositeTone(partials, duration = 0.16, startTime = 0, volumeScale = 1) {
+    /*
+     * envelope: "pulse" (default) is the short attack/release used by every
+     * cue. "rising" grows from quiet to full over the whole duration and then
+     * stops dead — the shape of a vehicle approaching, used for the sample
+     * warning time in the comparison tasks. Cindi: the old steady tone with a
+     * fade "tapers off at the end" and is "the opposite of vehicles – they
+     * start off soft and get loud".
+     */
+    function playCompositeTone(partials, duration = 0.16, startTime = 0, volumeScale = 1, envelope = "pulse") {
       if (a11ySettings.outputMode === "visual-only") return;
       const context = ensureAudioContext();
       if (context.state === "suspended") {
         context.resume().then(() => {
-          playCompositeTone(partials, duration, startTime, volumeScale);
+          playCompositeTone(partials, duration, startTime, volumeScale, envelope);
         });
         return;
       }
       const now = context.currentTime + startTime;
       const gain = context.createGain();
       const attack = 0.01;
-      const release = 0.07;
+      const release = envelope === "rising" ? 0.015 : 0.07;
       const outputLevel = TEST_TUNING.masterVolume * volumeScale;
       gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(outputLevel, now + attack);
+      if (envelope === "rising") {
+        gain.gain.linearRampToValueAtTime(outputLevel * 0.22, now + attack);
+        gain.gain.linearRampToValueAtTime(outputLevel, now + duration);
+      } else {
+        gain.gain.linearRampToValueAtTime(outputLevel, now + attack);
+      }
       gain.gain.linearRampToValueAtTime(0, now + duration + release);
       partials.forEach((partial) => {
         const osc = context.createOscillator();
@@ -513,6 +596,13 @@
 
     function playUserMarkerTone(startTime = 0) {
       playSoundOption(userSoundOptions.marker, startTime, TEST_TUNING.userVolume);
+    }
+
+    /** Two quick blips: "this is the real crossing time". Never a feedback cue. */
+    function playReferenceTick(startTime = 0) {
+      const option = SOUND_FALLBACK_TONES["reference-tick"];
+      playSoundOption(option, startTime, TEST_TUNING.feedbackVolume);
+      playSoundOption(option, startTime + 0.11, TEST_TUNING.feedbackVolume);
     }
 
     function playFeedbackTone(type, startTime = 0) {
@@ -600,14 +690,65 @@
       return (hash >>> 0).toString(36).padStart(7, "0").slice(0, 7);
     }
 
+    /*
+     * Identity in the share link and the report is a short code, never a name.
+     * The link travels by plain email or text, so nothing in it may identify a
+     * person. Letters and digits only, at most 8 characters.
+     */
+    const CLIENT_CODE_MAX = 8;
+    const CLIENT_CODE_PATTERN = /^[A-Z0-9]{0,8}$/;
+    const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+    function sanitizeClientCode(value) {
+      return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, CLIENT_CODE_MAX);
+    }
+
+    function isValidEmail(value) {
+      return value === "" || (value.length <= 120 && EMAIL_PATTERN.test(value));
+    }
+
+    function getInstructorEmail() {
+      return (instructorEmailInput?.value || "").trim();
+    }
+
+    function getClientCode() {
+      return sanitizeClientCode(clientCodeInput?.value || "");
+    }
+
+    /*
+     * Single entry point for setting the reference times, whether from the
+     * Settings form, an instructor's link, or the demo button. The demo flag
+     * used to clear only on a manual input change, so times set any other way
+     * left "Using example times" on screen.
+     */
+    function setReferenceTimes(clearValue, fullValue, marginValue, { source = "settings" } = {}) {
+      clearTimeInput.value = clearValue;
+      fullTimeInput.value = fullValue;
+      if (marginValue !== undefined && marginValue !== "") marginInput.value = marginValue;
+      localStorage.setItem("om-clear-time", clearTimeInput.value);
+      localStorage.setItem("om-full-time", fullTimeInput.value);
+      localStorage.setItem("om-margin", marginInput.value);
+      if (source === "demo") {
+        localStorage.setItem("om-demo-times", "true");
+      } else {
+        localStorage.removeItem("om-demo-times");
+      }
+      refreshTimingRequirementPrompt();
+      updateNextPrompt();
+      if (typeof gsRenderHome === "function") gsRenderHome();
+      if (typeof gsRenderDemoNote === "function") gsRenderDemoNote();
+    }
+
     function buildShareTimingToken() {
       const clearTime = normalizeTimingValue(clearTimeInput.value);
       const fullTime = normalizeTimingValue(fullTimeInput.value);
       const margin = normalizeTimingValue(marginInput.value);
-      const rawPayload = `${clearTime}|${fullTime}|${margin}`;
+      const email = getInstructorEmail();
+      const code = getClientCode();
+      const rawPayload = `${clearTime}|${fullTime}|${margin}|${email}|${code}`;
       const encodedPayload = encodeBase64Url(rawPayload);
       const checksum = computeShareChecksum(encodedPayload);
-      return `v1.${encodedPayload}.${checksum}`;
+      return `v2.${encodedPayload}.${checksum}`;
     }
 
     function buildShareTimingLink() {
@@ -623,7 +764,7 @@
     }
 
     function buildSetupTimingMessage() {
-      return ["Click here once to configure times:", buildShareTimingLink()].join("\n");
+      return ["Tap this link once to set your crossing times in Gap Sense:", buildShareTimingLink()].join("\n");
     }
 
     function buildPracticeTimingMessage() {
@@ -673,7 +814,7 @@
         return true;
       };
 
-      if (version !== "v1" || !encodedPayload || !checksum) return invalid();
+      if ((version !== "v1" && version !== "v2") || !encodedPayload || !checksum) return invalid();
       if (computeShareChecksum(encodedPayload) !== checksum) return invalid();
 
       let decodedPayload;
@@ -683,37 +824,48 @@
         return invalid();
       }
 
-      const [clearValue, fullValue, marginValue] = decodedPayload.split("|");
+      const [clearValue, fullValue, marginValue, emailValue = "", codeValue = ""] = decodedPayload.split("|");
       const normalizedClear = normalizeTimingValue(clearValue);
       const normalizedFull = normalizeTimingValue(fullValue);
       const normalizedMargin = normalizeTimingValue(marginValue);
       const clearNumber = Number(normalizedClear);
       const fullNumber = Number(normalizedFull);
       const marginNumber = Number(normalizedMargin);
+      const email = String(emailValue).trim();
+      const code = String(codeValue).trim().toUpperCase();
 
       if (
         !normalizedClear || !normalizedFull || !normalizedMargin ||
         !Number.isFinite(clearNumber) || !Number.isFinite(fullNumber) || !Number.isFinite(marginNumber) ||
-        clearNumber <= 0 || fullNumber <= 0 || marginNumber < 0
+        clearNumber <= 0 || fullNumber <= 0 || marginNumber < 0 ||
+        clearNumber > 600 || fullNumber > 600 || marginNumber > 60 ||
+        !isValidEmail(email) || !CLIENT_CODE_PATTERN.test(code)
       ) {
         return invalid();
       }
 
-      clearTimeInput.value = normalizedClear;
-      fullTimeInput.value = normalizedFull;
-      marginInput.value = normalizedMargin;
-      localStorage.setItem("om-clear-time", normalizedClear);
-      localStorage.setItem("om-full-time", normalizedFull);
-      localStorage.setItem("om-margin", normalizedMargin);
+      setReferenceTimes(normalizedClear, normalizedFull, normalizedMargin, { source: "link" });
+      if (instructorEmailInput && email) {
+        instructorEmailInput.value = email;
+        localStorage.setItem("om-instructor-email", email);
+      }
+      if (clientCodeInput && code) {
+        clientCodeInput.value = code;
+        localStorage.setItem("om-client-code", code);
+      }
       pendingStatusMessage = "Time settings updated for this device.";
       clearImportedHash();
-      refreshTimingRequirementPrompt();
-      updateNextPrompt();
       return true;
     }
 
     async function copyShareTimingLink() {
       if (!validateSetup()) return;
+      if (!isValidEmail(getInstructorEmail())) {
+        setStatus("Check the instructor email address before sharing.", "warn");
+        announceScreenReader("Check the instructor email address before sharing.");
+        instructorEmailInput?.focus();
+        return;
+      }
       populateShareMessagePreviews();
       await copyTextToClipboard(setupTimingMessage.value);
       setStatus("Setup message ready. Practice message is shown below.");
@@ -732,19 +884,19 @@
       const missing = getMissingTimingFields();
       if (missing.length === 0) return "";
       if (missing.length === 2) {
-        return "Enter the time to clear from left and full street time in Settings before using practice or exemplars.";
+        return "Enter your first-half and full-street crossing times in Settings, or open the link your instructor sent, before practising.";
       }
       if (missing[0] === "clear") {
-        return "Enter the time to clear from left in Settings before using practice or exemplars.";
+        return "Enter your first-half crossing time in Settings before practising.";
       }
-      return "Enter the full street time in Settings before using practice or exemplars.";
+      return "Enter your full-street crossing time in Settings before practising.";
     }
 
     function refreshTimingRequirementPrompt() {
       const message = getTimingRequirementMessage();
       const hasMissingTimes = Boolean(message);
       timingRequiredPrompt.hidden = !hasMissingTimes;
-      timingRequiredPromptText.textContent = message || "Enter both street times in Settings before using practice or exemplars.";
+      timingRequiredPromptText.textContent = message || "Enter both crossing times in Settings before practising.";
       return !hasMissingTimes;
     }
 
@@ -821,12 +973,25 @@
     // Single source of truth for acceptable-vs-outside. The old build computed
     // this twice inside beginReplay (once for audio, once for the visual event
     // list); if one copy were tuned, sound and visuals would silently disagree.
-    function classifyMark(userTime, referenceTime) {
+    // `street` selects the margin lane ("half" for the Halfway mark, "full" for
+    // Finish). With the adaptive margin on, each activity and street type has
+    // its own margin; with it off, this is simply the instructor's margin.
+    function marginFor(activity, street) {
+      if (typeof gsEffectiveMargin === "function") return gsEffectiveMargin(activity, street);
+      return getMargin();
+    }
+
+    function streetForLabel(label) {
+      return String(label || "").toLowerCase() === "halfway" ? "half" : "full";
+    }
+
+    function classifyMark(userTime, referenceTime, street = "full", activity = "practice") {
       const diff = Math.abs((userTime ?? 0) - referenceTime);
       const latency = (audioContext?.baseLatency || 0) + (audioContext?.outputLatency || 0);
       const timingEpsilon = Math.max(0.02, latency);
-      const feedbackType = diff <= getMargin() + timingEpsilon ? "acceptable" : "outside";
-      return { diff, feedbackType };
+      const marginSec = marginFor(activity, street);
+      const feedbackType = diff <= marginSec + timingEpsilon ? "acceptable" : "outside";
+      return { diff, feedbackType, marginSec };
     }
 
     /* ---------------- Visual replay ---------------- */
@@ -903,11 +1068,15 @@
       }, totalMs);
     }
 
+    // event.holdSec lets a "user" flash stay on for a whole interval (the
+    // comparison tasks show the sample warning time as one held flash) instead
+    // of the default short pulse.
     function triggerVisualReplayEvent(event, elapsedSec) {
+      const hold = Number.isFinite(event.holdSec) ? event.holdSec : VISUAL_PULSE_SEC;
       if (event.type === "user") {
         visualReplayState.userFlashUntilSec = Math.max(
           visualReplayState.userFlashUntilSec,
-          elapsedSec + VISUAL_PULSE_SEC
+          elapsedSec + hold
         );
         return;
       }
@@ -915,7 +1084,7 @@
         visualReplayState.currentReferenceType = event.feedbackType;
         visualReplayState.referenceUntilSec = Math.max(
           visualReplayState.referenceUntilSec,
-          elapsedSec + VISUAL_PULSE_SEC
+          elapsedSec + hold
         );
       }
     }
@@ -1032,6 +1201,7 @@
       localStorage.setItem("om-mode", currentMode);
       renderMarkers();
       resetState();
+      renderPracticeScore();
     }
 
     function renderMarkers() {
@@ -1121,14 +1291,22 @@
       syncCueBannerVisibility();
     }
 
+    /*
+     * Synchronous on purpose. The old version cleared the live region and set
+     * the text 20 ms later, re-checking the suppression flag inside the
+     * timeout. Every flow that announced something and then suppressed speech
+     * on the next line ("Listen…", "That was longer. Listen to the
+     * difference…") lost its message, so a VoiceOver user was never told the
+     * correct answer. A zero-width space is toggled on alternate calls so an
+     * identical message still counts as a change and is re-announced.
+     */
+    let srAnnounceToggle = false;
     function announceScreenReader(message) {
       if (!a11ySettings.announceCues) return;
       if (suppressSrAnnouncements) return;
-      srAnnouncer.textContent = "";
-      setTimeout(() => {
-        if (suppressSrAnnouncements) return;
-        srAnnouncer.textContent = message;
-      }, 20);
+      if (!message) return;
+      srAnnounceToggle = !srAnnounceToggle;
+      srAnnouncer.textContent = srAnnounceToggle ? message : `${message}​`;
     }
 
     function visualOutputEnabled() {
@@ -1273,13 +1451,36 @@
         debugText.textContent = "";
       }
 
-      // One classification pass drives audio, visuals, cues and haptics.
-      const marks = reference.slice(1).map((time, index) => ({
-        time,
-        index,
-        label: labels[index + 1] || "Reference",
-        ...classifyMark(markerTimes[index + 1], time)
-      }));
+      // One classification pass drives audio, visuals, cues, haptics and the
+      // attempt log.
+      const marks = reference.slice(1).map((time, index) => {
+        const label = labels[index + 1] || "Reference";
+        const street = streetForLabel(label);
+        return {
+          time,
+          index,
+          label,
+          street,
+          userTime: markerTimes[index + 1] ?? 0,
+          ...classifyMark(markerTimes[index + 1], time, street)
+        };
+      });
+
+      // Record every mark. Until now Practice never wrote to the log, so the
+      // Progress page stayed empty and the adaptive margin could not see it.
+      if (typeof gsLogAttempt === "function") {
+        marks.forEach(({ street, userTime, time, feedbackType, marginSec }) => {
+          gsLogAttempt({
+            activity: "practice",
+            street,
+            userSec: userTime,
+            refSec: time,
+            diffSec: userTime - time,
+            correct: feedbackType === "acceptable",
+            marginSec
+          });
+        });
+      }
 
       marks.forEach(({ time, index, label, diff, feedbackType }) => {
         playFeedbackTone(feedbackType, baseDelay + time);
@@ -1307,8 +1508,36 @@
       replayTimeout = setTimeout(() => {
         suppressSrAnnouncements = false;
         resetState("Ready for another try.");
+        renderPracticeScore();
         emitCue("replay_end", { message: "Ready for another try." });
       }, replayDoneAtSec * 1000);
+    }
+
+    /* Score line under the practice button, like the one on Compare. */
+    function renderPracticeScore() {
+      const el = document.getElementById("practiceScore");
+      if (!el || typeof gsHistoryFor !== "function") return;
+      const street = streetForLabel(modes[currentMode].labels[1]);
+      const recent = gsHistoryFor("practice", street, 10);
+      const within = recent.filter((entry) => entry.correct).length;
+      const margin = marginFor("practice", street);
+      const adaptive = typeof gsAdaptiveEnabled === "function" && gsAdaptiveEnabled();
+      const marginNote = `margin ${margin.toFixed(2)}s${adaptive ? " (adaptive)" : ""}`;
+      el.textContent = recent.length
+        ? `Last ${recent.length}: ${within} within margin · ${marginNote}`
+        : `No attempts yet · ${marginNote}`;
+    }
+
+    /*
+     * Called by the shell on every screen change. Leaving Practice mid-run used
+     * to leave Settings and Accessibility disabled on every other screen,
+     * because Begin locks the shared app bar and only a finished replay
+     * unlocked it. This also stops a replay that is still playing.
+     */
+    function cancelPractice() {
+      const busy = started || actionBtn.disabled || suppressSrAnnouncements;
+      clearTimeout(replayTimeout);
+      if (busy) resetState("Ready.");
     }
 
     /* ---------------- Cues ---------------- */
@@ -1409,6 +1638,8 @@
       if (storedClear) clearTimeInput.value = storedClear;
       if (storedFull) fullTimeInput.value = storedFull;
       if (storedMargin) marginInput.value = storedMargin;
+      if (instructorEmailInput) instructorEmailInput.value = localStorage.getItem("om-instructor-email") || "";
+      if (clientCodeInput) clientCodeInput.value = sanitizeClientCode(localStorage.getItem("om-client-code") || "");
       if (storedMode && modes[storedMode]) {
         currentMode = storedMode;
         modeInputs.forEach((input) => { input.checked = input.value === storedMode; });
@@ -1592,6 +1823,27 @@
 
     marginInput.addEventListener("change", () => {
       localStorage.setItem("om-margin", marginInput.value);
+      renderPracticeScore();
+    });
+
+    instructorEmailInput?.addEventListener("change", () => {
+      const email = getInstructorEmail();
+      if (!isValidEmail(email)) {
+        instructorEmailInput.setCustomValidity("Enter a valid email address, or leave it empty.");
+        instructorEmailInput.reportValidity();
+        return;
+      }
+      instructorEmailInput.setCustomValidity("");
+      localStorage.setItem("om-instructor-email", email);
+    });
+
+    clientCodeInput?.addEventListener("input", () => {
+      const cleaned = sanitizeClientCode(clientCodeInput.value);
+      if (clientCodeInput.value !== cleaned) clientCodeInput.value = cleaned;
+    });
+    clientCodeInput?.addEventListener("change", () => {
+      clientCodeInput.value = sanitizeClientCode(clientCodeInput.value);
+      localStorage.setItem("om-client-code", clientCodeInput.value);
     });
 
     outputModeInputs.forEach((input) => {
@@ -1703,8 +1955,61 @@
       });
     });
 
+    /* ------------------------------------------------------------------
+     * iOS silent-switch keep-alive.
+     * On iOS, WebKit plays Web Audio through its own *ambient* session, which
+     * obeys the hardware silent switch no matter what the host app sets. But
+     * once a media element is playing, WebKit moves to a *playback* session
+     * and the Web Audio tones follow. So: loop a silent clip, started from the
+     * first user gesture (autoplay rules require it). It pauses whenever the
+     * page is hidden, so it costs nothing in the background. For a tool used
+     * at a kerb with the switch flipped, this is the difference between
+     * hearing the cues and hearing nothing.
+     * ------------------------------------------------------------------ */
+    const isApplePlatform = isNativeShell || /iPhone|iPad|iPod/.test(navigator.userAgent);
+    let silentKeepAlive = null;
+
+    function buildSilentWavUrl() {
+      // 0.5 s of 8 kHz 8-bit mono silence; tiny and unambiguous.
+      const sampleRate = 8000, samples = 4000;
+      const buf = new ArrayBuffer(44 + samples);
+      const v = new DataView(buf);
+      const str = (o, t) => { for (let i = 0; i < t.length; i += 1) v.setUint8(o + i, t.charCodeAt(i)); };
+      str(0, "RIFF"); v.setUint32(4, 36 + samples, true); str(8, "WAVE");
+      str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate, true);
+      v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+      str(36, "data"); v.setUint32(40, samples, true);
+      new Uint8Array(buf, 44).fill(128);
+      return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+    }
+
+    function startSilentKeepAlive() {
+      if (!isApplePlatform || silentKeepAlive) return;
+      try {
+        const audio = new Audio(buildSilentWavUrl());
+        audio.loop = true;
+        audio.volume = 0.01; // not 0: some WebKit builds treat volume 0 as not playing
+        audio.setAttribute("playsinline", "");
+        audio.play().catch(() => { /* best effort */ });
+        silentKeepAlive = audio;
+      } catch (error) {
+        /* best effort */
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!silentKeepAlive) return;
+      if (document.hidden) silentKeepAlive.pause();
+      else silentKeepAlive.play().catch(() => {});
+    });
+
     const unlockAudio = () => {
-      ensureAudioContext();
+      warmUpAudio();
+      // Only the native shell needs the keep-alive (and there the AVAudioSession
+      // category already covers it, so this is belt and braces). In Safari on
+      // the web a playing media element would silence the user's own music.
+      if (isNativeShell) startSilentKeepAlive();
       document.removeEventListener("pointerdown", unlockAudio);
       document.removeEventListener("keydown", unlockAudio);
     };
@@ -1751,6 +2056,17 @@
     // where files are already local.
     if ("serviceWorker" in navigator && location.protocol !== "file:" && !isNativeShell) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("sw.js").catch(() => { /* offline is best-effort */ });
+        navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+          .then((registration) => registration.update())
+          .catch(() => { /* offline is best-effort */ });
+      });
+      // When an updated worker takes over a page that an older worker served,
+      // reload once so the tester sees the new version straight away.
+      const hadController = Boolean(navigator.serviceWorker.controller);
+      let reloadedForUpdate = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hadController || reloadedForUpdate) return;
+        reloadedForUpdate = true;
+        window.location.reload();
       });
     }
