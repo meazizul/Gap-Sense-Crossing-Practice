@@ -8,6 +8,23 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-14 (iOS build 5) — Launch crash on iOS 27 fixed
+
+A tester on an iPhone 14 Pro Max running iOS 27.0.1 reported "crashes as soon
+as I try to open it". The TestFlight crash log shows an `EXC_BREAKPOINT` on
+the main thread inside UIKit's `EvaluateRuntimeIssueForNoSceneLifecycleAdoption`
+during scene creation. On iOS 27, an app built with the current SDK that has
+not adopted the UIScene lifecycle is terminated at launch. The Capacitor shell
+still used the app-delegate-only lifecycle, so every launch on iOS 27 died
+before the web view existed. Devices on iOS 26 were unaffected, which is why
+it passed device checks here. Reproduced in the iOS 27.0 simulator, where the
+same frame appeared within a second of launch.
+
+Fix: `Info.plist` declares a `UIApplicationSceneManifest` (single scene, the
+existing `Main` storyboard), and `AppDelegate.swift` gains the scene
+configuration hook and a `SceneDelegate` that forwards URL opens and user
+activities to Capacitor. No web code changed; Android is unaffected.
+
 ## 2026-10-10 (build 4) — Vibration on by default, no zoom trap, visible build number
 
 Found by the user on TestFlight build 3 within minutes of it going live.

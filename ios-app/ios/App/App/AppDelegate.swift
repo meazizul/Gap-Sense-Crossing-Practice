@@ -12,6 +12,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
+    // MARK: UIScene lifecycle
+    //
+    // iOS 27 terminates, at launch, any app built with the current SDK that
+    // still uses the app-delegate-only lifecycle (EXC_BREAKPOINT inside
+    // UIKit's "EvaluateRuntimeIssueForNoSceneLifecycleAdoption"). That is the
+    // "crashes as soon as I try to open it" seen on an iPhone 14 Pro Max on
+    // iOS 27.0.1 with build 1, reproduced in the iOS 27 simulator. Devices on
+    // iOS 26 were unaffected, which is why it was missed. The scene manifest
+    // lives in Info.plist; the storyboard named there supplies the window and
+    // Capacitor's bridge view controller exactly as before.
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
+        configuration.delegateClass = SceneDelegate.self
+        configuration.storyboard = UIStoryboard(name: "Main", bundle: nil)
+        return configuration
+    }
+
     /// The feedback tones ARE the product. By default a WKWebView plays through
     /// the `ambient` session, which the hardware ringer switch silences — a
     /// student standing at a corner with the switch flipped would hear nothing
@@ -64,4 +81,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
+}
+
+/// Scene delegate for the single window. The storyboard (Info.plist →
+/// UISceneStoryboardFile) creates the window and Capacitor's bridge view
+/// controller; this class only forwards URL opens and user activities to
+/// Capacitor, which with scenes arrive here instead of at the app delegate.
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+
+    var window: UIWindow?
+
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        guard scene is UIWindowScene else { return }
+        for context in connectionOptions.urlContexts {
+            _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: context.url, options: [:])
+        }
+        for activity in connectionOptions.userActivities {
+            _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: activity, restorationHandler: { _ in })
+        }
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        for context in URLContexts {
+            _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: context.url, options: [:])
+        }
+    }
+
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
+    }
 }
