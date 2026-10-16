@@ -1,28 +1,27 @@
 <!DOCTYPE html>
 <!--
-  GAP SENSE — CROSSING PRACTICE — iOS build
+  GAP SENSE — CROSSING PRACTICE
   ==================================
   MAINTAINER QUICK JUMP — search tokens (line numbers drift, so none are listed)
 
-  const TEST_TUNING            <- timing + loudness knobs
-  const SOUND_PRESET_LIBRARY   <- tone families
-  function presetTone
-  function playCompositeTone
-  function hapticCue           <- NEW: native iOS Taptic Engine bridge
-  function recordMarker
-  function beginReplay
-  function classifyMark        <- NEW: single source of truth for acceptable/outside
+  const TEST_TUNING            <- timing + loudness knobs (engine.js)
+  const SOUND_PRESET_LIBRARY   <- tone families (engine.js)
+  function hapticCue           <- native haptics bridge (engine.js)
+  function classifyMark        <- single source of truth for acceptable/outside
+  const GS_FEATURE_DEFAULTS    <- what the instructor can switch on/off (features.js)
+  function gsReplayJudgment    <- comparison replays (comparison.js)
 
-  The timing engine, the AudioContext-clock replay sync, and the feedback-as-duration
-  behavior are carried over unchanged from the original index.html. Only the
-  presentation layer, the haptics bridge, and three bug fixes are new.
+  Screens are <section class="screen"> inside <main>. Full-screen gesture
+  overlays (answer, at the street) live outside <main> so <main> can be made
+  inert while they are open, and the screen-reader announcer lives outside
+  <main> too, so it still speaks while <main> is inert.
 -->
-<html lang="en">
+<html lang="en-US">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Gap Sense — Crossing Practice</title>
-  <meta name="description" content="Build a felt sense of how long it takes you to cross a street. An O&amp;M timing trainer for blind and low-vision travelers." />
+  <meta name="description" content="Build a felt sense of how long it takes you to cross a street. An O&amp;M timing trainer for blind and low-vision travelers, used with an Orientation and Mobility Specialist." />
 
   <!-- iOS home-screen / standalone behavior -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -53,7 +52,7 @@
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" role="img" focusable="false">
-            <!-- A traveller crossing with a white cane: the project in one mark. -->
+            <!-- A traveler crossing with a white cane: the project in one mark. -->
             <circle cx="9.4" cy="4.4" r="2" fill="currentColor" stroke="none" />
             <path d="M9.7 6.6 L10.4 12.4" />
             <path d="M10.4 12.2 L8 17" />
@@ -67,12 +66,13 @@
           </svg>
         </span>
         <div class="brand-text">
-          <h1 class="app-title" id="screenTitle">Gap Sense</h1>
-          <p class="app-subtitle">Crossing Practice</p>
+          <!-- The one heading per screen. Focus lands here on every screen change. -->
+          <h1 class="app-title" id="screenTitle" tabindex="-1">Gap Sense</h1>
+          <p class="app-subtitle" aria-hidden="true">Crossing Practice</p>
         </div>
       </div>
       <div class="header-actions">
-        <button class="icon-btn" id="settingsTrigger" type="button" aria-label="Settings and setup" title="Settings">
+        <button class="icon-btn" id="settingsTrigger" type="button" aria-label="Settings" title="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <circle cx="12" cy="12" r="3.2" />
             <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.1 4.7a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03z" />
@@ -92,83 +92,93 @@
     </header>
 
     <!-- ================= HOME ================= -->
-    <section id="screen-home" class="screen">
-      <h2 class="screen-heading sr-only">Home</h2>
+    <section id="screen-home" class="screen" aria-labelledby="screenTitle">
+      <p class="om-guidance" id="homeGuidance">For use under the guidance of an Orientation and Mobility Specialist. It does not replace O&amp;M instruction.</p>
 
       <button class="settings-action primary try-demo" id="tryDemoBtn" type="button">
         Try it now with example times
       </button>
-      <p class="demo-note" hidden>Using example times. Your instructor sets your real crossing times in Settings or by sending you a link.</p>
+      <p class="demo-note" hidden>Using example times. Your instructor sets your real crossing times in Instructor setup or by sending you a link.</p>
 
       <section class="setup-required-prompt" id="homeSetupBanner" hidden>
         <p class="setup-required-prompt-title">Start here</p>
-        <p>Your O&amp;M instructor measures your crossing times and sets them. Open the link your instructor sent, or enter the times in Settings.</p>
-        <button class="settings-action primary" type="button" id="homeOpenSettingsBtn">Open Settings</button>
+        <p>Your O&amp;M Specialist measures your crossing times and sets them. Open the link your instructor sent, or enter the times in Instructor setup.</p>
+        <button class="settings-action primary" type="button" id="homeOpenSettingsBtn">Open Instructor setup</button>
       </section>
 
       <p class="home-times" id="homeTimes">Crossing times not set</p>
 
-      <ol class="step-list">
+      <!-- Each activity is ONE button whose name is the title and its
+           description, so VoiceOver reads "Practice my timing. Develop an
+           accurate sense… Button" in one swipe. -->
+      <ul class="step-list" aria-label="Activities">
         <li class="step-card" data-screen="practice">
-          <span class="step-number" aria-hidden="true">1</span>
-          <div class="step-body">
-            <h3 class="step-title">Practise my timing</h3>
-            <p class="step-desc">Tap out how long you think your crossing takes, and feel how far off you were.</p>
-            <button class="settings-action primary" type="button" data-goto="practice">Open</button>
-          </div>
+          <button class="step-button" type="button" data-goto="practice">
+            <span class="step-number" aria-hidden="true">1</span>
+            <span class="step-body">
+              <span class="step-title">Practice my timing</span>
+              <span class="step-desc">Develop an accurate sense of your crossing times through practice and feedback.</span>
+            </span>
+          </button>
         </li>
         <li class="step-card" data-screen="signal">
-          <span class="step-number" aria-hidden="true">2</span>
-          <div class="step-body">
-            <h3 class="step-title">Time it from a signal</h3>
-            <p class="step-desc">The app starts the clock for you. Wait for the signal, then press when your crossing time is up.</p>
-            <button class="settings-action primary" type="button" data-goto="signal">Open</button>
-          </div>
+          <button class="step-button" type="button" data-goto="signal">
+            <span class="step-number" aria-hidden="true">2</span>
+            <span class="step-body">
+              <span class="step-title">Comparison preparation</span>
+              <span class="step-desc">Get ready to compare your time to various sample times. Wait for the sound, and stop it at your crossing time.</span>
+            </span>
+          </button>
         </li>
         <li class="step-card" data-screen="compare">
-          <span class="step-number" aria-hidden="true">3</span>
-          <div class="step-body">
-            <h3 class="step-title">Compare practice</h3>
-            <p class="step-desc">Hear a sample warning time. Judge whether it is longer or shorter than your crossing, then feel the difference.</p>
-            <button class="settings-action primary" type="button" data-goto="compare">Open</button>
-          </div>
+          <button class="step-button" type="button" data-goto="compare">
+            <span class="step-number" aria-hidden="true">3</span>
+            <span class="step-body">
+              <span class="step-title">Comparison practice</span>
+              <span class="step-desc">Is the sample warning time longer, shorter, or about the same as your crossing time? How much longer or shorter? Build the skills you will need to compare your crossing time with actual vehicles.</span>
+            </span>
+          </button>
         </li>
         <li class="step-card" data-screen="live">
-          <span class="step-number" aria-hidden="true">4</span>
-          <div class="step-body">
-            <h3 class="step-title">At the street</h3>
-            <p class="step-desc">Time real vehicles as they approach, and check the warning time against your crossing.</p>
-            <button class="settings-action primary" type="button" data-goto="live">Open</button>
-          </div>
+          <button class="step-button" type="button" data-goto="live">
+            <span class="step-number" aria-hidden="true">4</span>
+            <span class="step-body">
+              <span class="step-title">At the street</span>
+              <span class="step-desc">Get warning times of actual vehicles, and compare them with your crossing time.</span>
+            </span>
+          </button>
         </li>
-      </ol>
+      </ul>
+      <p class="field-help" id="homeNoActivities" hidden>Your instructor has not turned on any activities yet.</p>
 
       <div class="home-links">
         <button class="settings-action" type="button" data-goto="progress">Progress</button>
         <button class="settings-action" type="button" data-goto="help">Help</button>
+        <button class="settings-action" type="button" data-goto="instructor">Instructor setup</button>
+        <button class="settings-action" type="button" data-goto="shortcuts" id="homeShortcutsLink">Siri and shortcuts</button>
       </div>
       <p class="field-help" id="homeProgressNote"></p>
     </section>
 
     <!-- ================= PRACTICE ================= -->
-    <section id="screen-practice" class="screen" hidden>
-      <h2 class="screen-heading sr-only">Practise my timing</h2>
+    <section id="screen-practice" class="screen" aria-labelledby="screenTitle" hidden>
+      <p class="screen-intro">Develop an accurate sense of your crossing times through practice and feedback.</p>
       <p class="demo-note" hidden>Using example times. Your instructor sets your real crossing times.</p>
 
     <section class="card" aria-labelledby="modeCardLabel">
       <p class="card-label" id="modeCardLabel">Practice mode</p>
       <div class="mode-toggle" role="radiogroup" aria-label="Practice mode">
-        <label>
+        <label data-mode-option="2b">
           <input type="radio" id="mode-start-halfway" name="mode" value="2b" checked aria-label="Start to Halfway" />
           <span class="mode-dots" aria-hidden="true">●&nbsp;▲</span>
           <span aria-hidden="true">Start → Halfway</span>
         </label>
-        <label>
+        <label data-mode-option="2">
           <input type="radio" id="mode-start-finish" name="mode" value="2" aria-label="Start to Finish" />
           <span class="mode-dots" aria-hidden="true">●&nbsp;■</span>
           <span aria-hidden="true">Start → Finish</span>
         </label>
-        <label>
+        <label data-mode-option="3">
           <input type="radio" id="mode-start-halfway-finish" name="mode" value="3" aria-label="Start to Halfway to Finish" />
           <span class="mode-dots" aria-hidden="true">●&nbsp;▲&nbsp;■</span>
           <span aria-hidden="true">Start → Halfway → Finish</span>
@@ -178,14 +188,13 @@
 
     <section class="setup-required-prompt" id="timingRequiredPrompt" hidden>
       <p class="setup-required-prompt-title">Times needed</p>
-      <p id="timingRequiredPromptText">Enter both crossing times in Settings before practising.</p>
+      <p id="timingRequiredPromptText">Enter both crossing times in Instructor setup before practicing.</p>
       <button class="settings-action primary" id="timingRequiredPromptButton" type="button">
-        Open Settings to enter times
+        Open Instructor setup to enter times
       </button>
     </section>
 
-    <!-- role="img" + aria-label makes this one announceable unit. The old build
-         used aria-hidden here, which silently threw away the computed summary. -->
+    <!-- role="img" + aria-label makes this one announceable unit. -->
     <section class="markers" id="markers" role="img" aria-label="Progress markers"></section>
 
     <button class="action-btn idle" id="actionBtn" type="button">
@@ -200,14 +209,12 @@
     </div>
 
     <p class="field-help" id="practiceScore"></p>
-    <div id="srAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     <div class="debug" id="debugText" aria-live="off" aria-hidden="true"></div>
     </section>
 
-    <!-- ================= SIGNAL ================= -->
-    <section id="screen-signal" class="screen" hidden>
-      <h2 class="screen-heading">Time it from a signal</h2>
-      <p class="field-help">You do not choose when the clock starts. Press Ready, wait for the signal, then press again when you think your crossing time is up. Like hearing a car coming: wait… now.</p>
+    <!-- ================= COMPARISON PREPARATION (internal name: signal) ================= -->
+    <section id="screen-signal" class="screen" aria-labelledby="screenTitle" hidden>
+      <p class="screen-intro">Get ready to compare your time to various sample times. Press Ready. When the sound starts, it is like hearing a vehicle. Stop it when you think you would finish crossing.</p>
 
       <section class="card">
         <fieldset class="option-group">
@@ -215,12 +222,11 @@
           <label><input type="radio" name="signalStreet" value="full" checked /> Full street</label>
           <label><input type="radio" name="signalStreet" value="half" /> First half (traffic from the left)</label>
         </fieldset>
-        <label><input type="checkbox" id="signalLongWaits" /> Longer waits before the signal</label>
       </section>
 
       <button class="action-btn idle" id="signalBtn" type="button">
         <span class="action-btn-label" id="signalBtnLabel">READY</span>
-        <span class="action-btn-hint" id="signalBtnHint">Press, then wait for the signal</span>
+        <span class="action-btn-hint" id="signalBtnHint">Press, then wait for the sound</span>
       </button>
 
       <div class="cue-banner" id="signalStatus" data-tone="neutral" data-visible="true" aria-live="off">
@@ -228,12 +234,28 @@
         <span id="signalStatusText">Choose a crossing, then press Ready.</span>
       </div>
       <p class="field-help" id="signalScore"></p>
+
+      <details class="card options-card" id="signalOptions">
+        <summary class="card-label">Options: sound and pitch</summary>
+        <fieldset class="option-group" data-feature-choice="prepSound">
+          <legend class="option-group-title">The sound</legend>
+          <label><input type="radio" name="prepSound" value="continuous" checked /> A steady sound that keeps going until you stop it</label>
+          <label><input type="radio" name="prepSound" value="beep" /> One short beep to start, then silence</label>
+        </fieldset>
+        <p class="field-help" data-feature-fixed="prepSound"></p>
+        <div class="sample-sound-controls"></div>
+      </details>
     </section>
 
-    <!-- ================= COMPARE ================= -->
-    <section id="screen-compare" class="screen" hidden>
-      <h2 class="screen-heading">Compare practice</h2>
-      <p class="field-help">The app plays a sample warning time: the time from first hearing a vehicle until it passes you. Judge it against your own crossing time, then feel the difference.</p>
+    <!-- ================= COMPARISON PRACTICE (internal name: compare) ================= -->
+    <section id="screen-compare" class="screen" aria-labelledby="screenTitle" hidden>
+      <p class="screen-intro">The app plays a sample warning time: the time from first detecting a vehicle until it passes in front of you. Is it longer, shorter, or about the same as your crossing time?</p>
+
+      <section class="safety-note" data-safety-note="compare" hidden>
+        <p class="safety-note-title">Longer does not mean long enough</p>
+        <p>A warning time that is longer than your crossing time is not, by itself, enough to cross. Work with your Orientation and Mobility Specialist on how many vehicles to sample, how to judge if a warning time is long enough, and all the other skills involved in crossing streets without traffic control.</p>
+        <button class="settings-action" type="button" data-dismiss-safety="compare">Got it, hide this note</button>
+      </section>
 
       <section class="card">
         <fieldset class="option-group">
@@ -250,112 +272,86 @@
         <span id="compareStatusText">Choose a crossing, then press Play.</span>
       </div>
 
-      <button class="swipe-pad" id="compareSwipePad" type="button" hidden
-        aria-label="Answer pad. Swipe up for longer than my crossing, swipe down for shorter, tap for about the same. Or use the three buttons below.">
-        <span class="swipe-arrows" aria-hidden="true">&#9650;</span>
-        <span aria-hidden="true">Swipe up: longer · Swipe down: shorter · Tap: about the same</span>
-        <span class="swipe-arrows" aria-hidden="true">&#9660;</span>
-      </button>
-
-      <div class="answer-grid" role="group" aria-label="Your judgement">
-        <button class="answer-btn" data-answer="shorter" type="button" disabled>
-          <span class="answer-glyph" aria-hidden="true">&#9666;</span>
-          <span>Shorter than my crossing</span>
-        </button>
-        <button class="answer-btn" data-answer="same" type="button" disabled>
-          <span class="answer-glyph" aria-hidden="true">&#8776;</span>
-          <span>About the same</span>
-        </button>
-        <button class="answer-btn" data-answer="longer" type="button" disabled>
-          <span class="answer-glyph" aria-hidden="true">&#9656;</span>
-          <span>Longer than my crossing</span>
-        </button>
-      </div>
-
-      <div id="compareFollowUpWrap" hidden>
-        <button class="action-btn idle" id="compareFollowUpBtn" type="button">TAP TO START</button>
-      </div>
-
       <p class="field-help" id="compareScore"></p>
 
-      <details class="card options-card">
+      <details class="card options-card" id="compareOptions">
         <summary class="card-label">Options: sound, loudness, pauses, how much</summary>
-        <fieldset class="option-group">
+        <fieldset class="option-group" data-feature-choice="compareSound">
           <legend class="option-group-title">How the sample sounds</legend>
-          <label><input type="radio" name="gsIntervalStyle" value="continuous" checked /> One sound that grows louder, like a vehicle approaching</label>
-          <label><input type="radio" name="gsIntervalStyle" value="ticks" /> Two taps with silence between</label>
+          <label><input type="radio" name="gsIntervalStyle" value="continuous" checked /> One steady sound for the whole warning time</label>
+          <label><input type="radio" name="gsIntervalStyle" value="ticks" /> Two beeps with silence between</label>
         </fieldset>
-        <label for="sampleVolume">Sample loudness</label>
-        <div class="range-row">
-          <input id="sampleVolume" type="range" min="20" max="100" step="5" value="85" aria-describedby="sampleVolumeHelp" />
-          <output for="sampleVolume" id="sampleVolumeOut" aria-hidden="true"></output>
-        </div>
-        <p class="field-help" id="sampleVolumeHelp">Set it so the quiet start of the sample is just audible where you practise.</p>
-        <button class="settings-action" id="previewSampleBtn" type="button">Play a two-second sample</button>
-        <label><input type="checkbox" id="compareRandomDelay" /> Start the sample after a short random pause</label>
-        <label><input type="checkbox" id="compareFollowUp" /> After answering, tap out how much longer or shorter it was</label>
+        <p class="field-help" data-feature-fixed="compareSound"></p>
+        <div class="sample-sound-controls"></div>
+        <label data-feature-choice="compareRandomPause"><input type="checkbox" id="compareRandomDelay" /> Start the sample after a random pause</label>
+        <label data-feature-choice="compareHowMuch"><input type="checkbox" id="compareFollowUp" /> After a correct longer or shorter answer, tap out how much longer or shorter it was</label>
       </details>
     </section>
 
-    <!-- ================= LIVE ================= -->
-    <section id="screen-live" class="screen" hidden>
-      <h2 class="screen-heading">At the street</h2>
-      <p class="field-help">Stand safely back from the kerb. Tap when you first hear a vehicle, then again the moment it reaches you. The app compares that warning time with your crossing time.</p>
+    <!-- ================= AT THE STREET (internal name: live) ================= -->
+    <section id="screen-live" class="screen" aria-labelledby="screenTitle" hidden>
+      <p class="screen-intro">Position yourself as directed by your O&amp;M Specialist, so you can look or listen for approaching vehicles. Swipe left or right the moment you think you detect (see or hear) a vehicle, in the direction it is coming from. Then tap when it passes in front of you.</p>
 
-      <section class="card">
-        <fieldset class="option-group">
-          <legend class="option-group-title">Vehicle direction</legend>
-          <label><input type="radio" name="liveDirection" value="left" checked /> Approaching from the left — compared with the first half of the street</label>
-          <label><input type="radio" name="liveDirection" value="right" /> Approaching from the right — compared with the full street</label>
-        </fieldset>
+      <section class="safety-note" data-safety-note="live" hidden>
+        <p class="safety-note-title">Longer does not mean long enough</p>
+        <p>A warning time that is longer than your crossing time is not, by itself, enough to cross. Work with your Orientation and Mobility Specialist on how many vehicles to sample, how to judge if a warning time is long enough, and all the other skills involved in crossing streets without traffic control.</p>
+        <button class="settings-action" type="button" data-dismiss-safety="live">Got it, hide this note</button>
       </section>
 
-      <details class="card options-card">
-        <summary class="card-label">Background noise check <span class="badge-experimental">Experimental</span></summary>
-        <label><input type="checkbox" id="liveNoiseEnabled" /> Check background noise while timing</label>
-        <p class="field-help" id="liveNoiseNote">Off. The microphone stays closed.</p>
-        <button class="settings-action" id="liveSampleNoiseBtn" type="button" disabled>Sample the quiet (3 seconds)</button>
-        <p class="field-help">Sound is measured on this phone only and never recorded or sent. Results vary between phones and positions; treat flags as a hint.</p>
-      </details>
+      <section class="card" data-feature-choice="liveSense">
+        <fieldset class="option-group">
+          <legend class="option-group-title">I am detecting vehicles by</legend>
+          <label><input type="radio" name="liveSense" value="hearing" checked /> Hearing</label>
+          <label><input type="radio" name="liveSense" value="vision" /> Vision</label>
+        </fieldset>
+      </section>
+      <p class="field-help" data-feature-fixed="liveSense"></p>
 
-      <button class="action-btn idle" id="liveBtn" type="button">
-        <span class="action-btn-label" id="liveBtnLabel">DETECTED</span>
-        <span class="action-btn-hint" id="liveBtnHint">Tap the moment you first hear it</span>
+      <button class="action-btn idle" id="liveStartBtn" type="button">
+        <span class="action-btn-label">START</span>
+        <span class="action-btn-hint">Opens the full-screen gesture pad</span>
       </button>
-      <button class="settings-action" id="liveCancelBtn" type="button" hidden>Cancel — it never came</button>
 
       <div class="cue-banner" id="liveStatus" data-tone="neutral" data-visible="true" aria-live="off">
         <span class="cue-dot" aria-hidden="true"></span>
-        <span id="liveStatusText">Ready for the next vehicle.</span>
+        <span id="liveStatusText">Press Start when you are in position.</span>
       </div>
       <p class="field-help" id="liveTally"></p>
+
+      <details class="card options-card" id="liveOptions">
+        <summary class="card-label">Options: judging, how much, replay</summary>
+        <label data-feature-choice="liveJudge"><input type="checkbox" id="liveJudgeToggle" checked /> After each vehicle, judge whether its warning time was longer, shorter, or about the same as my crossing</label>
+        <label data-feature-choice="liveHowMuch"><input type="checkbox" id="liveHowMuchToggle" /> After a correct longer or shorter answer, tap out how much longer or shorter</label>
+        <div data-feature-choice="liveReplay">
+          <label for="liveReplaySelect">Replay</label>
+          <select id="liveReplaySelect">
+            <option value="always">After every vehicle</option>
+            <option value="errors">Only after a wrong answer</option>
+            <option value="never">Never; just the right or wrong sound</option>
+          </select>
+        </div>
+        <p class="field-help" data-feature-fixed="liveJudge"></p>
+        <p class="field-help" data-feature-fixed="liveReplay"></p>
+      </details>
     </section>
 
     <!-- ================= PROGRESS ================= -->
-    <section id="screen-progress" class="screen" hidden>
-      <h2 class="screen-heading">Progress</h2>
+    <section id="screen-progress" class="screen" aria-labelledby="screenTitle" hidden>
       <div id="progressBody"></div>
 
       <section class="card">
-        <p class="card-label">Difficulty <span class="badge-experimental">Experimental</span></p>
-        <label><input type="checkbox" id="adaptiveMarginToggle" /> Adaptive margin of error</label>
-        <p class="field-help">Off by default; the instructor decides. When on, each task and street keeps its own margin. It tightens slowly while accuracy stays high and goes straight back to the set margin when accuracy drops. It never goes easier than the margin in Settings, and never below 0.10 seconds. The research on the right pace is not settled.</p>
-        <button class="settings-action" id="resetAdaptiveBtn" type="button">Reset adaptive margins</button>
-      </section>
-
-      <section class="card">
-        <p class="card-label">Share with my instructor</p>
-        <p class="field-help">Nothing is ever sent automatically. You see the full report first. It carries your client code from Settings, never your name.</p>
+        <p class="card-label">Send to my instructor</p>
+        <p class="field-help">Nothing is ever sent automatically. You see the report first, then choose how to send it: Messages, Mail, or any other app. It carries your client code, never your name.</p>
         <p class="field-help" id="reportRecipient"></p>
-        <div class="exemplar-actions">
-          <button class="settings-action" id="previewReportBtn" type="button">Show me what would be sent</button>
-        </div>
+        <button class="settings-action primary" id="sendReportBtn" type="button">Send my progress to my instructor</button>
         <div id="reportPreviewWrap" hidden>
-          <label for="reportPreview">Report preview</label>
+          <label for="reportPreview">Report</label>
           <textarea id="reportPreview" class="share-message-output report-preview" readonly></textarea>
           <div class="exemplar-actions">
-            <button class="settings-action primary" id="emailReportBtn" type="button" hidden>Email it to my instructor</button>
+            <button class="settings-action primary" id="confirmSendReportBtn" type="button">Send it</button>
+            <button class="settings-action" id="emailReportBtn" type="button" hidden>Email it instead</button>
             <button class="settings-action" id="copyReportBtn" type="button">Copy report</button>
+            <button class="settings-action" id="cancelSendReportBtn" type="button">Cancel</button>
           </div>
         </div>
         <p class="field-help" id="reportNote"></p>
@@ -369,8 +365,12 @@
     </section>
 
     <!-- ================= HELP ================= -->
-    <section id="screen-help" class="screen" hidden>
-      <h2 class="screen-heading">Help</h2>
+    <section id="screen-help" class="screen" aria-labelledby="screenTitle" hidden>
+      <section class="card">
+        <p class="card-label">Use with your O&amp;M Specialist</p>
+        <p class="field-help">Gap Sense is meant to be used under the guidance of an Orientation and Mobility Specialist. It is not a replacement for instruction and does not cover all the skills needed to cross streets.</p>
+        <button class="settings-action" id="showSafetyNotesBtn" type="button">Show the safety notes again</button>
+      </section>
 
       <section class="card">
         <p class="card-label">Sounds</p>
@@ -379,13 +379,13 @@
       </section>
 
       <section class="card">
-        <p class="card-label">For clients</p>
+        <p class="card-label">For students</p>
         <ul class="plain-list">
-          <li><strong>Your crossing times</strong> come from your O&amp;M instructor. They time you crossing and set the numbers in Settings, or send you a link that sets them.</li>
-          <li><strong>1. Practise my timing.</strong> Tap Begin, then tap again when you think you would have arrived. You hear the difference rather than being told a number.</li>
-          <li><strong>2. Time it from a signal.</strong> Press Ready and wait. When the signal comes, press again when your crossing time is up.</li>
-          <li><strong>3. Compare practice.</strong> The app plays a sample warning time. Decide whether it was longer or shorter than the time you need, then feel the difference.</li>
-          <li><strong>4. At the street.</strong> The same judgement with real traffic.</li>
+          <li><strong>Your crossing times</strong> come from your O&amp;M Specialist. They time you crossing and set the times in Instructor setup, or send you a link that sets them.</li>
+          <li><strong>1. Practice my timing.</strong> Tap Begin, then tap again when you think you would have arrived. You hear the difference rather than being told a number.</li>
+          <li><strong>2. Comparison preparation.</strong> Press Ready. When the sound starts, stop it when you think your crossing time is up.</li>
+          <li><strong>3. Comparison practice.</strong> The app plays a sample warning time. Decide whether it was longer, shorter, or about the same as your crossing time, then feel the difference.</li>
+          <li><strong>4. At the street.</strong> The same judgment with real vehicles.</li>
         </ul>
         <p class="field-help">Never count. The point is to feel the length of time, not to measure it.</p>
       </section>
@@ -393,12 +393,12 @@
       <section class="card">
         <p class="card-label">For instructors</p>
         <ul class="plain-list">
-          <li><strong>Setting up.</strong> Time at least three crossings and use the longest. Enter the first-half and full-street times in Settings, or send them to the client as a link from Settings &rarr; Share time settings. The link can carry your email and a short client code, never a name.</li>
-          <li><strong>Margin of error.</strong> You choose and set it. The app defaults to 0.40 s; 0.50 s has historically been taught with a stopwatch. There is no research yet on the right value.</li>
+          <li><strong>Setting up.</strong> Time at least three crossings and use the longest. Enter the first-half and full-street times in Instructor setup. There you also choose which activities and options the student sees, then send everything to the student's phone as one link.</li>
+          <li><strong>Margin of error.</strong> You choose and set it. The app defaults to 0.40 seconds; 0.50 seconds has historically been taught with a stopwatch. There is no research yet on the right value.</li>
           <li><strong>Directions.</strong> A vehicle approaching from the left is compared with the first-half time; from the right, with the full-street time.</li>
-          <li><strong>Feedback modes.</strong> Audio, visual, or both, under Accessibility. Visual-only supports Deaf clients; vibration supports DeafBlind clients in the installed app.</li>
-          <li><strong>Progress.</strong> The client can show you the Progress screen, or email or copy a written report. Data never leaves their device unless they send it.</li>
-          <li><strong>Experimental.</strong> The adaptive margin and the background-noise check are off by default. Both are unproven; turn them on only to try them.</li>
+          <li><strong>Feedback modes.</strong> Audio, visual, or both, under Accessibility. Visual-only supports Deaf students; vibration supports DeafBlind students in the installed app.</li>
+          <li><strong>Progress.</strong> The student can show you the Progress screen, or send you a written report. Data never leaves their device unless they send it.</li>
+          <li><strong>Experimental.</strong> The adaptive margin is off by default and unproven; turn it on in Instructor setup only to try it.</li>
         </ul>
       </section>
 
@@ -408,8 +408,274 @@
         <p class="field-help">Free, open source, and private. Nothing leaves this device unless you send it.</p>
       </section>
     </section>
+
+    <!-- ================= INSTRUCTOR SETUP ================= -->
+    <section id="screen-instructor" class="screen" aria-labelledby="screenTitle" hidden>
+      <p class="screen-intro">For the O&amp;M Specialist. Set the crossing times, choose what the student can see and change, then send it all to the student's phone as one link.</p>
+
+      <section class="card" id="instructorLockedCard" hidden>
+        <p class="card-label">Instructor code</p>
+        <label for="instructorPinEntry">Enter the instructor code to change these settings</label>
+        <input id="instructorPinEntry" class="text-input" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+        <button class="settings-action primary" id="instructorUnlockBtn" type="button">Unlock</button>
+        <p class="field-help" id="instructorLockNote"></p>
+      </section>
+
+      <div id="instructorBody" class="setup">
+        <div class="setup-group">
+          <p class="setup-heading">Crossing times</p>
+          <p class="setup-note">Measured and set by the O&amp;M Specialist. Time at least three crossings and use the longest.</p>
+          <label for="clearTime">First half of the street, traffic from the left (seconds)</label>
+          <input id="clearTime" type="number" step="0.1" min="0.1" max="600" inputmode="decimal" />
+          <label for="fullTime">Full street, traffic from the right (seconds)</label>
+          <input id="fullTime" type="number" step="0.1" min="0.1" max="600" inputmode="decimal" />
+          <label for="marginInput">Margin of error (seconds)</label>
+          <input id="marginInput" type="number" step="0.1" min="0" max="60" inputmode="decimal" value="0.4" />
+          <p class="setup-note">Chosen and set by the instructor. 0.50 seconds has historically been taught; there is no research yet on the right value.</p>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Activities the student sees</p>
+          <label class="check-row"><input type="checkbox" data-feature-activity="practice" /> Practice my timing</label>
+          <label class="check-row"><input type="checkbox" data-feature-activity="signal" /> Comparison preparation</label>
+          <label class="check-row"><input type="checkbox" data-feature-activity="compare" /> Comparison practice</label>
+          <label class="check-row"><input type="checkbox" data-feature-activity="live" /> At the street</label>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Practice my timing</p>
+          <p class="setup-note">Which practice modes the student can choose.</p>
+          <label class="check-row"><input type="checkbox" data-feature-mode="2b" /> Start → Halfway</label>
+          <label class="check-row"><input type="checkbox" data-feature-mode="2" /> Start → Finish</label>
+          <label class="check-row"><input type="checkbox" data-feature-mode="3" /> Start → Halfway → Finish</label>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Comparison preparation</p>
+          <label for="ftPrepSound">The sound</label>
+          <select id="ftPrepSound" data-feature="prepSound">
+            <option value="continuous">Steady sound until stopped</option>
+            <option value="beep">One short beep, then silence</option>
+            <option value="choose">Student chooses</option>
+          </select>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Comparison practice</p>
+          <label for="ftCompareSound">The sample sound</label>
+          <select id="ftCompareSound" data-feature="compareSound">
+            <option value="continuous">One steady sound</option>
+            <option value="ticks">Two beeps with silence between</option>
+            <option value="choose">Student chooses</option>
+          </select>
+          <label for="ftCompareSwipe">How the student answers</label>
+          <select id="ftCompareSwipe" data-feature="compareSwipe">
+            <option value="on">Swipe pad and buttons</option>
+            <option value="off">Buttons only</option>
+          </select>
+          <label for="ftCompareRandomPause">Random pause before the sample</label>
+          <select id="ftCompareRandomPause" data-feature="compareRandomPause">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+            <option value="choose">Student chooses</option>
+          </select>
+          <label for="ftCompareHowMuch">How much longer or shorter (tap out the difference)</label>
+          <select id="ftCompareHowMuch" data-feature="compareHowMuch">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+            <option value="choose">Student chooses</option>
+          </select>
+          <p class="setup-note">Only offered after a correct "longer" or "shorter" answer.</p>
+          <label for="ftMagnitudeReplay">Replay after "how much"</label>
+          <select id="ftMagnitudeReplay" data-feature="magnitudeReplay">
+            <option value="a">Combined replay</option>
+            <option value="b">Like Practice my timing</option>
+          </select>
+          <p class="setup-note">Combined: a steady sound for the crossing time, the right or wrong sound where the sample ended, then the student's sound at their estimate. Like Practice my timing: the student's sounds against the real difference.</p>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">At the street</p>
+          <label for="ftLiveSense">Hearing or vision</label>
+          <select id="ftLiveSense" data-feature="liveSense">
+            <option value="choose">Student marks it</option>
+            <option value="hearing">Always hearing</option>
+            <option value="vision">Always vision</option>
+          </select>
+          <label for="ftLiveJudge">Judge longer, shorter, or about the same after each vehicle</label>
+          <select id="ftLiveJudge" data-feature="liveJudge">
+            <option value="on">On</option>
+            <option value="off">Off</option>
+            <option value="choose">Student chooses</option>
+          </select>
+          <label for="ftLiveHowMuch">How much longer or shorter</label>
+          <select id="ftLiveHowMuch" data-feature="liveHowMuch">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+            <option value="choose">Student chooses</option>
+          </select>
+          <label for="ftLiveReplay">Replay</label>
+          <select id="ftLiveReplay" data-feature="liveReplay">
+            <option value="always">After every vehicle</option>
+            <option value="errors">Only after a wrong answer</option>
+            <option value="never">Never</option>
+            <option value="choose">Student chooses</option>
+          </select>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Difficulty <span class="badge-experimental">Experimental</span></p>
+          <label class="check-row"><input type="checkbox" id="adaptiveMarginToggle" /> Adaptive margin of error</label>
+          <p class="setup-note">Off by default; the instructor decides. When on, each task and street keeps its own margin. It tightens slowly while accuracy stays high and goes straight back to the set margin when accuracy drops. It never goes easier than the margin above, and never below 0.10 seconds. The research on the right pace is not settled.</p>
+          <button class="settings-action" id="resetAdaptiveBtn" type="button">Reset adaptive margins</button>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Instructor and student</p>
+          <label for="instructorEmail">Instructor email (optional)</label>
+          <input id="instructorEmail" class="text-input" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="120" />
+          <label for="clientCode">Student code (optional, letters and digits, up to 8)</label>
+          <input id="clientCode" class="text-input" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8" pattern="[A-Za-z0-9]{0,8}" />
+          <p class="setup-note">Links and reports travel by ordinary text or email, so they carry this code and never a name. Use a code that cannot be linked to the person.</p>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Send this setup to the student</p>
+          <p class="setup-note">Makes one link that sets up the student's phone. Choose what it carries.</p>
+          <label class="check-row"><input type="checkbox" id="shareIncludeTimes" checked /> Crossing times and margin</label>
+          <label class="check-row"><input type="checkbox" id="shareIncludeContact" checked /> Instructor email and student code</label>
+          <label class="check-row"><input type="checkbox" id="shareIncludeFeatures" checked /> Activities and options chosen above</label>
+          <button type="button" class="settings-action primary" id="shareTimingSettings">Share the setup link</button>
+          <button type="button" class="settings-action" id="textSetupBtn">Text it to the student</button>
+          <p class="setup-note">The student taps the link once. If the app is installed, they then choose "Open in the Gap Sense app".</p>
+          <details class="share-details">
+            <summary>Show the message text</summary>
+            <div class="share-message-group">
+              <label for="setupTimingMessage">Setup message</label>
+              <div class="share-message-wrap">
+                <textarea id="setupTimingMessage" class="share-message-output" readonly></textarea>
+                <button type="button" class="copy-icon-btn" id="copySetupTimingMessage" aria-label="Copy setup message" title="Copy setup message">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+                    <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="share-message-group">
+              <label for="practiceTimingMessage">Practice link</label>
+              <div class="share-message-wrap">
+                <textarea id="practiceTimingMessage" class="share-message-output" readonly></textarea>
+                <button type="button" class="copy-icon-btn" id="copyPracticeTimingMessage" aria-label="Copy practice link" title="Copy practice link">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+                    <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </details>
+          <p class="field-help" id="shareNote"></p>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Instructor code (optional)</p>
+          <p class="setup-note">Set a code so the student cannot change these settings. Leave empty for no code.</p>
+          <label for="instructorPinSet">New instructor code (digits, up to 8)</label>
+          <input id="instructorPinSet" class="text-input" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+          <button type="button" class="settings-action" id="instructorPinSaveBtn">Save code</button>
+          <button type="button" class="settings-action" id="instructorLockNowBtn">Lock now</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SIRI AND SHORTCUTS ================= -->
+    <section id="screen-shortcuts" class="screen" aria-labelledby="screenTitle" hidden>
+      <div id="shortcutsIos" hidden>
+        <section class="card">
+          <p class="card-label">Open an activity with Siri</p>
+          <p class="field-help">These work without any setup. Say "Hey Siri", then one of these:</p>
+          <ul class="plain-list">
+            <li>"Practice my timing in Gap Sense"</li>
+            <li>"Comparison preparation in Gap Sense"</li>
+            <li>"Comparison practice in Gap Sense"</li>
+            <li>"At the street in Gap Sense"</li>
+          </ul>
+          <p class="field-help">To use your own words, open the Shortcuts app, choose Gap Sense, and add any of the four to a shortcut with the name you want.</p>
+          <button class="settings-action primary" type="button" id="openShortcutsAppBtn">Open the Shortcuts app</button>
+        </section>
+      </div>
+      <div id="shortcutsAndroid" hidden>
+        <section class="card">
+          <p class="card-label">App shortcuts</p>
+          <p class="field-help">Touch and hold the Gap Sense icon on your home screen to open any of the four activities directly. Drag one onto your home screen to keep it there.</p>
+          <p class="field-help">With Google Assistant, say "Open Gap Sense".</p>
+        </section>
+      </div>
+      <div id="shortcutsWeb" hidden>
+        <section class="card">
+          <p class="card-label">Shortcuts</p>
+          <p class="field-help">Siri and app shortcuts work in the installed iPhone and Android apps. In a browser, add this page to your home screen to open it in one tap.</p>
+        </section>
+      </div>
+    </section>
   </main>
 
+  <!-- ============ FULL-SCREEN ANSWER PAD (comparison practice, at the street) ============ -->
+  <div class="gesture-overlay" id="answerOverlay" role="dialog" aria-modal="true" aria-labelledby="answerOverlayTitle" hidden>
+    <p class="gesture-title" id="answerOverlayTitle" tabindex="-1">Was it longer, shorter, or about the same as your crossing?</p>
+    <div class="gesture-surface" id="answerSurface" aria-hidden="true">
+      <span class="gesture-arrow">&#9650;</span>
+      <span>Swipe up: longer</span>
+      <span>Tap: about the same</span>
+      <span>Swipe down: shorter</span>
+      <span class="gesture-arrow">&#9660;</span>
+    </div>
+    <div class="answer-grid" role="group" aria-label="Your answer">
+      <button class="answer-btn" data-answer="longer" type="button">
+        <span class="answer-glyph" aria-hidden="true">&#9650;</span>
+        <span>Longer than my crossing</span>
+      </button>
+      <button class="answer-btn" data-answer="same" type="button">
+        <span class="answer-glyph" aria-hidden="true">&#8776;</span>
+        <span>About the same</span>
+      </button>
+      <button class="answer-btn" data-answer="shorter" type="button">
+        <span class="answer-glyph" aria-hidden="true">&#9660;</span>
+        <span>Shorter than my crossing</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ FULL-SCREEN "HOW MUCH" PAD ============ -->
+  <div class="gesture-overlay" id="howMuchOverlay" role="dialog" aria-modal="true" aria-labelledby="howMuchTitle" hidden>
+    <p class="gesture-title" id="howMuchTitle" tabindex="-1">How much longer or shorter?</p>
+    <button class="action-btn idle howmuch-btn" id="compareFollowUpBtn" type="button">TAP TO START</button>
+  </div>
+
+  <!-- ============ FULL-SCREEN STREET PAD ============ -->
+  <div class="gesture-overlay" id="liveOverlay" role="dialog" aria-modal="true" aria-labelledby="liveOverlayTitle" hidden>
+    <div class="gesture-header">
+      <p class="gesture-title" id="liveOverlayTitle" tabindex="-1">At the street</p>
+      <button class="settings-action" id="liveDoneBtn" type="button">Done</button>
+    </div>
+    <p class="gesture-status" id="liveOverlayStatus">Swipe left or right when you think you detect a vehicle.</p>
+    <div class="gesture-surface" id="liveSurface" aria-hidden="true">
+      <span id="liveSurfaceText">&#9664; Swipe left: from the left &nbsp;·&nbsp; Swipe right: from the right &#9654;</span>
+    </div>
+    <div class="answer-grid live-buttons" id="liveDetectButtons" role="group" aria-label="Vehicle detected">
+      <button class="answer-btn" type="button" data-live-detect="left"><span class="answer-glyph" aria-hidden="true">&#9664;</span><span>Vehicle from the left</span></button>
+      <button class="answer-btn" type="button" data-live-detect="right"><span class="answer-glyph" aria-hidden="true">&#9654;</span><span>Vehicle from the right</span></button>
+    </div>
+    <div class="answer-grid live-buttons" id="liveArriveButtons" role="group" aria-label="Vehicle arriving" hidden>
+      <button class="answer-btn" type="button" id="liveArrivedBtn"><span class="answer-glyph" aria-hidden="true">&#9679;</span><span>It passed in front of me</span></button>
+      <button class="answer-btn" type="button" id="liveNeverBtn"><span class="answer-glyph" aria-hidden="true">&#10005;</span><span>It never came</span></button>
+    </div>
+  </div>
+
+  <!-- Screen-reader announcer: outside <main> so it keeps speaking while
+       <main> is inert behind a dialog or a gesture pad. -->
+  <div id="srAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
   <!-- ============ SETTINGS ============ -->
   <dialog id="settingsModal" aria-labelledby="settingsTitle" aria-modal="true">
@@ -426,21 +692,15 @@
       </div>
       <div class="setup">
         <div class="setup-group">
-          <p class="setup-heading">Crossing times</p>
-          <p class="setup-note">Measured and set by the O&amp;M instructor. Time at least three crossings and use the longest.</p>
-          <label for="clearTime">First half of the street, traffic from the left (seconds)</label>
-          <input id="clearTime" type="number" step="0.1" min="0.1" max="600" inputmode="decimal" />
-          <label for="fullTime">Full street, traffic from the right (seconds)</label>
-          <input id="fullTime" type="number" step="0.1" min="0.1" max="600" inputmode="decimal" />
-          <label for="marginInput">Margin of error (seconds)</label>
-          <input id="marginInput" type="number" step="0.1" min="0" max="60" inputmode="decimal" value="0.4" />
-          <p class="setup-note">Chosen and set by the instructor. 0.50 s has historically been taught; there is no research yet on the right value.</p>
+          <p class="setup-heading">Instructor setup</p>
+          <p class="setup-note">Crossing times, which activities and options the student sees, and the link that sets up the student's phone.</p>
+          <button type="button" class="settings-action primary" id="openInstructorSetupBtn">Open Instructor setup</button>
         </div>
 
         <div class="setup-group">
           <p class="setup-heading">Sound calibration</p>
           <fieldset class="option-group">
-            <legend class="option-group-title">Acceptable (within tolerance)</legend>
+            <legend class="option-group-title">Acceptable (within the margin)</legend>
             <div class="sound-options">
               <div class="sound-option">
                 <input type="radio" id="acceptable-a" name="acceptableSound" value="acceptable-a" />
@@ -455,7 +715,7 @@
             </div>
           </fieldset>
           <fieldset class="option-group">
-            <legend class="option-group-title">Out of bounds (outside tolerance)</legend>
+            <legend class="option-group-title">Outside the margin</legend>
             <div class="sound-options">
               <div class="sound-option">
                 <input type="radio" id="outside-a" name="outsideSound" value="outside-a" />
@@ -497,7 +757,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Training exemplars</p>
+          <p class="setup-heading">Training examples</p>
           <p class="setup-note">Hear what a correct crossing feels like before you try it.</p>
           <div class="exemplar-actions">
             <button type="button" class="settings-action exemplar-btn" data-exemplar-mode="2b" aria-label="Play Start to Halfway">Play: Start → Halfway</button>
@@ -507,42 +767,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Instructor and client</p>
-          <label for="instructorEmail">Instructor email (optional)</label>
-          <input id="instructorEmail" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="120" />
-          <label for="clientCode">Client code (optional, letters and digits, up to 8)</label>
-          <input id="clientCode" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8" pattern="[A-Za-z0-9]{0,8}" />
-          <p class="setup-note">Links and reports travel by ordinary email or text, so they carry this code and never a name. Use a code that cannot be linked to the person.</p>
-        </div>
-
-        <div class="setup-group">
-          <p class="setup-heading">Share &amp; debug</p>
-          <button type="button" class="settings-action" id="shareTimingSettings">Share time settings</button>
-          <p class="setup-note">Makes a link that sets the crossing times, margin, instructor email and client code on the client's phone in one tap. Two separate messages, so rich link previews stay cleaner in RCS and iMessage.</p>
-          <div class="share-message-group">
-            <label for="setupTimingMessage">Setup message</label>
-            <div class="share-message-wrap">
-              <textarea id="setupTimingMessage" class="share-message-output" readonly></textarea>
-              <button type="button" class="copy-icon-btn" id="copySetupTimingMessage" aria-label="Copy setup message" title="Copy setup message">
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <rect x="9" y="9" width="10" height="10" rx="2"></rect>
-                  <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="share-message-group">
-            <label for="practiceTimingMessage">Practice message</label>
-            <div class="share-message-wrap">
-              <textarea id="practiceTimingMessage" class="share-message-output" readonly></textarea>
-              <button type="button" class="copy-icon-btn" id="copyPracticeTimingMessage" aria-label="Copy practice message" title="Copy practice message">
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <rect x="9" y="9" width="10" height="10" rx="2"></rect>
-                  <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
+          <p class="setup-heading">Debug</p>
           <label>
             <input type="checkbox" id="debugToggle" />
             Show user times vs reference at replay start
@@ -568,6 +793,8 @@
             <label><input type="radio" name="a11yOutputMode" value="audio-visual" /> Audio + Visual</label>
             <label><input type="radio" name="a11yOutputMode" value="visual-only" /> Visual only (no sounds)</label>
           </fieldset>
+          <button type="button" class="settings-action" id="soundTestBtn">Play a test sound</button>
+          <p class="platform-note" id="soundTestNote"></p>
         </div>
 
         <div class="setup-group">
@@ -578,6 +805,21 @@
           </label>
           <button type="button" class="settings-action" id="hapticsTestBtn">Test haptic pulse</button>
           <p class="platform-note" id="hapticsSupportNote">Checking haptics support…</p>
+        </div>
+
+        <div class="setup-group">
+          <p class="setup-heading">Speech</p>
+          <label>
+            <input type="checkbox" id="a11ySelfVoice" />
+            Speak directions aloud (for use without VoiceOver or TalkBack)
+          </label>
+          <p class="setup-note">The app reads its own directions and results out loud. Speech always stops while a sound is being timed.</p>
+          <label for="a11ySpeechRate">Speaking rate</label>
+          <select id="a11ySpeechRate">
+            <option value="0.8">Slower</option>
+            <option value="1" selected>Normal</option>
+            <option value="1.25">Faster</option>
+          </select>
         </div>
 
         <div class="setup-group">
@@ -624,10 +866,46 @@
 
   <div class="visual-replay-overlay" id="visualReplayOverlay" aria-hidden="true" data-active="false">
     <div class="visual-replay-flash" id="visualReplayFlash"></div>
+    <div class="visual-replay-sample" id="visualReplaySample"></div>
     <div class="visual-replay-shape-layer">
       <div class="visual-replay-shape" id="visualReplayShape" data-type="acceptable" data-outside-variant="up"></div>
     </div>
   </div>
+
+  <!-- ============ FIRST RUN: O&M GUIDANCE ============ -->
+  <dialog id="disclaimerModal" aria-labelledby="disclaimerTitle" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="disclaimerTitle" tabindex="-1">Before you start</h2>
+      </div>
+      <div class="setup">
+        <div class="setup-group">
+          <p class="field-help disclaimer-text">Gap Sense is meant to be used under the guidance of an Orientation and Mobility (O&amp;M) Specialist.</p>
+          <p class="field-help disclaimer-text">It is not a replacement for O&amp;M instruction, and it does not cover all the skills needed to cross streets.</p>
+        </div>
+        <div class="setup-group">
+          <p class="setup-heading">Got a link from your instructor?</p>
+          <p class="field-help">Open it now. It sets up this app for you. If the app was not installed when you first tapped the link, go back and tap it again, then choose "Open in the Gap Sense app".</p>
+        </div>
+        <button class="settings-action primary" type="button" id="disclaimerAcceptBtn">I understand</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ============ AFTER A SETUP LINK, IN A BROWSER ============ -->
+  <dialog id="openInAppModal" aria-labelledby="openInAppTitle" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="openInAppTitle" tabindex="-1">Setup saved</h2>
+      </div>
+      <div class="setup">
+        <p class="field-help">Your instructor's setup is saved in this browser.</p>
+        <p class="field-help">Using the installed Gap Sense app? Open the setup there too.</p>
+        <a class="settings-action primary link-button" id="openInAppLink" href="gapsense://setup">Open in the Gap Sense app</a>
+        <button class="settings-action" type="button" id="openInAppClose">Keep using it here</button>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="tutorialModal" aria-labelledby="tutorialTitle" aria-modal="true">
     <div class="modal-card">
@@ -637,33 +915,33 @@
       </div>
       <div class="setup">
         <div class="setup-group">
-          <p class="setup-heading">Your own taps</p>
-          <p class="field-help">This plays back where you tapped.</p>
-          <button class="settings-action" type="button" data-demo="marker">Play my marker sound</button>
+          <p class="setup-heading">This is your time</p>
+          <p class="field-help">Your own sound. In a replay it marks your taps, and in the comparison replays it marks where your crossing time ends.</p>
+          <button class="settings-action" type="button" data-demo="marker">Play my sound</button>
         </div>
         <div class="setup-group">
           <p class="setup-heading">Close enough</p>
-          <p class="field-help">A short, bright chime. You were within the margin.</p>
+          <p class="field-help">A short, bright chime. You were within the margin, or your answer was right.</p>
           <button class="settings-action" type="button" data-demo="acceptable">Play the within-margin sound</button>
         </div>
         <div class="setup-group">
           <p class="setup-heading">Outside the margin</p>
-          <p class="field-help">A longer, low, buzzing pulse. You were too far off.</p>
+          <p class="field-help">A longer, low, buzzing pulse. You were too far off, or your answer was wrong.</p>
           <button class="settings-action" type="button" data-demo="outside">Play the outside-margin sound</button>
         </div>
         <div class="setup-group">
           <p class="setup-heading">A sample warning time</p>
-          <p class="field-help">In Compare practice: one sound that grows louder, like a vehicle approaching, then stops. Its length is the warning time.</p>
+          <p class="field-help">In the comparison activities: one steady sound, the same loudness from start to end. Its length is the warning time.</p>
           <button class="settings-action" type="button" data-demo="sample">Play a sample warning time</button>
         </div>
         <div class="setup-group">
-          <p class="setup-heading">The start signal</p>
-          <p class="field-help">In Time it from a signal: two quick blips mean the clock has started.</p>
-          <button class="settings-action" type="button" data-demo="signal">Play the start signal</button>
+          <p class="setup-heading">Get ready</p>
+          <p class="field-help">In Comparison preparation, the app says "Get ready" when you press Ready. Then wait for the sound.</p>
+          <button class="settings-action" type="button" data-demo="ready">Hear "Get ready"</button>
         </div>
         <div class="setup-group">
           <p class="setup-heading">The important part</p>
-          <p class="field-help">What matters is the distance between your sound and the reference sound. The further apart they are, the further off you were. Never count seconds — listen for the distance between them.</p>
+          <p class="field-help">What matters is the distance between your sound and the other sound. The further apart they are, the further off you were. Never count seconds; listen for the distance between them.</p>
         </div>
       </div>
     </div>
@@ -671,6 +949,7 @@
   <!-- Engine (practice/replay logic), then feature modules, then the shell. -->
   <script src="js/engine.js"></script>
   <script src="js/history.js"></script>
+  <script src="js/features.js"></script>
   <script src="js/comparison.js"></script>
   <script src="js/signal.js"></script>
   <script src="js/app.js"></script>

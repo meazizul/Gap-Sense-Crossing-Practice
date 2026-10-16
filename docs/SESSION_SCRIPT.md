@@ -16,8 +16,10 @@ Do not point. Put the phone in their hand and guide their fingers when asked.
 - [ ] Volume at about two-thirds. Silent switch position does not matter.
 - [ ] Phone screen locks set to **Never** for the session, so the app does not
       go dark mid-exercise.
-- [ ] The participant's crossing times entered in Settings (or their
+- [ ] The participant's crossing times entered in Instructor setup (or their
       instructor's link opened), or example times loaded for a first session.
+- [ ] The first-run notice ("Before you start") already read with the
+      participant and **I understand** pressed, or read it together in step 1.
 - [ ] This script, and the participant's consent form if your study uses one.
 
 ---
@@ -28,8 +30,9 @@ Say:
 
 > "This app helps you learn how long your own street crossing takes. Not in
 > seconds. As a feeling in your body. It will never tell you a number. It plays
-> sounds and vibrations instead. There are no right or wrong answers today. We
-> are only interested in what you notice."
+> sounds and vibrations instead. It is meant to be used with your O&M
+> Specialist, and it does not replace their teaching. There are no right or
+> wrong answers today. We are only interested in what you notice."
 
 ---
 
@@ -65,7 +68,7 @@ these are examples.
 
 ---
 
-## 4. Part 1, Practise my timing (6 min)
+## 4. Part 1, Practice my timing (6 min)
 
 Sit down. Say:
 
@@ -84,33 +87,37 @@ Note roughly how many attempts until the three-knock signal becomes common.
 
 ---
 
-## 4b. Part 2, Time it from a signal (4 min)
+## 4b. Part 2, Comparison preparation (4 min)
 
 Say:
 
-> "This time the app starts the clock. Press Ready and wait. When you feel two
-> quick blips, that is the start. Press again when you think your crossing
-> time is up."
+> "This time the app starts the clock. Press Ready. The app says 'Get ready'.
+> Then wait. A steady sound starts, like hearing a car. Press when you think
+> you would finish crossing. The sound stops."
 
-Four to six rounds. If they press early, say: "That was before the signal.
-Nothing is saved. Press Ready again." Note whether the feeling holds without
-the rhythm of two taps.
+Four to six rounds. The waits vary on purpose. If they press early, say: "That
+was before the sound. Nothing is saved. Press Ready again." Note whether the
+feeling holds without the rhythm of two taps.
 
 ---
 
-## 5. Part 3, Compare practice (5 min)
+## 5. Part 3, Comparison practice (5 min)
 
 Say:
 
-> "You will hear a sample warning time: a sound that grows louder like a car
-> coming closer. Decide if it is shorter than your crossing, about the same,
-> or longer. Press the matching button, or swipe up for longer and down for
-> shorter. Then listen: both play together, and the space between the two
-> sounds is the difference."
+> "You will hear a sample warning time: one steady sound. Decide if it is
+> longer than your crossing, about the same, or shorter. The whole screen
+> becomes an answer pad: swipe up for longer, down for shorter, tap for about
+> the same. Or press a button. You hear right away if you were right. Then
+> listen: the sample plays again, and your own sound marks where your crossing
+> time ends. The space between them is the difference."
 
 Press **Play a sample warning time** for each round. Six to ten rounds. Note
 anything they say out loud about how they decide, and whether they use the
 buttons or the swipe pad.
+
+Then say: "Longer does not mean long enough. Your instructor teaches how to
+judge that." 
 
 ---
 
@@ -123,7 +130,7 @@ Ask and write down the answers in their own words:
 3. "Would you use this on your own, at home? Why or why not?"
 4. "Is there anything you wish it did?"
 
-Thank them. Remind them the app is theirs to keep practising with.
+Thank them. Remind them the app is theirs to keep practicing with.
 
 ---
 
@@ -132,8 +139,9 @@ Thank them. Remind them the app is theirs to keep practising with.
 | What happens | What to do |
 |---|---|
 | No vibration | Accessibility, check **Vibrate on cue** is on. On iPhone, confirm it is the installed app, not Safari. |
-| No sound | Volume buttons. The silent switch does not mute the app. |
-| Buttons locked | Crossing times are not set. Enter them in Settings, open the instructor's link, or load example times. |
+| No sound | Volume buttons. The silent switch does not mute the app. Accessibility, **Play a test sound** says whether sound is running. |
+| Buttons locked | Crossing times are not set. Enter them in Instructor setup, open the instructor's link, or load example times. |
+| An activity is missing on Home | The instructor turned it off in Instructor setup. |
 | App will not open after some weeks | TestFlight build expired. Tap the invite link again, press Install. |
 | Screen reader talks over the sounds | Normal. The app quietens the screen reader during playback on purpose. |
 

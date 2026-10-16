@@ -11,7 +11,7 @@ export function watchErrors(page) {
 }
 
 /** Open the app fresh: clear storage, mark the tutorial seen, reload. */
-export async function openApp(page, { query = "", tutorialSeen = true, storage = {} } = {}) {
+export async function openApp(page, { query = "", tutorialSeen = true, disclaimerSeen = true, storage = {} } = {}) {
   await page.goto(`/index.html${query}`);
   // No service worker between tests: a cache-first worker would serve stale
   // files after an edit and hide the very bugs these tests look for.
@@ -21,11 +21,12 @@ export async function openApp(page, { query = "", tutorialSeen = true, storage =
     const keys = await caches.keys();
     await Promise.all(keys.map((k) => caches.delete(k)));
   });
-  await page.evaluate(({ tutorialSeen, storage }) => {
+  await page.evaluate(({ tutorialSeen, disclaimerSeen, storage }) => {
     localStorage.clear();
     if (tutorialSeen) localStorage.setItem("om-tutorial-seen", "true");
+    if (disclaimerSeen) localStorage.setItem("om-disclaimer-ack", "true");
     Object.entries(storage).forEach(([k, v]) => localStorage.setItem(k, v));
-  }, { tutorialSeen, storage });
+  }, { tutorialSeen, disclaimerSeen, storage });
   await page.goto(`/index.html${query}`);
   await page.waitForFunction(() => typeof gsBoot === "function" && document.getElementById("screen-home"));
 }
@@ -37,7 +38,7 @@ export async function setTimes(page, clear = "4", full = "8", margin = "0.4") {
 
 export async function screenVisible(page, name) {
   await expect(page.locator(`#screen-${name}`)).toBeVisible();
-  for (const other of ["home", "practice", "signal", "compare", "live", "progress", "help"]) {
+  for (const other of ["home", "practice", "signal", "compare", "live", "progress", "help", "instructor", "shortcuts"]) {
     if (other !== name) await expect(page.locator(`#screen-${other}`)).toBeHidden();
   }
 }
@@ -73,4 +74,15 @@ export async function waitUntil(page, fn, { ms = 10000, step = 100 } = {}) {
     left -= step;
   }
   throw new Error("condition not met in time");
+}
+
+/** Answer on the full-screen pad with a real swipe (dy < 0 up, > 0 down, 0 tap). */
+export async function swipeOn(page, selector, { dx = 0, dy = 0 } = {}) {
+  const box = await page.locator(selector).boundingBox();
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  if (dx || dy) await page.mouse.move(x + dx, y + dy, { steps: 4 });
+  await page.mouse.up();
 }

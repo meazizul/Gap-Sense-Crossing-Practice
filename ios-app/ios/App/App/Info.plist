@@ -20,12 +20,32 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.gapsense.crossingpractice</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>gapsense</string>
+			</array>
+		</dict>
+	</array>
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Gap Sense</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Crossing Practice</string>
+		</dict>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Gap Sense listens to how quiet it is so it can tell you when a warning-time measurement was taken in noise too loud to be representative. Audio is analysed on your device only, and is never recorded, stored, or sent anywhere.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -23,13 +23,19 @@ hear how early or how late you were. You feel the size of the difference.
 
 That is the whole idea. Do not count. Listen and feel.
 
+**Use this app with your Orientation and Mobility (O&M) Specialist.** It does
+not replace their teaching. It does not cover all the skills you need to cross
+streets. The app tells you this the first time you open it. Press **I
+understand** to go on.
+
 ---
 
 ## 2. What you will hear
 
 The app uses a few sounds. Learn them first. It takes one minute.
 
-**Your tap sound.** A plain tone. It plays back the moment you tapped.
+**Your own sound.** A plain tone. It means "this is your time". It plays back
+the moment you tapped, or where your crossing time ends.
 
 **The "good" sound.** A short, high, bright chime. It means you were close
 enough.
@@ -37,10 +43,10 @@ enough.
 **The "not good" sound.** A longer, low, buzzing sound. It means you were too
 far off.
 
-**The sample warning time.** A sound that grows louder, like a car coming
-closer, then stops. You hear it in part 3.
+**The sample warning time.** One steady sound. It stays at the same loudness
+from start to end, then stops. You hear it in parts 2 and 3.
 
-**The start signal.** Two quick blips. You hear it in part 2.
+**"Get ready".** In part 2, the app says the words "Get ready" out loud.
 
 The two feedback sounds are very different on purpose. One is short and high.
 One is long and low. You will not mix them up.
@@ -72,6 +78,10 @@ First, get the app on your phone. The short guide **How to Get Gap Sense on
 Your Phone** explains it: on iPhone through TestFlight, on Android as a file.
 Your instructor has it.
 
+If your instructor sent you a setup link, open it now. It sets up the app for
+you. If the app was not installed when you first tapped the link, go back and
+tap it again. Then choose **Open in the Gap Sense app**.
+
 If someone gave you a web link instead, open it. The app is ready to use
 straight away. It already has example times in it.
 
@@ -88,7 +98,8 @@ The app compares everything with your own crossing times. There are two:
 
 **Your instructor measures these.** They time you crossing a real street,
 several times, and use the longest. Then they type the times into the app's
-Settings, or they send you a link. Open the link once. Your times are set.
+**Instructor setup**, or they send you a link. Open the link once. Your times
+are set. The link can also choose which parts and options you see.
 
 You do not need to type any numbers.
 
@@ -98,12 +109,13 @@ Until your times are set, the four parts stay locked.
 
 ## 6. The four parts of the app
 
-The app has four parts. They are numbered 1 to 4 on the first screen. Do them in
-order.
+The app has four parts. They are numbered on the first screen. Do them in
+order. Your instructor may turn some parts off.
 
-### Part 1. Practise my timing
+### Part 1. Practice my timing
 
-**What it is for:** to learn the feeling of your crossing time.
+**What it is for:** to develop an accurate sense of your crossing times,
+through practice and feedback.
 
 **What you do:**
 
@@ -119,90 +131,104 @@ You will hear your two taps. Then you will hear the correct time.
 Do this many times. It becomes easier. A line under the button tells you how
 many of your last tries were close enough.
 
-### Part 2. Time it from a signal
+### Part 2. Comparison preparation
 
-**What it is for:** to learn the same feeling when you do not choose the start.
-At a real street, nobody tells you when to start. You hear a car. You wait.
-Then you must judge: now.
+**What it is for:** to get ready to compare your time with sample times. At a
+real street, nobody tells you when to start. You hear a car. You wait. Then you
+must judge: now is when I would finish crossing.
 
 **What you do:**
 
 1. Press the big button. It says **READY**.
-2. Wait. The app will give a signal: two quick blips, and a buzz if vibration
-   is on.
-3. When you think your crossing time is up, press the button again.
-4. Listen.
+2. The app says "Get ready". Wait.
+3. A steady sound starts. It is like hearing a car.
+4. When you think you would finish crossing, press the button. The sound stops.
+5. Listen.
 
-You hear your press and the correct time, like in part 1.
+You hear the sound, your press, and the correct time, like in part 1.
 
-If you press before the signal, the app tells you it was too early. Nothing is
-saved. Just press **READY** again.
+Sometimes the wait is short. Sometimes it is long. That is on purpose.
 
-### Part 3. Compare practice
+If you press before the sound starts, the app tells you it was too early.
+Nothing is saved. Just press **READY** again.
+
+### Part 3. Comparison practice
 
 **What it is for:** to learn to compare a car's warning time with your crossing
 time.
 
-"Warning time" means: the time from when you first hear a car, until it reaches
-you.
+"Warning time" means: the time from when you first detect a car, by hearing or
+seeing it, until it passes in front of you.
 
 **What you do:**
 
 1. Press **Play a sample warning time**.
-2. Listen to the sound. It grows louder, like a car coming closer, then it
-   stops. The length of that sound is the warning time.
-3. Then answer. Was it shorter than your crossing, about the same, or longer?
+2. Listen to the sound. It is one steady sound. The length of that sound is the
+   warning time.
+3. A new screen fills the whole display. Answer: was it longer than your
+   crossing, about the same, or shorter?
 
 You can answer in two ways:
 
-- Press one of three buttons: **Shorter than my crossing**, **About the
-  same**, **Longer than my crossing**.
-- Or use the answer pad above the buttons. Swipe up for longer. Swipe down for
-  shorter. Tap for about the same.
+- Swipe anywhere on the screen. Swipe up for longer. Swipe down for shorter.
+  Tap for about the same.
+- Or press one of three buttons: **Longer than my crossing**, **About the
+  same**, **Shorter than my crossing**.
 
-If you use a screen reader, the focus lands on **About the same** as soon as
-the answer is wanted. Flick once to reach the other two answers.
+If you use a screen reader, use the buttons. The focus lands on **About the
+same**. Flick once to reach the other two answers.
 
-**After you answer, listen again.** The app plays the sample and your crossing
-time together. You hear a tap where the sample ends, and the good or not-good
-sound where your crossing time ends. If the sample ended first, it was shorter.
-If your crossing time ended first, it was longer. The space between the two
-tells you how much.
+**Right away, you hear if you were right.** The good sound, or the not-good
+sound. If you turned on visual feedback, you also see a green circle or an
+orange triangle.
+
+**Then listen again.** The app plays the sample and your crossing time
+together. The sample plays. Your own sound plays where your crossing time ends.
+If the sample ends first, it was shorter. If your sound comes first, it was
+longer. The space between them tells you how much.
+
+**How much longer or shorter?** Your instructor may turn this on. It only comes
+after a right answer of longer or shorter. Tap once to start. Tap again when
+you think the difference is over. Then listen to the replay.
 
 The app waits for you. Press **Play a sample warning time** again when you are
 ready for the next one.
 
-**Why this matters:** if the warning time is shorter than your crossing time, you
-do not have enough time to cross.
+**Longer does not mean long enough.** A warning time longer than your crossing
+time is not, by itself, enough to cross. Your O&M Specialist will teach you how
+to judge that, and all the other skills you need.
 
 You can do this part anywhere. You do not need a street.
 
 ### Part 4. At the street
 
-**What it is for:** to do the same thing with real cars.
+**What it is for:** to get warning times of real vehicles, and compare them
+with your crossing time.
 
-**Stay in a safe place. Do not step into the street.**
+**Stand where your O&M Specialist tells you. Do not step into the street.**
 
 **What you do:**
 
-1. Choose the direction the car is coming from. From the left, or from the
-   right.
-2. Press the big button when you **first hear** a car.
-3. Press it again when the car **passes you**.
+1. Choose **Hearing** or **Vision**: how you are detecting cars.
+2. Press **START**. A new screen fills the whole display.
+3. The moment you **think** you detect a car, swipe toward the side it is
+   coming from. Swipe left if it comes from the left. Swipe right if it comes
+   from the right.
+4. Tap when the car **passes in front of you**.
+5. If it never comes, swipe down.
+6. Then answer: was that warning time longer than your crossing, about the
+   same, or shorter? Answer the same way as in part 3.
 
-The app tells you if that car gave you enough time or not. Then it plays the
-car's warning time and your crossing time together, like in part 3.
+The app does not tell you the answer first. You judge. Then you hear if you
+were right.
 
-If the car turns away, or never comes, press **Cancel**. Nothing is saved.
+If you use a screen reader, there are buttons for each step: **Vehicle from the
+left**, **Vehicle from the right**, **It passed in front of me**, **It never
+came**.
 
-**Background noise check.** This is optional, and it is off to begin with. If
-you turn it on, press **Sample the quiet** and stay still for three seconds.
-The app listens to how quiet the place is. Later, it tells you when a
-measurement was taken in a noisy moment. In noise, you hear cars later, so that
-measurement is less reliable.
+Press **Done** when you finish.
 
-The app only listens to the noise level, and only while this check is on. It
-does not record any sound. Nothing is saved or sent.
+The app does not use the microphone.
 
 ---
 
@@ -224,7 +250,11 @@ iPhone. Apple does not allow it there.
 
 **Text size.** You can make text much bigger, up to three times.
 
-**Colours.** Choose light, dark, or yellow-on-black. There is also a
+**Speak directions aloud.** The app can read its own directions out loud. This
+helps if you are still learning VoiceOver or TalkBack. You can choose a slower
+or faster speaking rate.
+
+**Colors.** Choose light, dark, or yellow-on-black. There is also a
 high-contrast setting.
 
 **Announce cues.** This is for screen reader users. It is on by default.
@@ -239,7 +269,7 @@ over the sounds. This is not a fault. The sounds are the lesson.
 **Never count.** If you count, you are not learning the feeling. That is the
 whole point of this app.
 
-**Practise often, for a short time.** Five minutes is better than one long hour.
+**Practice often, for a short time.** Five minutes is better than one long hour.
 
 **Use headphones if it is noisy.** But at a real street, do not cover your ears.
 You need to hear the traffic.
@@ -254,15 +284,17 @@ instructor can set new times for each street you use often.
 
 ## 9. If something does not work
 
-**I hear no sound.** Check the volume. On iPhone, also check the small switch on
-the side of the phone.
+**I hear no sound.** Check the volume. In **Accessibility**, press **Play a test
+sound**.
 
 **I feel no vibration.** Vibration only works in the installed app, not in the
-browser on iPhone. Also check that **Vibrate on cue** has not been turned off.
+browser on iPhone. Check that **Vibrate on cue** is on. On iPhone, also check
+Settings, Accessibility, Touch, Vibration, and Settings, Sounds and Haptics,
+System Haptics.
 
 **The app says "Times needed".** Your crossing times are not set yet. Open the
 link your instructor sent you, or ask your instructor to enter the times in
-Settings.
+Instructor setup.
 
 **The buttons will not work.** All four parts stay locked until your crossing
 times are set.
@@ -280,8 +312,9 @@ Everything stays on your own phone.
   chooses.
 
 If you want to send your results to your instructor, you must choose to do it.
-The app shows you the whole message first. Then you send it yourself, from
-your own mail app, or you copy it. It is never sent automatically.
+Open **Progress** and press **Send my progress to my instructor**. The app shows
+you the whole message first. Press **Send it**, then choose Messages, Mail, or
+another app. It is never sent automatically.
 
 You can delete everything at any time. Open **Progress**, then press **Delete all
 my practice history**.
@@ -292,9 +325,9 @@ my practice history**.
 
 1. Learn the sounds.
 2. Your instructor sets your crossing times.
-3. Practise the feeling. Do not count.
-4. Practise timing from a signal.
-5. Practise comparing sample warning times.
-6. Try it with real cars, from a safe place.
+3. Practice the feeling. Do not count.
+4. Practice stopping the sound at your crossing time.
+5. Practice comparing sample warning times.
+6. Try it with real cars, where your instructor places you.
 
 **Listen to the space between the sounds. That space is the answer.**

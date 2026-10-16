@@ -15,10 +15,12 @@ npm run lan
 Open the printed `http://localhost:8000/` address.
 
 Then:
-1. Open **Settings** (gear icon) → enter `4`, `8`, `0.4` → **Close**.
-2. Choose mode **Start → Halfway**.
-3. Press **BEGIN**, count "one-thousand-one … one-thousand-four", press **MARK**.
-4. Listen to the replay.
+1. On first run, press **I understand** on the O&M notice, then close the
+   sound tutorial.
+2. Home → **Instructor setup** → enter `4`, `8`, `0.4` → **Back**.
+3. Home → **Practice my timing**. Choose mode **Start → Halfway**.
+4. Press **BEGIN**, count "one-thousand-one … one-thousand-four", press **MARK**.
+5. Listen to the replay.
 
 **Pass:** you hear your two taps, then a bright chime at the 4-second mark
 (because you were close). No console errors.
@@ -71,13 +73,13 @@ Mode **Start → Halfway → Finish**. Tap at roughly 0s, 4s, 8s.
 - [ ] Two feedback cues in the replay, one per waypoint
 
 ### A4 — Setup guard
-Clear both time fields in Settings, then close.
+Clear both time fields in Instructor setup, then go back.
 
 **Pass:**
 - [ ] A **"Times needed"** prompt appears on the main screen
 - [ ] Pressing BEGIN does **not** start a run
-- [ ] Tapping "Open Settings to enter times" opens Settings with the cursor in the
-      first empty field
+- [ ] Tapping "Open Instructor setup to enter times" opens Instructor setup with
+      the cursor in the first empty field
 
 ---
 
@@ -226,24 +228,33 @@ Set times, close the app fully, reopen.
 
 **Pass:** times, theme, text size, and sound choices are all retained.
 
-### E2 — Share link round trip
-1. Settings → fill **Instructor email** and a **Client code** → **Share time
-   settings**.
-2. Copy the **setup message**, open its link on another device or browser.
+### E2 — Setup link round trip
+1. Instructor setup → fill **Instructor email** and a **Student code** → turn
+   one activity off → **Share the setup link** (or **Text it to the student**).
+2. Open the link on another device or browser.
 
 **Pass:** the second device receives both crossing times, the margin, the
-instructor email and the client code (upper-cased), shows "Time settings
-updated for this device.", and Home reads "Crossing times set" with no
-example-times note.
+instructor email, the student code (upper-cased) and the activity choice,
+shows "Your instructor's setup is now on this device.", and Home reads
+"Crossing times set" with the activity hidden. In a browser, **Open in the Gap
+Sense app** is offered and, on a phone with the app, opens the app with the
+same setup.
+
+### E2b — What the link carries
+Untick **Crossing times and margin** and share again. Open the link on a
+device that already has other times.
+
+**Pass:** that device keeps its own times and takes only the other parts.
+Unticking all three refuses to share.
 
 ### E3 — Corrupted link is rejected
 Take a setup link and change one character in the middle of the token. Also try
-a link whose client code is longer than 8 characters or whose email is not an
+a link whose student code is longer than 8 characters or whose email is not an
 address (build one with `buildShareTimingLink()` after typing bad values).
 
-**Pass:** the app reports "This time settings link is invalid." and does **not**
+**Pass:** the app reports "This setup link is invalid." and does **not**
 apply any value. (The token carries a checksum, and every field is validated.)
-A link made by the September build (version `v1`) still imports.
+Links made by earlier builds (versions `v1` and `v2`) still import.
 
 ---
 
@@ -295,11 +306,21 @@ was discarded.)*
 
 ---
 
-## H. The activities after Cindi's review (10 Oct 2026)
+## H. The activities (build 7)
+
+### H0 — First run and guidance
+Delete the app's data (or use a fresh browser profile) and open it.
+
+**Pass:**
+- [ ] "Before you start" appears first: use with an O&M Specialist, not a replacement for instruction
+- [ ] Escape does not close it; **I understand** does, then the sound tutorial opens
+- [ ] Home shows the O&M line at the top
+- [ ] With VoiceOver, one swipe per activity reads "Practice my timing, Develop an accurate sense…, button"; there is no hidden "Home" heading
+- [ ] Each new screen puts VoiceOver focus on its title
 
 ### H1 — Practice logs and score line
-Settings 4 / 8 / 0.4. Home → **Practise my timing** → Begin, Mark after about
-four seconds.
+Instructor setup 4 / 8 / 0.4. Home → **Practice my timing** → Begin, Mark after
+about four seconds.
 
 **Pass:**
 - [ ] After the replay the line under the button reads "Last 1: 1 within margin · margin 0.40s"
@@ -307,67 +328,90 @@ four seconds.
 - [ ] Settings and Accessibility are enabled again
 - [ ] Begin, then **Back** mid-run: Settings and the mode radios are enabled on Home; nothing was recorded
 
-### H2 — Time it from a signal
-Home → **Time it from a signal** → **READY**.
+### H2 — Comparison preparation
+Home → **Comparison preparation** → **READY**.
 
 **Pass:**
-- [ ] The button reads WAIT, then after a random pause two blips sound (and a pulse with vibration on) and it reads NOW
-- [ ] Pressing after about the crossing time replays your press against the crossing time, with the chime
-- [ ] Pressing before the signal says "Too early", resets to READY, records nothing
-- [ ] **Longer waits before the signal** makes the wait noticeably longer
-- [ ] Leaving the screen while waiting cancels the pending signal
+- [ ] The app says "Get ready" (no beep) and the button reads WAIT
+- [ ] After a wait a steady sound starts and the button reads NOW; it keeps going until you press
+- [ ] Pressing after about the crossing time stops the sound and replays: the sound, your sound where you pressed, the chime at the crossing time
+- [ ] Waits vary: some under 2 seconds, some over 5
+- [ ] Pressing before the sound says "Too early", resets to READY, records nothing
+- [ ] Not pressing at all: the sound stops by itself; nothing is recorded
+- [ ] Options → **One short beep to start** plays a beep instead of the steady sound
+- [ ] Leaving the screen while the sound plays stops it
 
-### H3 — Compare practice
-Home → **Compare practice** → **Play a sample warning time**.
+### H3 — Comparison practice
+Home → **Comparison practice** → **Play a sample warning time**.
 
 **Pass:**
-- [ ] The sample grows louder and stops; then the three buttons and the answer pad become active, and (with a screen reader) focus is on **About the same**
-- [ ] After any answer the status says what it was, then the replay plays: marker, sample, marker, feedback cue at the crossing time
+- [ ] The sample is one steady sound at one loudness, no fade at either end
+- [ ] A full-screen answer pad opens; swiping on it never scrolls the page; with a screen reader focus is on **About the same**
+- [ ] Swipe up = longer, swipe down = shorter, tap = about the same, anywhere on the pad; a swipe never also counts as a tap
+- [ ] Right after answering: the chime or the low pulse, the haptic, and with visual on, the circle or triangle
+- [ ] The replay plays the sample and **your own sound** where your crossing time ends; no chime or pulse inside the replay
 - [ ] Nothing starts by itself; **Play** is needed for the next sample
-- [ ] Swipe up on the pad = longer, swipe down = shorter, tap = about the same; a swipe never also counts as a tap
-- [ ] **Two taps with silence between** changes the sample
-- [ ] **Sample loudness** changes the preview and the next sample, and survives a reload
-- [ ] **Start the sample after a short random pause** delays the sample
-- [ ] **After answering, tap out how much…**: after the answer you tap start and end, then hear the comparison replay and then your estimate against the real difference
-- [ ] Pressing Play during a trial restarts cleanly; leaving mid-trial cancels and the next visit starts idle
+- [ ] **Sound loudness** and **Sound pitch** change the preview and the next sample, survive a reload, and match on Comparison preparation
+- [ ] **Two beeps with silence between** changes the sample
+- [ ] **Random pause** delays the sample
+- [ ] **How much**: offered only after a correct longer or shorter answer; never after a wrong answer or "about the same"
+- [ ] Replay (a), the default: steady sound for your crossing time, the chime or pulse where the sample ended, your sound at your estimate
+- [ ] Replay (b) (Instructor setup): the comparison replay, then your estimate against the real difference
+- [ ] The "Longer does not mean long enough" note shows until **Got it, hide this note**; Help → **Show the safety notes again** brings it back
 - [ ] Nowhere on the screen does the word "gap" appear
 
-### H4 — At the street ⭐ (outdoors, real traffic)
-Home → **At the street** → set direction → time a vehicle.
+### H4 — At the street ⭐ (outdoors, real traffic, with an instructor)
+Home → **At the street** → choose Hearing or Vision → **START**.
 
 **Pass:**
-- [ ] With the noise check off (default) no microphone permission is requested and the system microphone indicator never appears
-- [ ] Tap on detection, tap again as it passes → verdict (enough / too close / not enough), then the overlapped replay
-- [ ] "Approaching from the right" compares against the full-street time
-- [ ] **Cancel** discards the trial and records nothing
-- [ ] Switch on **Check background noise while timing**: permission is asked once; **Sample the quiet** becomes available and completes
-- [ ] Leaving the screen closes the microphone (indicator goes away); switching the check off closes it too
-- [ ] Starting a measurement next to a loud noise, with a quiet level recorded, flags it
+- [ ] No microphone permission is ever requested
+- [ ] The instructions say to position yourself as directed by your O&M Specialist and to tap when you think you detect a vehicle
+- [ ] Swipe left (or **Vehicle from the left**) when a vehicle is detected from the left; swipe right for the right
+- [ ] Tap (or **It passed in front of me**) when it passes; swipe down (or **It never came**) if it never comes
+- [ ] After it passes, the app asks you to judge; it does not say the answer first
+- [ ] Left compares with the first-half time, right with the full-street time
+- [ ] Replay set to "Only after a wrong answer" replays only after a wrong answer; "Never" plays only the right or wrong sound
+- [ ] **Done** closes the pad; the tally under the button counts vehicles, correct judgments and vehicles that never came
 
-### H5 — Share link v2 and report
-See E2/E3 for the link. Then Progress → **Show me what would be sent**.
+### H5 — Instructor setup
+**Pass:**
+- [ ] Turning an activity off hides it on Home and renumbers the rest; a Siri shortcut or link to it lands on Home
+- [ ] Turning practice modes off hides them on Practice; the last one cannot be turned off
+- [ ] An option set to "Student chooses" shows a switch on the student's screen; "On" or "Off" hides it with a note
+- [ ] Setting an instructor code locks the screen; a wrong code is refused; the right one unlocks; leaving locks it again; saving an empty code removes it
+
+### H6 — Report
+Progress → **Send my progress to my instructor**.
 
 **Pass:**
-- [ ] The report starts with "Client code: …" and contains no name
-- [ ] Live vehicles read as verdicts ("warning time … — not enough warning"), never "incorrect"
-- [ ] **Email it to my instructor** appears only when an instructor email is set, and opens the mail app with the report
-- [ ] **Copy report** puts it on the clipboard; **Delete all my practice history** empties everything
+- [ ] The report is shown first and nothing is sent until **Send it**
+- [ ] **Send it** opens the phone's share menu (Messages, Mail, …)
+- [ ] The report starts with "Student code: …" and contains no name
+- [ ] Street vehicles show direction, hearing or vision, the answer and the truth; vehicles that never came are listed but not scored
+- [ ] **Email it instead** appears only when an instructor email is set
+- [ ] **Delete all my practice history** empties everything
 
-### H6 — Adaptive margin (experimental)
-Progress → tick **Adaptive margin of error**. Do ten practice attempts on one crossing.
+### H7 — Adaptive margin (experimental)
+Instructor setup → tick **Adaptive margin of error**. Do ten practice attempts on one crossing.
 
 **Pass:**
-- [ ] Nothing changes before the tenth attempt; after it, the margin shown for that lane (and only that lane) is 8% tighter
-- [ ] Ten poor attempts in a row return it to the Settings margin
-- [ ] It never goes below 0.10 s or above the Settings margin
+- [ ] Nothing changes before the tenth attempt; after it, the margin for that lane (and only that lane) is 8% tighter
+- [ ] Ten poor attempts in a row return it to the set margin
+- [ ] It never goes below 0.10 s or above the set margin
 - [ ] **Reset adaptive margins** clears every lane
-- [ ] Practice, the signal activity and Compare each show "(adaptive)" in their score line
 
-### H7 — Gating
-Clear both times in Settings, then open Home.
+### H8 — Gating
+Clear both times in Instructor setup, then open Home.
 
-**Pass:** all four steps are dimmed and their buttons disabled; the "Start here"
-box offers **Open Settings**.
+**Pass:** all activities are dimmed and their buttons disabled; the "Start here"
+box offers **Open Instructor setup**.
+
+### H9 — Speech, Siri and sound check
+**Pass:**
+- [ ] Accessibility → **Speak directions aloud**: each screen's name and directions are spoken; speech stops while a sound is being timed
+- [ ] **Play a test sound** plays a tone and a chime and says the sound engine is on
+- [ ] iPhone: "Hey Siri, Practice my timing in Gap Sense" opens that activity; the four actions appear in the Shortcuts app
+- [ ] Android: touching and holding the icon shows the four activities
 
 ---
 
@@ -380,18 +424,25 @@ npm install        # once
 npm test           # Playwright, in the Google Chrome installed on the Mac
 ```
 
-Thirty-eight browser tests cover: boot with no console errors, every screen and
-dialog, the demo link, Practice logging and per-lane margins, leaving mid-run,
-screen-reader announcement order, Compare (no auto-advance, replay, swipe and
-arrow keys, random pause, how much, cancel, restart, trial consistency), Time it
-from a signal (on time, false start, leaving), At the street (verdicts,
-microphone closed by default, noise check on/off, the permission race), share
-link v2 and rejected links, the report wording, deleting data, the adaptive
-maths, and the visual-only / 300% / high-contrast / reduced-motion
-configuration.
+Seventy-four browser tests cover: boot with no console errors, every screen and
+dialog, focus on the screen title, single-button activities, names and American
+spelling, the first-run O&M notice, the demo link, vibration on by default (and
+the one-time reset), self-voicing, the native shell (haptics plugin, playback
+audio session, Siri and `gapsense://` links) using a simulated Capacitor,
+recovery from an interrupted sound engine, Practice logging and per-lane
+margins, Comparison preparation ("Get ready", sustained sound, beep style, wait
+mix, false start, auto-stop, leaving), Comparison practice (steady envelope
+rendered offline, full-screen pad, swipes, result shapes, replay sounds, "how
+much" rules, replays (a) and (b), instructor overrides, loudness and pitch),
+At the street (no microphone, gestures, the student's judgment, never came,
+replay modes, judging off, hearing or vision), Instructor setup (activities,
+modes, instructor code), setup links v1/v2/v3 and rejected links, the share
+sheet and Messages, the report wording, deleting data, the adaptive maths, and
+the visual-only / 300% / high-contrast / reduced-motion configuration.
 
 They cannot hear or feel anything. Still manual, on a real phone: B1 roadside
-audio, B2 ringer switch, every test in C, D4 VoiceOver, F, and H4 outdoors.
+audio, B2 ringer switch, every test in C, D4 VoiceOver (and TalkBack), F, H4
+outdoors, and the Siri check in H9.
 
 ---
 
@@ -402,6 +453,6 @@ Please include:
 1. **Which environment** — desktop browser / iPhone Safari / simulator / native app
 2. **Which test** — e.g. "B1"
 3. **Expected vs actual**
-4. **Settings in use** — clear, full, margin, mode, output mode
+4. **Settings in use** — first half, full street, margin, mode, output mode
 5. **Console output** if on desktop (⌥⌘J in Chrome)
 6. Device and OS version for phone issues

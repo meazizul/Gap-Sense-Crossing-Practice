@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static app shortcuts: touch and hold the Gap Sense icon. Each opens one
+     activity through the gapsense://open/<activity> link the web code handles. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="practice"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_practice_short"
+        android:shortcutLongLabel="@string/shortcut_practice_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.gapsense.crossingpractice"
+            android:targetClass="com.gapsense.crossingpractice.MainActivity"
+            android:data="gapsense://open/practice" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="signal"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_signal_short"
+        android:shortcutLongLabel="@string/shortcut_signal_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.gapsense.crossingpractice"
+            android:targetClass="com.gapsense.crossingpractice.MainActivity"
+            android:data="gapsense://open/signal" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="compare"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_compare_short"
+        android:shortcutLongLabel="@string/shortcut_compare_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.gapsense.crossingpractice"
+            android:targetClass="com.gapsense.crossingpractice.MainActivity"
+            android:data="gapsense://open/compare" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="live"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_live_short"
+        android:shortcutLongLabel="@string/shortcut_live_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.gapsense.crossingpractice"
+            android:targetClass="com.gapsense.crossingpractice.MainActivity"
+            android:data="gapsense://open/live" />
+    </shortcut>
+</shortcuts>

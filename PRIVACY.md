@@ -1,9 +1,9 @@
 # Gap Sense — Privacy Policy
 
-_Last updated: 10 October 2026_
+_Last updated: 16 October 2026_
 
 Gap Sense is a research tool from Stevens Institute of Technology that helps
-blind, low-vision and DeafBlind travellers build an intuitive sense of how long
+blind, low-vision and DeafBlind travelers build an intuitive sense of how long
 a street crossing takes, using sound and vibration rather than numbers.
 
 ## What the app collects
@@ -17,18 +17,17 @@ device.
 - **Your settings and practice history** (margin, cue preferences, and the
   timings you record) are stored only in the app's local storage on your
   phone. Deleting the app deletes them.
-- **Microphone.** The microphone is used only if you switch on the optional
-  background-noise check on the "At the street" screen, and only while that
-  screen is showing. It then measures how loud the surroundings are so the
-  app can flag a measurement taken in noise too loud to be representative.
-  The audio is analysed in real time on your device, and is never recorded,
-  stored, or sent anywhere. With the check off, the microphone is never
-  opened. You can decline microphone access and every other feature still
-  works.
-- **Instructor email and client code.** Settings can hold an instructor's
-  email address and a short client code (letters and digits). They appear in
-  the setup link an instructor shares and at the top of the practice report,
-  so that neither needs a name. The app never stores or sends a name.
+- **No microphone.** The app does not use the microphone at all, and does not
+  ask for access to it.
+- **Instructor email and student code.** Instructor setup can hold an
+  instructor's email address and a short student code (letters and digits).
+  They appear in the setup link an instructor shares and at the top of the
+  practice report, so that neither needs a name. The app never stores or sends
+  a name.
+- **Sending a report or a setup link.** Nothing is sent automatically. When you
+  choose to send, the app shows you the text first, then hands it to your
+  phone's share menu (Messages, Mail, or any app you pick). It goes only where
+  you send it. It does not pass through any Gap Sense server; there is none.
 
 ## Third parties
 
