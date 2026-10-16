@@ -234,17 +234,27 @@
     const GSNativePlugin = CapacitorGlobal?.Plugins?.GSNative;
     const hasWebVibrate = typeof navigator.vibrate === "function";
 
+    // Lengths raised in build 9: testers found the short ticks too faint.
     const WEB_VIBRATION_PATTERNS = {
-      start: [30],
-      // Two light taps = "get ready, the clock is armed".
-      ready: [25, 70, 25],
-      // One short tick = "this is you".
-      marker: [45],
-      // Three quick ticks = within the margin.
-      reference_ok: [35, 45, 35, 45, 35],
-      // One long, heavy buzz = outside the margin. Deliberately several times
+      start: [60],
+      // Two knocks = "get ready, the clock is armed".
+      ready: [50, 90, 50],
+      // One knock = "this is you".
+      marker: [100],
+      // Three knocks = within the margin.
+      reference_ok: [70, 90, 70, 90, 70],
+      // One long buzz = outside the margin. Deliberately several times
       // longer than anything else so it cannot be mistaken by touch alone.
-      reference_bad: [240]
+      reference_bad: [550]
+    };
+
+    // [start ms, length ms] for each vibration in the Android app.
+    const ANDROID_VIBRATION_PULSES = {
+      start: [[0, 60]],
+      ready: [[0, 50], [140, 50]],
+      marker: [[0, 100]],
+      reference_ok: [[0, 70], [160, 70], [320, 70]],
+      reference_bad: [[0, 550]]
     };
 
     function hapticsAvailable() {
@@ -307,6 +317,15 @@
           // iOS's "notification" haptics are deliberately subtle, and MEDIUM
           // impacts barely register through fabric. These are tuned for a
           // hand in a pocket or holding a cane, not a palm in a quiet room.
+          if (nativePlatform === "android") {
+            // Android: impact() is a click too short to feel through a
+            // pocket. Timed vibrations instead, same rhythms as the iPhone.
+            const pulses = ANDROID_VIBRATION_PULSES[type] || [];
+            pulses.forEach(([atMs, lengthMs]) => {
+              setTimeout(() => HapticsPlugin.vibrate({ duration: lengthMs }), atMs);
+            });
+            return;
+          }
           if (type === "reference_bad") {
             // One long, full-intensity buzz via Core Haptics: the plugin's
             // vibrate(duration) runs a continuous event at intensity 1.0.
@@ -573,7 +592,7 @@
      */
     function warmUpAudio() {
       const context = ensureAudioContext();
-      if (audioWarmedUp) return;
+      if (audioWarmedUp || nativeSound) return;
       try {
         const buffer = context.createBuffer(1, 1, context.sampleRate);
         const source = context.createBufferSource();
@@ -586,20 +605,85 @@
       }
     }
 
+    function softClipCurve(drive) {
+      const points = 2049;
+      const curve = new Float32Array(points);
+      const norm = Math.tanh(drive);
+      for (let i = 0; i < points; i += 1) {
+        const x = (i / (points - 1)) * 2 - 1;
+        curve[i] = Math.tanh(drive * x) / norm;
+      }
+      return curve;
+    }
+
+    /*
+     * Native sound (iPhone app, build 9+). Inside the web view, WebKit owns
+     * the Web Audio session and can fall back to the one the ring/silent
+     * switch mutes; Cindi felt the cues but heard nothing. The app's own
+     * player (GapSenseAudio.swift) plays through the app's playback session,
+     * which the switch never mutes, so on iPhone every tone and spoken prompt
+     * goes there. The web build and Android keep Web Audio.
+     */
+    const nativeSound = isNativeShell && nativePlatform === "ios" && typeof GSNativePlugin?.tone === "function";
+
+    function nativeCall(method, args) {
+      try {
+        const result = GSNativePlugin[method](args);
+        if (result && typeof result.catch === "function") result.catch(() => {});
+        return result;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    /*
+     * In the iPhone app no Web Audio is created at all: a running web audio
+     * context lets WebKit change the app's audio session, which could put the
+     * silent switch back in charge. Callers still get an object with a clock
+     * (for the visual replays) and the output latency (for fair timing).
+     */
+    function nativeClock() {
+      return {
+        state: "running",
+        get currentTime() { return performance.now() / 1000; },
+        baseLatency: 0,
+        outputLatency: nativeOutputLatency,
+        resume: () => Promise.resolve(),
+        addEventListener: () => {}
+      };
+    }
+    let nativeOutputLatency = 0;
+
     function ensureAudioContext() {
+      if (nativeSound) {
+        if (!audioContext) audioContext = nativeClock();
+        audioContext.outputLatency = nativeOutputLatency;
+        return audioContext;
+      }
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         // Safety limiter on the master output: individual cues are tuned to
         // pass through untouched, but overlapping cues (user marker + feedback
         // tone landing together during replay) are caught here instead of
         // hard-clipping into distortion.
-        masterLimiter = audioContext.createDynamicsCompressor();
-        masterLimiter.threshold.value = -2;
-        masterLimiter.knee.value = 0;
-        masterLimiter.ratio.value = 20;
-        masterLimiter.attack.value = 0.001;
-        masterLimiter.release.value = 0.05;
-        masterLimiter.connect(audioContext.destination);
+        const limiter = audioContext.createDynamicsCompressor();
+        limiter.threshold.value = -2;
+        limiter.knee.value = 0;
+        limiter.ratio.value = 20;
+        limiter.attack.value = 0.001;
+        limiter.release.value = 0.05;
+        limiter.connect(audioContext.destination);
+        // Loudness: every cue goes through a soft clipper before the limiter.
+        // Against build 8 the steady sample is about 7 dB louder and the
+        // chimes about 5 dB, peaks stay just under full scale, and the added
+        // overtones carry better on a phone speaker.
+        // Testers found the sound too quiet at full phone volume. The iPhone
+        // app does the same in GapSenseAudio.swift. `masterLimiter` is the
+        // input every cue connects to.
+        masterLimiter = audioContext.createWaveShaper();
+        masterLimiter.curve = softClipCurve(3);
+        masterLimiter.oversample = "2x";
+        masterLimiter.connect(limiter);
         // iOS moves a context to "interrupted" (not "suspended") when
         // something else takes the audio hardware for a moment: a call, Siri,
         // another app, a haptic engine starting. The old check only resumed
@@ -626,7 +710,7 @@
      * would pause the person's own music.
      */
     function configureWebAudioSession() {
-      if (!isNativeShell) return;
+      if (!isNativeShell || nativeSound) return;
       try {
         if (navigator.audioSession && "type" in navigator.audioSession) {
           navigator.audioSession.type = "playback";
@@ -648,6 +732,16 @@
      */
     function playCompositeTone(partials, duration = 0.16, startTime = 0, volumeScale = 1, envelope = "pulse") {
       if (a11ySettings.outputMode === "visual-only") return;
+      if (nativeSound) {
+        nativeCall("tone", {
+          partials: partials.map((p) => ({ freq: p.freq, gain: p.gain })),
+          duration,
+          delay: Math.max(0, startTime),
+          level: TEST_TUNING.masterVolume * volumeScale,
+          envelope: envelope === "pulse" ? "pulse" : "steady"
+        });
+        return;
+      }
       const context = ensureAudioContext();
       if (context.state !== "running" && !playCompositeTone.retrying) {
         // Suspended or interrupted: wait for the clock to run, then schedule
@@ -700,6 +794,24 @@
      */
     function startSustainedTone(partials, volumeScale = 1) {
       if (a11ySettings.outputMode === "visual-only") return () => {};
+      if (nativeSound) {
+        // The stop can be called before the id comes back; remember it.
+        let stopRequested = false;
+        let nativeId = null;
+        const pending = nativeCall("sustainStart", {
+          partials: partials.map((p) => ({ freq: p.freq, gain: p.gain })),
+          level: TEST_TUNING.masterVolume * volumeScale
+        });
+        Promise.resolve(pending).then((result) => {
+          nativeId = result?.id ?? null;
+          if (stopRequested && nativeId !== null) nativeCall("sustainStop", { id: nativeId });
+        }).catch(() => {});
+        return () => {
+          if (stopRequested) return;
+          stopRequested = true;
+          if (nativeId !== null) nativeCall("sustainStop", { id: nativeId });
+        };
+      }
       const context = ensureAudioContext();
       const now = context.currentTime;
       const gain = context.createGain();
@@ -1696,7 +1808,10 @@
      * (above), and the spoken "Get ready" in Comparison preparation, which
      * replaced a beep that sounded too much like the other cues.
      */
+    let nativeSpeechToken = null;
+
     function speechAvailable() {
+      if (nativeSound) return true;
       return typeof window.speechSynthesis !== "undefined" && typeof window.SpeechSynthesisUtterance === "function";
     }
 
@@ -1727,6 +1842,20 @@
         if (onDone) setTimeout(done, 0);
         return false;
       }
+      if (nativeSound) {
+        // Spoken by the app itself, through the same session as the tones,
+        // so the silent switch cannot mute "Get ready" either.
+        const token = {};
+        nativeSpeechToken = token;
+        const finish = () => {
+          if (nativeSpeechToken === token) nativeSpeechToken = null;
+          done();
+        };
+        Promise.resolve(nativeCall("speak", { text, rate: Number(a11ySettings.speechRate) || 1, interrupt }))
+          .then(finish, finish);
+        if (onDone) setTimeout(done, maxWaitMs);
+        return true;
+      }
       try {
         if (interrupt) window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
@@ -1746,7 +1875,22 @@
       }
     }
 
+    /** Is anything being spoken right now? */
+    function gsSpeechBusy() {
+      if (nativeSound) return nativeSpeechToken !== null;
+      try {
+        return speechAvailable() && window.speechSynthesis.speaking;
+      } catch (error) {
+        return false;
+      }
+    }
+
     function gsStopSpeech() {
+      if (nativeSound) {
+        nativeSpeechToken = null;
+        nativeCall("stopSpeaking", {});
+        return;
+      }
       try {
         if (speechAvailable()) window.speechSynthesis.cancel();
       } catch (error) {
@@ -2391,13 +2535,30 @@
      * words. If a tester hears nothing, the note tells us why.
      */
     soundTestBtn?.addEventListener("click", () => {
+      if (a11ySettings.outputMode === "visual-only") {
+        if (soundTestNote) soundTestNote.textContent = "Visual-only mode is on, so the app makes no sounds.";
+        return;
+      }
+      if (nativeSound) {
+        playCompositeTone(gsSamplePartials(), 1.0, 0.05, gsSampleLevel(), "steady");
+        playFeedbackTone("acceptable", 1.3);
+        setTimeout(async () => {
+          const status = await gsNativeAudioStatus();
+          if (!soundTestNote || !status) return;
+          const parts = [
+            status.engineRunning ? "Sound is on." : "Sound engine stopped.",
+            status.ignoresSilentSwitch ? "It plays even with the silent switch on." : "The silent switch may mute it.",
+            `Phone volume ${Math.round((status.outputVolume || 0) * 100)}%.`
+          ];
+          if ((status.outputVolume || 0) < GS_LOW_VOLUME) parts.push(GS_LOW_VOLUME_TIP);
+          soundTestNote.textContent = parts.join(" ");
+          announceScreenReader(soundTestNote.textContent);
+        }, 400);
+        return;
+      }
       const context = ensureAudioContext();
       const note = () => {
         if (!soundTestNote) return;
-        if (a11ySettings.outputMode === "visual-only") {
-          soundTestNote.textContent = "Visual-only mode is on, so the app makes no sounds.";
-          return;
-        }
         const state = context.state === "running" ? "on" : context.state;
         soundTestNote.textContent = `Sound engine: ${state}. You should hear a steady tone, then a chime.`;
       };
@@ -2509,14 +2670,57 @@
       else silentKeepAlive.play().catch(() => {});
     });
 
+    /*
+     * The app cannot raise the phone's volume itself; only the side buttons
+     * can. So when the phone is turned well down, say so once per launch
+     * rather than leave a student wondering why the cues are faint.
+     */
+    const GS_LOW_VOLUME = 0.5;
+    const GS_LOW_VOLUME_TIP = "Your phone volume is low. Press the volume up button on the side of the phone.";
+
+    async function gsNativeAudioStatus() {
+      if (!nativeSound || typeof GSNativePlugin?.audioStatus !== "function") return null;
+      try {
+        return await GSNativePlugin.audioStatus();
+      } catch (error) {
+        return null;
+      }
+    }
+
+    let volumeTipAnnounced = false;
+    async function warnIfVolumeLow() {
+      const status = await gsNativeAudioStatus();
+      if (status && Number.isFinite(status.outputLatency)) nativeOutputLatency = status.outputLatency;
+      const tip = document.getElementById("volumeTip");
+      if (!status || !tip) return;
+      const low = a11ySettings.outputMode !== "visual-only" && (status.outputVolume ?? 1) < GS_LOW_VOLUME;
+      tip.hidden = !low;
+      if (low && !volumeTipAnnounced) {
+        volumeTipAnnounced = true;
+        announceScreenReader(GS_LOW_VOLUME_TIP);
+      }
+    }
+    if (nativeSound && typeof GSNativePlugin?.addListener === "function") {
+      try {
+        GSNativePlugin.addListener("volume", () => { warnIfVolumeLow(); });
+      } catch (error) {
+        /* the check on returning to the app still runs */
+      }
+    }
+    // Checked again on returning to the app, in case the volume was changed.
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) warnIfVolumeLow();
+    });
+
     const unlockAudio = () => {
       warmUpAudio();
+      warnIfVolumeLow();
       // Only the native shell on iOS 16 needs the keep-alive. From iOS 17 the
       // web view takes navigator.audioSession.type = "playback" instead (see
       // configureWebAudioSession), and a looping media element alongside Web
       // Audio is one more thing that can take the audio route. In Safari on
       // the web a playing media element would silence the user's own music.
-      if (isNativeShell && nativePlatform === "ios" && !navigator.audioSession) startSilentKeepAlive();
+      if (isNativeShell && nativePlatform === "ios" && !navigator.audioSession && !nativeSound) startSilentKeepAlive();
       document.removeEventListener("pointerdown", unlockAudio);
       document.removeEventListener("keydown", unlockAudio);
     };
