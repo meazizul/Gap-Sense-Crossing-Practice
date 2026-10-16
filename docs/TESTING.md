@@ -107,8 +107,12 @@ Flip the physical silent switch **on**. Run a practice.
 
 **Pass:** sounds still play.
 
-If they stop, the `AVAudioSession` configuration in
-`ios-app/ios/App/App/AppDelegate.swift` is not taking effect.
+Also check the spoken "Get ready" in Comparison preparation, and run
+**Accessibility → Play a test sound**: it should say "It plays even with the
+silent switch on."
+
+If they stop, the native player in `ios-app/ios/App/App/GapSenseAudio.swift`
+is not keeping the `playback` session.
 
 ### B3 — Overlap does not clip
 Set margin to `2.0` so accuracy is easy, and tap close to the reference time. Your

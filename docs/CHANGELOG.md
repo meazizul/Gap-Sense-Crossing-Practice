@@ -8,6 +8,28 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-16 (build 9: iOS, Android, web) — Louder sound, stronger vibration, sound with the silent switch on
+
+From testing build 8 on an iPhone: the sound was too quiet and the vibration
+too faint. Cindi had also felt the cues but heard nothing.
+
+- **Sound on iPhone is played by the app itself**, not the web view. WebKit
+  could put Web Audio in the audio session that the ring/silent switch mutes.
+  The app's own player uses the `playback` session, which the switch never
+  mutes, restores it if anything changes it, and restarts after calls, Siri
+  and headphone changes. "Get ready" and self-voicing are spoken by the app
+  for the same reason.
+- **Louder.** Every cue passes through a soft clipper: the steady sample is
+  about 7 dB louder and the chimes about 5 dB, with no crackling. The sample
+  itself is also set higher.
+- **Phone volume note.** The app cannot raise the phone's volume. When it is
+  below half, Home asks the student to press volume up; the note goes away as
+  soon as they do. **Play a test sound** now reports whether sound is on, that
+  the silent switch does not affect it, and the phone volume.
+- **Stronger vibration.** Each iPhone knock is a sharp tap plus a short
+  full-strength rumble; the "wrong" buzz is 600 ms. Android vibrates for set
+  lengths (60–550 ms) instead of a short click. Same rhythms as before.
+
 ## 2026-10-16 (build 8: iOS, Android, web) — Polish after device testing
 
 Build 7 was run end to end inside the app on twelve simulated iPhones (iPhone

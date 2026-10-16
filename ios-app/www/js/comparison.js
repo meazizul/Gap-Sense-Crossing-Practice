@@ -81,8 +81,7 @@ function gsClearTimers(list) {
  * lands on top of a sample. Without self-voicing it runs at once.
  */
 function gsAfterSpeech(list, fn, maxSec = 5) {
-  const speaking = () => a11ySettings.selfVoice && typeof speechAvailable === "function" &&
-    speechAvailable() && window.speechSynthesis.speaking;
+  const speaking = () => a11ySettings.selfVoice && typeof gsSpeechBusy === "function" && gsSpeechBusy();
   if (!speaking()) {
     fn();
     return;
@@ -155,11 +154,13 @@ function gsSetSamplePitchIndex(index) {
 
 /* Two sine partials a minor third apart: a fuller sound than one sine, which
  * carries better on phone speakers. Low pitches get a little more of the
- * upper partial, which small speakers reproduce better. */
+ * upper partial, which small speakers reproduce better. Raised in build 9
+ * (testers: too quiet at full volume); the soft clipper keeps the peaks
+ * under full scale. */
 function gsSamplePartials() {
   const base = GS_SAMPLE_PITCHES[gsSamplePitchIndex()].hz;
-  const upper = base < 250 ? 0.3 : 0.22;
-  return [{ freq: base, gain: 0.4 }, { freq: base * 1.189, gain: upper }];
+  const upper = base < 250 ? 0.38 : 0.3;
+  return [{ freq: base, gain: 0.55 }, { freq: base * 1.189, gain: upper }];
 }
 
 function gsSampleLevel() {

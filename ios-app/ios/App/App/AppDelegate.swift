@@ -36,14 +36,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     /// regardless of the switch. `.mixWithOthers` means we duck nothing, so
     /// VoiceOver speech and the user's own audio keep working alongside us.
     private func configureAudioSession() {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try session.setActive(true)
-        } catch {
-            // Non-fatal: the app still works, the ringer switch just wins.
-            print("Audio session configuration failed: \(error)")
-        }
+        // GapSenseAudio.swift owns the session and keeps it in .playback.
+        _ = GSAudio.shared
     }
 
     func applicationWillResignActive(_ application: UIApplication) {

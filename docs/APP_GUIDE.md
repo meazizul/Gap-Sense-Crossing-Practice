@@ -411,10 +411,13 @@ gets squashed, not louder. Values above `1` in `TEST_TUNING` do the same thing.
   plugin with one long-lived Core Haptics engine, the Siri App Shortcuts, and
   `gapsense://` link handling. Android declares the same link scheme and four
   launcher shortcuts.
-- **Audio** is synthesized on demand with the Web Audio API and scheduled on the
+- **Audio** is synthesized on demand. In the iPhone app the native player
+  (`GapSenseAudio.swift`) plays it, so the silent switch cannot mute it. In
+  the browser and on Android it is the Web Audio API, scheduled on the
   `AudioContext` clock, which does not drift the way `setTimeout` does. The
   context is created at load and warmed on the first touch so the first tone is
-  on time.
+  on time. Either way every cue passes through a soft clipper that makes it
+  louder without crackling.
 - **A master limiter** (`DynamicsCompressorNode`) sits between every tone and the
   output, so a user marker and a feedback cue landing at the same instant — which
   is exactly what happens when the student is *accurate* — cannot clip.
