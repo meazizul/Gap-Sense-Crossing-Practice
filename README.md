@@ -13,8 +13,8 @@ learns the *feel* of the duration, not a stopwatch reading.
 ## Install on a phone
 
 - **iPhone:** open <https://testflight.apple.com/join/wYreYpF6> on the phone (TestFlight). About two minutes.
-- **Android:** download the APK from <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build7/GapSense-android-debug.apk> and open it on the phone. Steps in `docs/INSTALL_GUIDE.md`.
-- **Any browser:** open `index.html` or the hosted page. Everything works except vibration.
+- **Android:** download the APK from <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build8/GapSense-android-debug.apk> and open it on the phone. Steps in `docs/INSTALL_GUIDE.md`.
+- **Any browser:** open <https://azizulhaque.me/Gap-Sense-Crossing-Practice/>. Everything works except vibration.
 
 ## For reviewers: the 60-second version
 
@@ -40,7 +40,7 @@ not replace instruction.
 |---|---|---|---|
 | **1** | 10 seconds | Any browser | Open [`ios-app/www/index.html`](ios-app/www/index.html) directly, or run a static server (below) |
 | **2** | 2 minutes | An iPhone on the same Wi-Fi | Real phone install via Safari → Add to Home Screen |
-| **3** | ~15 minutes | A Mac with Xcode + an Apple ID | The native iOS app, with real Taptic Engine haptics |
+| **3** | longer | A Mac with Xcode, or Android Studio | Build the native apps yourself (see [`ios-app/README-IOS.md`](ios-app/README-IOS.md)) |
 
 **To try it instantly — nothing to install:**
 
@@ -62,7 +62,7 @@ Then open the printed address. Open **Instructor setup**, enter any two times
 (e.g. first half = 4 s, full street = 8 s), go to **Practice my timing** and press
 **Begin**.
 
-Full instructions, including the iPhone and Xcode paths:
+How the iPhone and Android apps are built:
 **[`ios-app/README-IOS.md`](ios-app/README-IOS.md)**
 
 ---
@@ -74,12 +74,13 @@ Start here depending on what you want:
 | Document | What it covers |
 |---|---|
 | **[`docs/PARTICIPANT_GUIDE.md`](docs/PARTICIPANT_GUIDE.md)** | **For people trying the app.** Simple English, screen-reader friendly |
-| **[`docs/FEATURE_STATUS.md`](docs/FEATURE_STATUS.md)** | Line-by-line trace of the feature proposal to what exists |
+| **[`docs/INSTALL_GUIDE.md`](docs/INSTALL_GUIDE.md)** | Getting the app on an iPhone, an Android phone, or a browser |
+| **[`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md)** | What each part of the app does, and why |
 | **[`docs/APP_GUIDE.md`](docs/APP_GUIDE.md)** | How the app works and how to operate it — every screen, setting, and mode |
 | **[`docs/TESTING.md`](docs/TESTING.md)** | How to test it: step-by-step procedures and pass/fail checklists |
 | **[`docs/HAPTICS.md`](docs/HAPTICS.md)** | Vibration and haptic feedback — how it works, why iOS needs a native app, how to verify it |
 | **[`docs/CHANGELOG.md`](docs/CHANGELOG.md)** | Every change made, what it fixed, and when |
-| **[`ios-app/README-IOS.md`](ios-app/README-IOS.md)** | Installing and running on an iPhone (both paths) |
+| **[`ios-app/README-IOS.md`](ios-app/README-IOS.md)** | How the iPhone and Android apps are built |
 
 ### Printable versions
 
@@ -87,19 +88,11 @@ Every guide below is also in `docs/pdf/` as a PDF, for reading away from a code
 editor or handing to someone:
 
 - `Gap-Sense-Participant-Guide.pdf` — for people trying the app
-- `Gap-Sense-Feature-Status.pdf` — the proposal traced to what is built
+- `Gap-Sense-Install-Guide.pdf` — getting the app on a phone
+- `Gap-Sense-How-It-Works.pdf` — what each part does, and why
 
-Historical engineering records, kept as dated artifacts:
-
-| Document | Date | Notes |
-|---|---|---|
-| `REPO_ANALYSIS.md` | 2026-06-10 | Full audit of the original prototype |
-| `CHANGES_REPORT.md` | 2026-07-08 | Log of the fix pass that followed the audit |
-| `RESEARCH.md` | 2026-03 | Research on large-text (300%) accessibility |
-
-> These three predate the rename and still refer to the project by its old
-> working titles ("Streets", "Uncontrolled Crossings"). They are left unedited on
-> purpose — they are dated records of what was found and done at the time.
+The history of the project, from the first prototype to today, is in
+[`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
 ---
 
@@ -113,21 +106,16 @@ Historical engineering records, kept as dated artifacts:
 │   ├── www/js/                 engine.js, history.js, features.js, comparison.js, signal.js, app.js
 │   ├── www/manifest.webmanifest, www/sw.js, www/icons/
 │   ├── tests/                  Playwright browser tests (`npm test`)
-│   ├── ios/                    Native Xcode project (Capacitor)
+│   ├── ios/                    Native iOS project (Capacitor)
+│   ├── android/                Native Android project (Capacitor)
 │   ├── serve-lan.mjs           Dev server reachable from a phone over Wi-Fi
-│   └── README-IOS.md           Install / run / test guide
+│   └── README-IOS.md           How the native apps are built
 │
 ├── docs/                     Documentation (see map above)
-├── index.html                Legacy prototype — kept for reference only
-│
-├── REPO_ANALYSIS.md          Historical: audit
-├── CHANGES_REPORT.md         Historical: fix pass log
-└── RESEARCH.md               Historical: accessibility research
+└── PRIVACY.md                What the app stores, and what it never sends
 ```
 
 **Which file is the app?** `ios-app/www/index.html`. That is the one to edit.
-The `index.html` at the repository root is the original prototype, superseded and
-kept only for provenance.
 
 ---
 

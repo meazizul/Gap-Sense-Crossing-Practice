@@ -36,7 +36,7 @@ Then:
 | **iOS Simulator** | Xcode | Native shell, splash, layout at exact device sizes | Audio quality, haptics |
 | **iPhone, native app** | ~15 min | **Everything**, including haptics and the ringer switch | — |
 
-Setup for the phone and Xcode paths: [`../ios-app/README-IOS.md`](../ios-app/README-IOS.md)
+How the native apps are built: [`../ios-app/README-IOS.md`](../ios-app/README-IOS.md)
 
 ---
 

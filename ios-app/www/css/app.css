@@ -1875,3 +1875,23 @@ body.pad-open { overflow: hidden; }
    announce it; it is not a control, so no focus box for sighted users. */
 #screenTitle:focus { outline: none; }
 dialog h2[tabindex="-1"]:focus { outline: none; }
+
+/* At very large text sizes the header used to fill the whole first screen
+   (logo, name and two full-width buttons). Keep it to one compact row with
+   fixed sizes: still large (title 32 px, buttons 52 px), and the content
+   below stays at the size the student chose. */
+body.large-text-layout .app-header { flex-direction: row; align-items: center; gap: 10px; }
+body.large-text-layout .brand { min-width: 0; flex: 1 1 auto; }
+body.large-text-layout .brand-mark { width: 44px; height: 44px; flex: 0 0 auto; }
+body.large-text-layout .app-title { font-size: 32px; line-height: 1.15; }
+body.large-text-layout .app-subtitle { display: none; }
+body.large-text-layout .header-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+body.large-text-layout .icon-btn { width: 52px; height: 52px; min-height: 52px; padding: 0; flex: 0 0 auto; }
+
+/* Pad titles take focus for screen readers; no box for sighted users. */
+.gesture-title:focus-visible { outline: none; }
+body.large-text-layout .icon-btn svg { width: 28px; height: 28px; }
+body.large-text-layout .app-title { font-size: 26px; overflow-wrap: break-word; word-break: normal; hyphens: manual; }
+body.large-text-layout .app-header { padding-left: 12px; padding-right: 12px; }
+body.large-text-layout #backBtn:not([hidden]) ~ .brand .brand-mark { display: none; }
+body.large-text-layout .app-title { font-size: 24px; }

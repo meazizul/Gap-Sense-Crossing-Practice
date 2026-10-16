@@ -335,6 +335,31 @@ enum GSSelfTest {
         if let screen = defaults.string(forKey: "GSSelfTestScreen"), !screen.isEmpty {
             GSShortcutRouter.shared.request(screen)
         }
+        // A full scripted check, passed base64-encoded as -GSSelfTestScript.
+        // Its result is logged in chunks (the device log truncates long lines).
+        if let encoded = defaults.string(forKey: "GSSelfTestScript"),
+           let data = Data(base64Encoded: encoded),
+           let custom = String(data: data, encoding: .utf8) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                webView.callAsyncJavaScript(custom, arguments: [:], in: nil, in: .page) { result in
+                    let text: String
+                    switch result {
+                    case .success(let value): text = String(describing: value)
+                    case .failure(let error): text = "FAILED " + error.localizedDescription
+                    }
+                    let chunks = stride(from: 0, to: text.count, by: 700).map { start -> String in
+                        let from = text.index(text.startIndex, offsetBy: start)
+                        let to = text.index(from, offsetBy: min(700, text.count - start))
+                        return String(text[from..<to])
+                    }
+                    for (index, chunk) in chunks.enumerated() {
+                        NSLog("[GapSense] result %d/%d %@", index + 1, chunks.count, chunk)
+                    }
+                    NSLog("[GapSense] result end")
+                }
+            }
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
             let script = """
             const r = {};

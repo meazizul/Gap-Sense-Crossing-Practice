@@ -8,6 +8,20 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-16 (build 8: iOS, Android, web) — Polish after device testing
+
+Build 7 was run end to end inside the app on twelve simulated iPhones (iPhone
+14 Pro Max, 15, 16, 17, 17e, 18 Pro, 18 Pro Max, Air, SE and 16e, on iOS
+26.0, 26.4 and 27). Every check passed. Build 8 carries the small fixes found
+while looking at the screenshots:
+
+- At 300% text the header filled the whole first screen. It is now one
+  compact row (title 24 px, buttons 52 px); the content keeps the chosen size.
+- No focus box drawn around titles that take focus for screen readers.
+- "Student code" wording on the Progress screen, to match Instructor setup.
+- The native app can run a scripted self-check when launched with a
+  developer-only argument; normal use never triggers it.
+
 ## 2026-10-16 (build 7: iOS, Android, web) — Second round of O&M feedback
 
 A second detailed review by Cindi Lashinsky (O&M Specialist), with input from
@@ -200,14 +214,14 @@ activities to Capacitor. No web code changed; Android is unaffected.
 
 ## 2026-10-10 (build 4) — Vibration on by default, no zoom trap, visible build number
 
-Found by the user on TestFlight build 3 within minutes of it going live.
+Found while testing build 3, within minutes of it going live.
 
 - **Vibration is on from the first launch.** It was off until someone found the
   switch under Accessibility. For a DeafBlind user it is the whole interface,
   so the default is now on; an explicit opt-out is still remembered.
 - **Double-tap no longer zooms the iPhone app.** A double tap anywhere zoomed
   the web view and there was no way back except relaunching. The native shell
-  now locks the viewport (WKWebView honours `user-scalable=no`; Safari does
+  now locks the viewport (WKWebView honors `user-scalable=no`; Safari does
   not, so the web build is untouched and still pinch-zooms), and
   `touch-action: manipulation` on the page removes double-tap zoom everywhere
   while keeping pinch. Capacitor's `zoomEnabled` is set to false as well.
@@ -221,7 +235,7 @@ Found by the user on TestFlight build 3 within minutes of it going live.
 
 ## 2026-10-10 — Cindi's review: measuring removed, a signal activity, overlapped replays, privacy in the share link
 
-Cindi reviewed the four activities in detail on 7 October. Everything below
+Cindi reviewed the four activities in detail. Everything below
 follows from that review and from a code review the same week. All three bugs
 she reported were real.
 
@@ -448,10 +462,9 @@ necessary — the new work would have pushed one file past 5,000 lines.
 
 Xcode's update raised the minimum iOS deployment target from 14.0 to 15.0,
 breaking the build. Fixed in the Podfile, the Xcode project, and with a
-`post_install` hook that forces every Capacitor pod to the same minimum. Note the
-simulator is currently unusable on this machine — CoreSimulator is older than the
-installed build and needs a reboot — so this build was verified by compiling
-against the device SDK and by full functional testing in the browser.
+`post_install` hook that forces every Capacitor pod to the same minimum. This
+build was verified by compiling against the device SDK and by full functional
+testing in the browser.
 
 ---
 
@@ -472,9 +485,8 @@ Crossings". Settled on one name across the whole project.
 | iOS bundle identifier | `com.gapsense.crossingpractice` |
 | npm package | `gap-sense-crossing-practice` |
 
-`REPO_ANALYSIS.md`, `CHANGES_REPORT.md`, and `RESEARCH.md` were deliberately
-**not** rewritten — they are dated historical records and still use the old
-working titles.
+The earlier internal audit and fix-pass reports were left under the old
+working titles as dated records. (They are no longer kept in this repository.)
 
 ### New: native iOS application (`ios-app/`)
 
@@ -548,25 +560,11 @@ Added `docs/APP_GUIDE.md`, `docs/TESTING.md`, `docs/HAPTICS.md`, this changelog,
 and `ios-app/README-IOS.md`. Rewrote the root `README.md` as a reviewer entry
 point.
 
-### Environment notes
-
-Three toolchain blockers were resolved to get the iOS build running, recorded
-because they are easy to hit again:
-
-1. **CocoaPods** was not installed → `brew install cocoapods`.
-2. **Xcode had never completed first-launch setup**, so *every* `xcodebuild`
-   invocation failed with `failed to load a required plug-in` →
-   `xcodebuild -runFirstLaunch` (does not need `sudo`).
-3. **The iOS platform was not installed.** Misleadingly, `xcodebuild -showsdks`
-   *did* list "iOS 26.5" — the SDK was present but the device-support platform was
-   not, which Xcode 15+ splits into a separate 8.5 GB download →
-   `xcodebuild -downloadPlatform iOS`.
-
 ---
 
 ## 2026-07-08 — Fix pass
 
-Full detail in [`../CHANGES_REPORT.md`](../CHANGES_REPORT.md). Summary:
+Summary:
 
 - **Audio clarity.** `TEST_TUNING` had shipped with all four volume multipliers
   at the debug maximum of `2`, so feedback tones ran at gain 4× and the "outside"
@@ -599,8 +597,7 @@ Full detail in [`../CHANGES_REPORT.md`](../CHANGES_REPORT.md). Summary:
 
 ## 2026-06-10 — Repository audit
 
-No code changed. Full audit in [`../REPO_ANALYSIS.md`](../REPO_ANALYSIS.md),
-covering correctness, accessibility readiness, PWA-versus-native tradeoffs, and a
+No code changed. A full audit of the original single-file prototype covered correctness, accessibility readiness, PWA-versus-native tradeoffs, and a
 prioritized improvement list. Most of the 2026-07-08 and 2026-08-15 work comes
 directly from its recommendations.
 
