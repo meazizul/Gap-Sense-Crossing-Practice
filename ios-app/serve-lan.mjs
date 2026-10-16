@@ -71,7 +71,7 @@ server.listen(PORT, "0.0.0.0", () => {
     .map((iface) => iface.address);
 
   console.log("\n  Gap Sense — Crossing Practice — LAN test server\n");
-  console.log(`  On this Mac:   http://localhost:${PORT}/`);
+  console.log(`  On this computer: http://localhost:${PORT}/`);
   if (addresses.length === 0) {
     console.log("  On your phone: no LAN address found — check your Wi-Fi connection.");
   } else {
@@ -79,7 +79,7 @@ server.listen(PORT, "0.0.0.0", () => {
       console.log(`  On your phone: http://${address}:${PORT}/${index === 0 ? "   <- try this one first" : ""}`);
     });
   }
-  console.log("\n  The phone must be on the same Wi-Fi network as this Mac.");
+  console.log("\n  The phone must be on the same Wi-Fi network as this computer.");
   console.log("  In Safari: Share -> Add to Home Screen for the full-screen app.\n");
   console.log("  Press Ctrl+C to stop.\n");
 });
