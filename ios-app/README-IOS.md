@@ -83,7 +83,7 @@ npx cap sync         # copies www/ and updates native plugins for iOS and Androi
   health report to the device log: plugins present, sound engine state, speech
   available, and which screen is showing. It never runs in normal use.
 
-The web code reaches it as `window.Capacitor.Plugins.GSNative`. In a browser,
+It also plays the app's sounds and speech (see Sound below). The web code reaches it as `window.Capacitor.Plugins.GSNative`. In a browser,
 the web code falls back to the Vibration API (Android browsers) or nothing
 (Safari).
 
@@ -92,10 +92,20 @@ the web code falls back to the Vibration API (Android browsers) or nothing
 - **Scene lifecycle.** The app uses the UIScene lifecycle (`SceneDelegate` in
   `AppDelegate.swift`, scene manifest in `Info.plist`). iOS 27 closes apps that
   do not.
-- **Sound.** The app delegate sets the audio session to `playback`, and the web
-  code sets `navigator.audioSession.type = "playback"`, so the ringer switch
-  cannot mute the cues. The web code also restarts its sound engine whenever
-  iOS pauses it (the "interrupted" state).
+- **Sound (build 9).** Every tone and spoken prompt is played by the app
+  itself (`GapSenseAudio.swift`), not by the web view. Inside a web view,
+  WebKit decides the audio session for Web Audio and can fall back to the one
+  the ring/silent switch mutes. The native player uses the app's `playback`
+  session, which iOS never mutes with the switch, and puts it back if anything
+  changes it. It starts itself again after a call, Siri, or a change of
+  headphones. The web code sends each tone as frequencies, length, delay and
+  level (`GSNative.tone`); no web audio is created in the iPhone app.
+- **Loudness.** All cues pass through a soft clipper (tanh, drive 3): about
+  7 dB louder for the steady sample and 5 dB for the chimes than build 8,
+  with peaks just under full scale. The browser and Android builds use the same
+  curve in Web Audio.
+- **Phone volume.** The app cannot change the phone's volume. When it is
+  below half, Home says so and asks the student to press volume up.
 - **Minimum iOS 16.0**, arm64.
 
 ### Links and shortcuts (iOS and Android)

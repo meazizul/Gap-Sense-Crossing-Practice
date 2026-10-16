@@ -81,13 +81,18 @@ conditionally compiled.
 
 Each event type maps to a deliberately distinguishable sensation:
 
-| Cue | When it fires | Native iOS (Gap Sense plugin) | Web fallback |
+| Cue | When it fires | Native iOS (Gap Sense plugin) | Android app / web |
 |---|---|---|---|
-| `start` | Tapping **Begin**; each end of a sample warning time; the sound starting in *Comparison preparation*; detecting a vehicle | One medium tap | `[30]` ms |
-| `ready` | Pressing **Ready** in *Comparison preparation* ("Get ready") | Two light taps, 95 ms apart | `[25, 70, 25]` |
-| `marker` | Tapping **Mark**; your own tap in a replay; where your crossing time ends in a comparison replay | **One strong tap** | `[45]` ms |
-| `reference_ok` | Within the margin, or a right answer | **Three strong taps**, 110 ms apart | `[35, 45, 35, 45, 35]` |
-| `reference_bad` | Outside the margin, or a wrong answer | **One 450 ms buzz** (continuous, full intensity) | `[240]` |
+| `start` | Tapping **Begin**; each end of a sample warning time; the sound starting in *Comparison preparation*; detecting a vehicle | One medium knock (60 ms) | `[60]` ms |
+| `ready` | Pressing **Ready** in *Comparison preparation* ("Get ready") | Two lighter knocks, 140 ms apart | `[50, 90, 50]` |
+| `marker` | Tapping **Mark**; your own tap in a replay; where your crossing time ends in a comparison replay | **One strong knock** (120 ms) | `[100]` ms |
+| `reference_ok` | Within the margin, or a right answer | **Three strong knocks**, 160 ms apart | `[70, 90, 70, 90, 70]` |
+| `reference_bad` | Outside the margin, or a wrong answer | **One 600 ms buzz** (continuous, full intensity) | `[550]` |
+
+Since build 9 each knock on iPhone is a sharp tap followed by a short
+full-strength rumble. Testers found the earlier single taps (a few
+milliseconds long) too faint. The Android app vibrates for the lengths shown
+instead of the short "impact" click it used before.
 
 The two replay cues are the important pair: a rhythm of three knocks versus one
 long buzz several times longer than anything else, which is exactly the
@@ -132,9 +137,9 @@ nobody has to find the switch. To check or change it:
 **Accessibility → Test haptic pulse.** It fires all three sensations in sequence,
 about 0.4s apart:
 
-1. a **medium tap** (marker),
-2. a **light double** (within tolerance),
-3. a **heavy stutter** (outside tolerance).
+1. **one strong knock** (marker),
+2. **three knocks** (within tolerance),
+3. **one long buzz** (outside tolerance).
 
 Hold the phone loosely in your palm rather than gripping it — a tight grip damps
 the Taptic Engine and makes the three feel more alike than they are.

@@ -125,9 +125,11 @@ The history of the project, from the first prototype to today, is in
   one stylesheet and a few plain JavaScript files. Open it and it runs.
 - **No backend, no accounts, no network calls.** All state lives in the browser's
   `localStorage` under `om-*` keys. Nothing is collected or transmitted.
-- **Audio** is synthesized live with the Web Audio API — no sound files. Cues are
-  scheduled on the `AudioContext` clock, which does not drift, and pass through a
-  master limiter so overlapping cues cannot clip.
+- **Audio** is synthesized live — no sound files. In the iPhone app the app
+  itself plays it, so the silent switch cannot mute it; in the browser and on
+  Android it is the Web Audio API, scheduled on the `AudioContext` clock, which
+  does not drift. Cues pass through a soft clipper and limiter: loud, and
+  overlapping cues cannot crackle.
 - **The visual replay** is driven by a `requestAnimationFrame` loop reading that
   same `AudioContext` clock, so sound and picture stay locked together.
 - **Native shell:** [Capacitor](https://capacitorjs.com/), which wraps the web app

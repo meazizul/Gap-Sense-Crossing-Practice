@@ -3,6 +3,7 @@ import Capacitor
 import CoreHaptics
 import AudioToolbox
 import AppIntents
+import AVFoundation
 
 // MARK: - Bridge view controller
 
@@ -25,17 +26,34 @@ class MainViewController: CAPBridgeViewController {
 /// `window.Capacitor.Plugins.GSNative` in the web code.
 ///
 ///   haptic({ type })   play one of the app's haptic cues
+///   tone({ partials, duration, delay, level, envelope })
+///                      play a tone (GapSenseAudio.swift); partials are
+///                      [{ freq, gain }], times in seconds from now
+///   sustainStart({ partials, level }) -> { id }   a steady tone until stopped
+///   sustainStop({ id })
+///   stopSound()        silence every tone now
+///   audioStatus()      engine, session category, phone volume, route, peak
+///   speak({ text, rate, interrupt })  resolves when the speech ends
+///   stopSpeaking()
 ///   pendingScreen()    the activity a Siri / Shortcuts request asked for, if any
 ///   log({ message })   write to the device log (diagnostics)
 ///
 /// Event "openScreen" { screen } fires when Siri or Shortcuts asks for an
-/// activity while the app is already running.
+/// activity while the app is already running. Event "volume" { value } fires
+/// when the phone's volume changes.
 @objc(GSNativePlugin)
 public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "GSNativePlugin"
     public let jsName = "GSNative"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "haptic", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "tone", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "sustainStart", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "sustainStop", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopSound", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "audioStatus", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "speak", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopSpeaking", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pendingScreen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "log", returnType: CAPPluginReturnPromise)
     ]
@@ -43,7 +61,15 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
     private let haptics = GSHaptics()
     private var shortcutObserver: NSObjectProtocol?
 
+    private var volumeObservation: NSKeyValueObservation?
+
     override public func load() {
+        // Tell the page when the phone's volume changes, so the "volume is
+        // low" note goes away as soon as the student turns it up.
+        volumeObservation = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] _, change in
+            guard let value = change.newValue else { return }
+            self?.notifyListeners("volume", data: ["value": value])
+        }
         shortcutObserver = NotificationCenter.default.addObserver(
             forName: GSShortcutRouter.didRequest, object: nil, queue: .main
         ) { [weak self] note in
@@ -66,6 +92,59 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.main.async { [haptics] in
             haptics.play(type)
         }
+        call.resolve()
+    }
+
+    private func partials(_ call: CAPPluginCall) -> [(Double, Float)] {
+        let list = call.getArray("partials", JSObject.self) ?? []
+        return list.compactMap { item in
+            guard let freq = (item["freq"] as? NSNumber)?.doubleValue,
+                  let gain = (item["gain"] as? NSNumber)?.floatValue else { return nil }
+            return (freq, gain)
+        }
+    }
+
+    @objc func tone(_ call: CAPPluginCall) {
+        let id = GSAudio.shared.tone(
+            partials: partials(call),
+            duration: call.getDouble("duration") ?? 0.12,
+            delay: call.getDouble("delay") ?? 0,
+            level: call.getFloat("level") ?? 1,
+            steady: call.getString("envelope") != "pulse"
+        )
+        call.resolve(["id": id])
+    }
+
+    @objc func sustainStart(_ call: CAPPluginCall) {
+        let id = GSAudio.shared.startSustained(partials: partials(call), level: call.getFloat("level") ?? 1)
+        call.resolve(["id": id])
+    }
+
+    @objc func sustainStop(_ call: CAPPluginCall) {
+        GSAudio.shared.stop(call.getInt("id") ?? -1)
+        call.resolve()
+    }
+
+    @objc func stopSound(_ call: CAPPluginCall) {
+        GSAudio.shared.stopAll()
+        call.resolve()
+    }
+
+    @objc func audioStatus(_ call: CAPPluginCall) {
+        call.resolve(GSAudio.shared.status())
+    }
+
+    @objc func speak(_ call: CAPPluginCall) {
+        let text = call.getString("text") ?? ""
+        let rate = call.getFloat("rate") ?? 1
+        let interrupt = call.getBool("interrupt") ?? true
+        DispatchQueue.main.async {
+            GSSpeech.shared.speak(text, rate: rate, interrupt: interrupt) { call.resolve() }
+        }
+    }
+
+    @objc func stopSpeaking(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { GSSpeech.shared.stop() }
         call.resolve()
     }
 
@@ -95,11 +174,11 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
 /// cue as a single pattern so its taps are evenly spaced.
 ///
 /// The cues are the app's touch vocabulary for DeafBlind students:
-///   marker         one strong tap        "this is you"
-///   reference_ok   three strong taps     within the margin / right
+///   marker         one strong knock      "this is you"
+///   reference_ok   three strong knocks   within the margin / right
 ///   reference_bad  one long buzz         outside the margin / wrong
-///   start          one medium tap        a sample starts or ends
-///   ready          two light taps        "get ready"
+///   start          one medium knock      a sample starts or ends
+///   ready          two lighter knocks    "get ready"
 final class GSHaptics {
     private var engine: CHHapticEngine?
     private let supportsCoreHaptics = CHHapticEngine.capabilitiesForHardware().supportsHaptics
@@ -141,30 +220,39 @@ final class GSHaptics {
         )
     }
 
-    private func buzz(_ duration: TimeInterval) -> CHHapticEvent {
+    private func hold(_ time: TimeInterval, _ duration: TimeInterval, intensity: Float, sharpness: Float) -> CHHapticEvent {
         CHHapticEvent(
             eventType: .hapticContinuous,
             parameters: [
-                CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.35)
+                CHHapticEventParameter(parameterID: .hapticIntensity, value: intensity),
+                CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness)
             ],
-            relativeTime: 0,
+            relativeTime: time,
             duration: duration
         )
+    }
+
+    /// A tap is over in a few milliseconds, which testers found too faint,
+    /// especially through a pocket. Each pulse is now a sharp tap to mark
+    /// the moment plus a short full-strength rumble behind it, so it is felt
+    /// as a solid knock. The rhythms are unchanged: one knock, three knocks,
+    /// one long buzz, two light knocks.
+    private func pulse(_ time: TimeInterval, _ length: TimeInterval, intensity: Float) -> [CHHapticEvent] {
+        [tap(time, intensity: intensity, sharpness: 0.7), hold(time, length, intensity: intensity, sharpness: 0.4)]
     }
 
     private func events(for type: String) -> [CHHapticEvent] {
         switch type {
         case "reference_bad":
-            return [buzz(0.45)]
+            return [tap(0, intensity: 1, sharpness: 0.5), hold(0, 0.6, intensity: 1, sharpness: 0.3)]
         case "reference_ok":
-            return [tap(0, intensity: 1, sharpness: 0.8), tap(0.11, intensity: 1, sharpness: 0.8), tap(0.22, intensity: 1, sharpness: 0.8)]
+            return pulse(0, 0.08, intensity: 1) + pulse(0.16, 0.08, intensity: 1) + pulse(0.32, 0.08, intensity: 1)
         case "start":
-            return [tap(0, intensity: 0.75, sharpness: 0.45)]
+            return pulse(0, 0.06, intensity: 0.85)
         case "ready":
-            return [tap(0, intensity: 0.55, sharpness: 0.6), tap(0.095, intensity: 0.55, sharpness: 0.6)]
+            return pulse(0, 0.05, intensity: 0.7) + pulse(0.14, 0.05, intensity: 0.7)
         default: // marker
-            return [tap(0, intensity: 1, sharpness: 0.7)]
+            return pulse(0, 0.12, intensity: 1)
         }
     }
 
