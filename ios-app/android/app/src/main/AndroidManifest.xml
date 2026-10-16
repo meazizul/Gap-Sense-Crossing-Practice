@@ -22,6 +22,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- gapsense://setup?ts=… (an instructor's setup link, handed over
+                 from the browser) and gapsense://open/<activity> (shortcuts). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="gapsense" />
+            </intent-filter>
+
+            <!-- Touch and hold the app icon: open any activity directly. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
         </activity>
 
         <provider
@@ -40,10 +54,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Haptic feedback. This is the only channel a DeafBlind traveller has,
-         so it is not optional for this app. -->
+         so it is not optional for this app. (No microphone: the background
+         noise check was removed in build 7.) -->
     <uses-permission android:name="android.permission.VIBRATE" />
-
-    <!-- Ambient-noise level for the at-the-street task. Audio is analysed on
-         device to measure loudness only; nothing is recorded, stored or sent. -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 </manifest>

@@ -34,11 +34,13 @@ The link is:
 
 Gap Sense now appears on your home screen. Open it like any other app.
 
-### Step 3. Turn on vibration
+### Step 3. Check vibration
 
-1. Open **Gap Sense**.
-2. Find the **person** button at the top of the screen and open **Accessibility**.
-3. Turn on **Vibrate on cue**.
+1. Open **Gap Sense**. The first time, it tells you the app is for use with
+   your O&M Specialist. Press **I understand**.
+2. Find the **person** button at the top of the screen. It opens
+   **Accessibility**.
+3. **Vibrate on cue** is already on.
 4. Press **Test haptic pulse**. You feel one knock, then three knocks, then one
    long buzz. Those are the three signals the app uses.
 
@@ -49,7 +51,10 @@ Gap Sense now appears on your home screen. Open it like any other app.
 - **The app expires after 90 days.** This is a TestFlight rule, not a fault.
   If it stops opening, tap the link again and press **Install** again.
 - **Updates.** When a new version is ready, TestFlight tells you. Open TestFlight
-  and press **Update**.
+  and press **Update**. To check your version, open **Help** in the app and
+  read **About**.
+- **A link from your instructor.** If your instructor sends you a setup link,
+  tap it. If it opens in Safari, choose **Open in the Gap Sense app**.
 - **TestFlight may ask for feedback.** You can ignore that. Your instructor will
   ask you in person.
 
@@ -59,7 +64,7 @@ Gap Sense now appears on your home screen. Open it like any other app.
 
 The app comes as a file called **GapSense-android-debug.apk**. Download it from:
 
-**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build6/GapSense-android-debug.apk>**
+**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build7/GapSense-android-debug.apk>**
 
 1. Open the link on your phone. The file downloads.
 2. Open the downloaded file. Your phone may say
@@ -68,8 +73,8 @@ The app comes as a file called **GapSense-android-debug.apk**. Download it from:
 4. Go back and press **Install**.
 5. Press **Open**.
 
-Then turn on vibration the same way as on iPhone: open **Accessibility** from
-the person button and turn on **Vibrate on cue**.
+Vibration is on from the start. To test it, open **Accessibility** from the
+person button and press **Test haptic pulse**.
 
 Android phones vary. If you get stuck, ask your instructor. It is a one-minute
 fix in person.

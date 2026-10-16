@@ -1,42 +1,82 @@
 /* ============================================================
- * Gap Sense — Time it from a signal
+ * Gap Sense — Comparison preparation (internal name: signal)
  * ============================================================
  *
- * Cindi's first comparison step (7 Oct 2026): the student "judges time
+ * Cindi's first comparison step: the student "judges time
  * appropriately when NOT controlling when the interval starts". In Practice
- * the student starts the clock themselves; here the app does, after a random
- * wait, and the student presses when they think their crossing time is up.
- * It is how she teaches at the kerb: "you hear a car coming… <wait> now."
+ * the student starts the clock themselves; here the app does, after a wait,
+ * and the student stops it when they think their crossing time is up. It is
+ * how she teaches at the curb: "you hear a car coming… <wait> now."
  *
- * Flow:  Ready  →  random wait  →  SIGNAL (two blips, a pulse, a flash)
- *        →  student presses  →  overlapped replay, as in Practice
+ * Build 7 changes, from Cindi's further review:
+ *   - renamed from "Time it from a signal": "signal" means traffic signal to
+ *     an O&M Specialist, and this app is about uncontrolled crossings;
+ *   - the sound can be the same steady sound used in Comparison practice,
+ *     playing until the student stops it, like hearing a vehicle and
+ *     deciding "now is when I would finish crossing";
+ *   - the beep on pressing Ready sounded like the other cues; it is now the
+ *     spoken words "Get ready" (and two light taps on the hand);
+ *   - wait times are more varied: some quick, some long, mixed up.
  *
- * A press before the signal is a false start; nothing is recorded.
+ * Flow:  Ready → "Get ready" → wait → sound starts → student presses
+ *        → replay, as in Practice
+ *
+ * A press before the sound is a false start; nothing is recorded.
  * ============================================================ */
 
 const gsSignalTimers = [];
 
 const gsSignalState = {
   street: "full",
-  phase: "idle",   // idle | waiting | timing | replaying
-  signalAt: 0
+  phase: "idle",   // idle | ready | waiting | timing | replaying
+  signalAt: 0,
+  style: "continuous",
+  stopTone: null,
+  lastBuckets: [],
+  session: 0
 };
 
 function gsSignalCrossing() {
   return gsCrossingTimeFor(gsSignalState.street);
 }
 
-function gsSignalLongWaits() {
-  return Boolean(document.getElementById("signalLongWaits")?.checked);
+function gsSignalStyle() {
+  return gsFeatureStyle("prepSound", "prepSound", "continuous");
 }
 
-function gsSignalStatus(message, tone = "neutral") {
+/**
+ * How long to wait before the sound. Three bands, picked at random: quick
+ * (0.7–2 s), medium (2–5 s) and long (5–10 s). The same band never comes up
+ * three times in a row, so the student cannot settle into a rhythm.
+ */
+function gsSignalWaitSec() {
+  const bands = [
+    { name: "quick", lo: 0.7, hi: 2, weight: 0.35 },
+    { name: "medium", lo: 2, hi: 5, weight: 0.4 },
+    { name: "long", lo: 5, hi: 10, weight: 0.25 }
+  ];
+  const last = gsSignalState.lastBuckets;
+  const blocked = last.length >= 2 && last[last.length - 1] === last[last.length - 2] ? last[last.length - 1] : null;
+  const choices = bands.filter((b) => b.name !== blocked);
+  const total = choices.reduce((sum, b) => sum + b.weight, 0);
+  let roll = Math.random() * total;
+  let band = choices[choices.length - 1];
+  for (const b of choices) {
+    if (roll < b.weight) { band = b; break; }
+    roll -= b.weight;
+  }
+  last.push(band.name);
+  if (last.length > 4) last.shift();
+  return band.lo + Math.random() * (band.hi - band.lo);
+}
+
+function gsSignalStatus(message, tone = "neutral", { announce = true } = {}) {
   const el = document.getElementById("signalStatus");
   const text = document.getElementById("signalStatusText");
   if (!el) return;
   (text || el).textContent = message;
   el.dataset.tone = tone;
-  announceScreenReader(message);
+  if (announce) announceScreenReader(message);
 }
 
 function gsSignalUpdateButton() {
@@ -47,21 +87,24 @@ function gsSignalUpdateButton() {
   btn.classList.remove("running", "stage-start", "stage-finish", "idle");
   btn.disabled = false;
 
-  if (gsSignalState.phase === "waiting") {
+  const phase = gsSignalState.phase;
+  if (phase === "ready" || phase === "waiting") {
     label.textContent = "WAIT";
-    if (hint) hint.textContent = "Press only after the signal";
+    if (hint) hint.textContent = "Press only after the sound starts";
     btn.classList.add("running", "stage-start");
-    btn.setAttribute("aria-label", "Wait for the signal.");
+    btn.setAttribute("aria-label", "Wait for the sound.");
     return;
   }
-  if (gsSignalState.phase === "timing") {
+  if (phase === "timing") {
     label.textContent = "NOW";
-    if (hint) hint.textContent = "Press when your crossing time is up";
+    if (hint) hint.textContent = gsSignalState.style === "continuous"
+      ? "Press to stop the sound when your crossing time is up"
+      : "Press when your crossing time is up";
     btn.classList.add("running", "stage-finish");
     btn.setAttribute("aria-label", "Press when your crossing time is up.");
     return;
   }
-  if (gsSignalState.phase === "replaying") {
+  if (phase === "replaying") {
     label.textContent = "LISTEN";
     if (hint) hint.textContent = "Replaying";
     btn.classList.add("running");
@@ -70,15 +113,23 @@ function gsSignalUpdateButton() {
     return;
   }
   label.textContent = "READY";
-  if (hint) hint.textContent = "Press, then wait for the signal";
+  if (hint) hint.textContent = "Press, then wait for the sound";
   btn.classList.add("idle");
-  btn.setAttribute("aria-label", "Ready. Press, then wait for the signal.");
+  btn.setAttribute("aria-label", "Ready. Press, then wait for the sound.");
+}
+
+function gsSignalStopTone() {
+  if (gsSignalState.stopTone) {
+    gsSignalState.stopTone();
+    gsSignalState.stopTone = null;
+  }
 }
 
 /** Cancel the flow. Safe to call at any time. */
 function gsSignalCancel() {
   gsClearTimers(gsSignalTimers);
   gsClearHaptics();
+  gsSignalStopTone();
   suppressSrAnnouncements = false;
   gsSignalState.phase = "idle";
   gsSignalState.signalAt = 0;
@@ -96,48 +147,77 @@ function gsSignalPress() {
   if (phase === "idle") {
     const crossing = gsSignalCrossing();
     if (!Number.isFinite(crossing) || crossing <= 0) {
-      gsSignalStatus("Enter your crossing times in Settings first, or open the link your instructor sent.", "warn");
+      gsSignalStatus("Enter your crossing times in Instructor setup first, or open the link your instructor sent.", "warn");
       return;
     }
-    gsSignalState.phase = "waiting";
+    gsSignalState.style = gsSignalStyle();
+    gsSignalState.phase = "ready";
+    const session = ++gsSignalState.session;
     gsSignalUpdateButton();
-    playConfirmTone();
-    gsSignalStatus("Wait for the signal. Then press when you think your crossing time is up.");
-    const waitSec = gsSignalLongWaits() ? 3 + Math.random() * 5 : 1.5 + Math.random() * 2.5;
-    gsLater(gsSignalTimers, gsSignalFire, waitSec);
+    hapticCue("ready");
+    // Spoken, not a beep: "Get ready" cannot be mistaken for the start of
+    // the interval or for any feedback sound. Shown on screen for everyone.
+    // If there is no speech (or visual-only mode), the screen reader says it.
+    gsSignalStatus("Get ready. Wait for the sound.", "neutral", { announce: false });
+    const spoke = gsSpeak("Get ready", {
+      interrupt: true,
+      maxWaitMs: 2500,
+      onDone: () => {
+        if (gsSignalState.phase !== "ready" || session !== gsSignalState.session) return;
+        gsSignalState.phase = "waiting";
+        gsLater(gsSignalTimers, gsSignalFire, gsSignalWaitSec());
+      }
+    });
+    if (!spoke) announceScreenReader("Get ready. Wait for the sound.");
     return;
   }
 
-  if (phase === "waiting") {
+  if (phase === "ready" || phase === "waiting") {
     // False start. Nothing is recorded.
     gsSignalCancel();
+    gsStopSpeech();
     playFeedbackTone("outside", 0.02);
     hapticCue("reference_bad");
-    gsSignalStatus("Too early. That was before the signal. Press Ready to try again.", "warn");
+    gsSignalStatus("Too early. That was before the sound. Press Ready to try again.", "warn");
     return;
   }
 
   if (phase === "timing") {
     const produced = (performance.now() - gsSignalState.signalAt) / 1000;
-    playConfirmTone();
+    gsSignalStopTone();
+    if (typeof gsHideIntervalVisual === "function") gsHideIntervalVisual();
     hapticCue("marker");
     gsSignalResolve(produced);
   }
 }
 
 function gsSignalFire() {
+  if (gsSignalState.phase !== "waiting") return;
   gsSignalState.phase = "timing";
   gsSignalState.signalAt = performance.now();
   gsSignalUpdateButton();
-  // The signal: two quick blips, a pulse, and a short flash. Deliberately not
-  // the marker tone, so the replay's "your press" marker sounds different.
-  playReferenceTick(0);
+  gsBeginQuiet();
   hapticCue("start");
-  if (typeof gsShowIntervalVisual === "function") gsShowIntervalVisual(0, 0.35);
-  // Not announced: speech would land on top of the timing.
+  const crossing = gsSignalCrossing();
+  // Give up if the student never presses, so a forgotten phone does not
+  // play a tone forever.
+  const maxSec = Math.max(crossing * 3, crossing + 10);
+  if (gsSignalState.style === "continuous") {
+    gsSignalState.stopTone = startSustainedTone(gsSamplePartials(), gsSampleLevel());
+    if (typeof gsShowIntervalVisual === "function") gsShowIntervalVisual(0, maxSec, "sample");
+  } else {
+    gsPlaySampleBeep(0);
+    if (typeof gsShowIntervalVisual === "function") gsShowIntervalVisual(0, 0.35, "sample");
+  }
+  gsLater(gsSignalTimers, () => {
+    if (gsSignalState.phase !== "timing") return;
+    gsSignalCancel();
+    gsSignalStatus("No press, so nothing was recorded. Press Ready to try again.", "warn");
+  }, maxSec);
 }
 
 function gsSignalResolve(producedSec) {
+  gsClearTimers(gsSignalTimers);
   const street = gsSignalState.street;
   const crossingSec = gsSignalCrossing();
   const marginSec = gsEffectiveMargin("signal", street);
@@ -159,13 +239,14 @@ function gsSignalResolve(producedSec) {
 
   gsSignalState.phase = "replaying";
   gsSignalUpdateButton();
-  gsSignalStatus("Replaying your press against your crossing time.");
-  suppressSrAnnouncements = true;
+  suppressSrAnnouncements = false;
+  gsSignalStatus("Replaying: the sound, your press, and where your crossing time ends.");
+  gsBeginQuiet();
 
-  const doneAt = gsReplayOverlapped({
-    sampleSec: producedSec,
+  const doneAt = gsReplayProduction({
+    producedSec,
     crossingSec,
-    style: "ticks",
+    style: gsSignalState.style,
     marginSec,
     startDelaySec: 1.0
   });
@@ -202,13 +283,13 @@ function gsSignalInit() {
       if (input.checked) gsSignalSetStreet(input.value);
     });
   });
-  const longWaits = document.getElementById("signalLongWaits");
-  if (longWaits) {
-    longWaits.checked = localStorage.getItem("om-signal-long-waits") === "true";
-    longWaits.addEventListener("change", () => {
-      localStorage.setItem("om-signal-long-waits", String(longWaits.checked));
+  document.querySelectorAll("input[name='prepSound']").forEach((input) => {
+    const stored = localStorage.getItem("om-prep-sound");
+    if (stored && input.value === stored) input.checked = true;
+    input.addEventListener("change", () => {
+      if (input.checked) localStorage.setItem("om-prep-sound", input.value);
     });
-  }
+  });
   const btn = document.getElementById("signalBtn");
   if (btn) btn.addEventListener("click", gsSignalPress);
   gsSignalUpdateButton();

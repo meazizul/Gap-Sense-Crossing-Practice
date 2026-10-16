@@ -10,7 +10,8 @@ open on a laptop during it.
 
 - [ ] Gap Sense installed on your own phone (the native app, not Safari).
 - [ ] Volume at about two-thirds. The silent switch position does not matter.
-- [ ] Open the app once so the first-run tutorial is already dismissed.
+- [ ] Open the app once so the first-run notice ("Before you start") and the
+      sound tutorial are already dismissed.
 - [ ] If you want the other person to hold a working copy during the demo, see
       **Getting it onto a second phone** at the end. Do that part first.
 
@@ -24,7 +25,8 @@ Say:
 > time before that car reaches me? To answer it you need to know how long your
 > own crossing takes, not as a number of seconds, but as a feeling. Sighted
 > people get this from watching. Gap Sense builds that feeling through sound and
-> vibration. It never shows a number."
+> vibration. It never shows a number. It is used with an O&M Specialist; it
+> does not replace one."
 
 ---
 
@@ -44,11 +46,11 @@ The app opens the practice screen.
 
 ---
 
-## 3. Practise my timing, the core of the app (3 minutes)
+## 3. Practice my timing, the core of the app (3 minutes)
 
 Hold the phone so they can hear it.
 
-1. Tap the big button. It reads **BEGIN**. Say: "I am stepping off the kerb."
+1. Tap the big button. It reads **BEGIN**. Say: "I am stepping off the curb."
 2. Wait about four seconds. Tap again. It now reads **MARK**. Say: "I think I
    have reached the middle."
 3. Wait about four more seconds. Tap again. Say: "I think I have arrived."
@@ -56,7 +58,7 @@ Hold the phone so they can hear it.
 
 Then explain what they heard:
 
-> "You heard my taps as plain tones. Then at each correct moment, either a
+> "You heard my taps as my own sound. Then at each correct moment, either a
 > short bright chime, meaning I was within half a second, or a long low buzz,
 > meaning I was outside it. What matters is the distance between my tone and the
 > reference tone. If they land together, I was on time. The further apart, the
@@ -69,7 +71,7 @@ the chime and the buzz in contrast.
 
 ## 4. Vibration for DeafBlind users (2 minutes)
 
-Tap the **person** icon, then **Accessibility**. Turn on **Vibrate on cue**.
+Tap the **person** icon (Accessibility). **Vibrate on cue** is on by default.
 Tap **Test haptic pulse** and hand them the phone.
 
 Say:
@@ -81,7 +83,9 @@ Say:
 > installed app."
 
 Point out the output modes while you are here: **Audio only**, **Audio and
-visual**, **Visual only**. And the text-size and colour options.
+visual**, **Visual only**. The text-size and color options. And **Speak
+directions aloud**, which makes the app read its own directions for people
+still learning VoiceOver.
 
 ---
 
@@ -90,33 +94,38 @@ visual**, **Visual only**. And the text-size and colour options.
 Go back to the home screen.
 
 - **Where the times come from**: "In real use the instructor times at least
-  three crossings, uses the longest, and sets the times in Settings or sends
-  a link. The app never asks the student to measure."
-- **Time it from a signal**: "Same skill, but the app starts the clock. Press
-  Ready, wait, two blips, then press when your crossing time is up. At a kerb
-  nobody hands you the start." If there is time, do one round.
-- **Compare practice**: "The app plays a sample warning time as a sound that
-  grows louder like a car. The user says whether it is shorter than, about the
-  same as, or longer than their own crossing, by button or by swiping up or
-  down. Shorter means do not go. Then both play together so they feel the
-  difference. This can be practised anywhere."
-  If there is time, tap **Play a sample warning time** and do two rounds.
-- **At the street**: "From a safe spot, the user taps when they first hear a
-  car and again when it passes. The app says whether that car left enough time
-  and replays the two durations together. An optional, experimental noise
-  check can flag measurements taken in a noisy moment."
+  three crossings, uses the longest, and sets the times in **Instructor
+  setup**, or sends a link. The app never asks the student to measure."
+- **Comparison preparation**: "Same skill, but the app starts the clock. Press
+  Ready, the app says 'Get ready', then a steady sound starts like a car. Stop
+  it when your crossing time is up. At a curb nobody hands you the start." If
+  there is time, do one round.
+- **Comparison practice**: "The app plays a sample warning time as one steady
+  sound. The user says whether it is longer than, about the same as, or shorter
+  than their own crossing, on a full-screen pad: swipe up, swipe down, or tap.
+  They hear at once if they were right. Then the sample replays with their own
+  sound where their crossing time ends, so they feel the difference. This can
+  be practiced anywhere. A note reminds them that longer does not mean long
+  enough." If there is time, tap **Play a sample warning time** and do two
+  rounds.
+- **At the street**: "Standing where the instructor places them, the user
+  swipes left or right toward the side a car comes from the moment they think
+  they detect it, and taps when it passes in front of them. Then they judge
+  longer, shorter or about the same themselves. The app does not give the
+  answer first. They mark whether they used hearing or vision." 
 
 ---
 
 ## 6. Progress, sharing and privacy (1 minute)
 
-- **Progress**: practice history, kept on the phone only.
-- **Settings → Share time settings**: an instructor measures a student's times
-  once and sends a link. Opening it writes the times, the margin, the
-  instructor's email and a short client code into the student's copy. Never a
-  name.
-- No account, no sign-in, no network. The microphone is used only if the
-  optional noise check is switched on, and then only to measure loudness.
+- **Progress**: practice history, kept on the phone only. **Send my progress
+  to my instructor** shows the report, then opens the phone's share menu.
+- **Instructor setup**: the instructor enters the times and chooses which
+  activities and options the student sees, as on, off or student's choice.
+  **Share the setup link** or **Text it to the student** sends it all as one
+  link. It carries a short student code, never a name.
+- **Siri**: "Practice my timing in Gap Sense" opens that activity directly.
+- No account, no sign-in, no network, no microphone.
 
 ---
 
@@ -134,7 +143,7 @@ The link: <https://testflight.apple.com/join/wYreYpF6>
 ## Questions you may get
 
 **"Why not just show seconds?"** Counting replaces feeling. People who count
-stop learning the duration in their body, and at a real kerb they will not be
+stop learning the duration in their body, and at a real curb they will not be
 counting. The distance between the sounds teaches the duration directly.
 
 **"How accurate are the sounds?"** Playback is scheduled by the audio engine to
@@ -146,7 +155,7 @@ Safari cannot vibrate at all. That is why there is a native app.
 
 **"What data do you collect?"** None. Everything stays on the phone. If a
 participant wants to share results, the app shows them the message and they
-send it themselves.
+send it themselves through the share menu.
 
 **"How will participants install it?"** iPhone: a TestFlight link, about two
 minutes. Android: a download link to the app file. There is a one-page install
@@ -156,7 +165,7 @@ guide for each.
 
 ## Getting it onto a second phone today
 
-**Android.** Send the download link <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build6/GapSense-android-debug.apk>. They open it, allow
+**Android.** Send the download link <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build7/GapSense-android-debug.apk>. They open it, allow
 installs from that source once, and tap **Install**. Two minutes.
 
 **iPhone, before the TestFlight review is approved.** Two routes:

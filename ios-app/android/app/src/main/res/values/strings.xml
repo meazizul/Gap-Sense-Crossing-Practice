@@ -4,4 +4,12 @@
     <string name="title_activity_main">Gap Sense</string>
     <string name="package_name">com.gapsense.crossingpractice</string>
     <string name="custom_url_scheme">com.gapsense.crossingpractice</string>
+    <string name="shortcut_practice_short">Practice my timing</string>
+    <string name="shortcut_practice_long">Practice my timing</string>
+    <string name="shortcut_signal_short">Comparison prep</string>
+    <string name="shortcut_signal_long">Comparison preparation</string>
+    <string name="shortcut_compare_short">Comparison practice</string>
+    <string name="shortcut_compare_long">Comparison practice</string>
+    <string name="shortcut_live_short">At the street</string>
+    <string name="shortcut_live_long">At the street</string>
 </resources>

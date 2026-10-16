@@ -13,17 +13,26 @@ learns the *feel* of the duration, not a stopwatch reading.
 ## Install on a phone
 
 - **iPhone:** open <https://testflight.apple.com/join/wYreYpF6> on the phone (TestFlight). About two minutes.
-- **Android:** download the APK from <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build6/GapSense-android-debug.apk> and open it on the phone. Steps in `docs/INSTALL_GUIDE.md`.
+- **Android:** download the APK from <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build7/GapSense-android-debug.apk> and open it on the phone. Steps in `docs/INSTALL_GUIDE.md`.
 - **Any browser:** open `index.html` or the hosted page. Everything works except vibration.
 
 ## For reviewers: the 60-second version
 
-**What it does.** The student sets two reference times (how long to clear the
-near lane, and to cross the full street). They then tap one large button as they
-walk: once when they step off, again at each waypoint. The app replays their taps
-against the reference times, sounding a bright chime where they were within
-tolerance and a low buzzing pulse where they were not — so the *timing error is
-heard as rhythm*, not read as a number.
+**What it does.** The O&M Specialist sets two crossing times (the first half of
+the street, and the full street). The student then practices in four steps:
+
+1. **Practice my timing.** Tap when you step off, tap again when you think you
+   would arrive. The app replays the taps against the real times: a bright
+   chime if within the margin, a low buzzing pulse if not. The *timing error
+   is heard as rhythm*, not read as a number.
+2. **Comparison preparation.** The app starts a sound after a random wait. The
+   student stops it when their crossing time is up.
+3. **Comparison practice.** The app plays a sample warning time. The student
+   judges it longer, shorter, or about the same as their crossing time.
+4. **At the street.** The same judgment with real vehicles.
+
+The app is meant to be used under the guidance of an O&M Specialist. It does
+not replace instruction.
 
 **How to try it right now,** in order of effort:
 
@@ -49,8 +58,9 @@ cd ios-app
 npm run lan        # prints a localhost URL and a phone-reachable Wi-Fi URL
 ```
 
-Then open the printed address. Enter any two times in **Settings** (e.g. clear =
-4s, full = 8s) and press **Begin**.
+Then open the printed address. Open **Instructor setup**, enter any two times
+(e.g. first half = 4 s, full street = 8 s), go to **Practice my timing** and press
+**Begin**.
 
 Full instructions, including the iPhone and Xcode paths:
 **[`ios-app/README-IOS.md`](ios-app/README-IOS.md)**
@@ -100,7 +110,7 @@ Historical engineering records, kept as dated artifacts:
 ├── ios-app/                  ← THE CURRENT APP. Work here.
 │   ├── www/index.html          Markup. No build step, no framework
 │   ├── www/css/app.css         Styles, themes, large-text reflow
-│   ├── www/js/                 engine.js, history.js, comparison.js, signal.js, app.js
+│   ├── www/js/                 engine.js, history.js, features.js, comparison.js, signal.js, app.js
 │   ├── www/manifest.webmanifest, www/sw.js, www/icons/
 │   ├── tests/                  Playwright browser tests (`npm test`)
 │   ├── ios/                    Native Xcode project (Capacitor)
@@ -123,8 +133,8 @@ kept only for provenance.
 
 ## Technical summary
 
-- **No build step, no framework, no bundler.** The entire application is one
-  HTML file with inline CSS and JavaScript. Open it and it runs.
+- **No build step, no framework, no bundler.** The application is one HTML file,
+  one stylesheet and a few plain JavaScript files. Open it and it runs.
 - **No backend, no accounts, no network calls.** All state lives in the browser's
   `localStorage` under `om-*` keys. Nothing is collected or transmitted.
 - **Audio** is synthesized live with the Web Audio API — no sound files. Cues are
@@ -133,11 +143,13 @@ kept only for provenance.
 - **The visual replay** is driven by a `requestAnimationFrame` loop reading that
   same `AudioContext` clock, so sound and picture stay locked together.
 - **Native shell:** [Capacitor](https://capacitorjs.com/), which wraps the web app
-  in a real iOS application and provides the Taptic Engine bridge.
+  in real iOS and Android apps. On iOS a small Gap Sense plugin drives the
+  Taptic Engine and connects Siri shortcuts; both apps open `gapsense://` links
+  (an instructor's setup, or an activity).
 - **Accessibility** is a primary requirement, not an afterthought: four themes,
   text scaling to 300%, screen-reader announcements that pause during timing
-  playback, redundant shape/color/text encoding, and audio-only / audio+visual /
-  visual-only output modes.
+  playback, an optional self-voicing mode, redundant shape/color/text encoding,
+  and audio-only / audio+visual / visual-only output modes.
 
 ---
 
@@ -163,12 +175,14 @@ constrained accordingly:
 
 - **Not on the App Store or Play Store.** Distribution is TestFlight and a
   direct APK. Store assets and listings are separate work.
-- **No device automation.** Browser tests exist (`cd ios-app && npm test`, 38
+- **No device automation.** Browser tests exist (`cd ios-app && npm test`, 74
   Playwright tests in the installed Chrome) and cover the logic and the
-  accessibility wiring; audio quality, haptics and VoiceOver still need a real
-  phone. See `docs/TESTING.md`.
-- **Experimental features off by default.** The adaptive margin and the
-  background-noise check are unproven; the instructor switches them on.
+  accessibility wiring; audio quality, haptics, VoiceOver and TalkBack still need
+  a real phone. See `docs/TESTING.md`.
+- **Experimental feature off by default.** The adaptive margin is unproven; the
+  instructor switches it on in Instructor setup.
+- **The app name is under discussion.** In published research, "gap" means the
+  time between two vehicles, not a warning time.
 
 ---
 

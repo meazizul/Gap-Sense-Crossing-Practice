@@ -108,9 +108,8 @@ test("progress page shows practice attempts and the run strip", async ({ page })
   await page.click("#actionBtn");
   await tick(page, 8000);
   await page.evaluate(() => gsShowScreen("progress"));
-  await expect(page.locator(".progress-card").first()).toContainText("Crossing-time practice");
+  await expect(page.locator(".progress-card").first()).toContainText("Practice my timing");
   await expect(page.locator(".progress-card").first()).toContainText("100%");
   await expect(page.locator(".run-dot")).toHaveCount(1);
-  await expect(page.locator("#resetAdaptiveBtn")).toBeVisible();
   await expect(page.locator("#studentName")).toHaveCount(0);
 });

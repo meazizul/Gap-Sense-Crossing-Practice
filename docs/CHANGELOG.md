@@ -8,6 +8,155 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-16 (build 7: iOS, Android, web) — Second round of O&M feedback
+
+A second detailed review by Cindi Lashinsky (O&M Specialist), with input from
+Dona Sauerburger on the at-the-street procedure. Every point is addressed below.
+The same code runs on all three: iOS build 7, Android versionCode 7, and the web
+page.
+
+**Names and wording**
+
+- "Practise my timing" is now **Practice my timing**. "Time it from a signal"
+  is now **Comparison preparation**: to an O&M Specialist, "signal" means a
+  traffic signal, and this app is about uncontrolled crossings. "Compare
+  practice" is now **Comparison practice**.
+- American English throughout (practice, curb, traveler, judgment).
+- New task descriptions on Home, written by Cindi.
+- The app name ("Gap Sense") is kept for now. It is under discussion, because
+  "gap" means the time between vehicles in published work. The name is held in
+  one place in the code so a rename is a small change.
+
+**Use with an O&M Specialist**
+
+- A first-run notice: the app is for use under the guidance of an Orientation
+  and Mobility Specialist, is not a replacement for instruction, and does not
+  cover all the skills needed to cross streets. It cannot be skipped with
+  Escape and is shown on first run even from the conference link. Home carries
+  the same line permanently. Help can show it again.
+- On Comparison practice and At the street: **"Longer does not mean long
+  enough."** A longer warning time is not, by itself, enough to cross. Shown
+  until the student hides it; Help brings it back.
+
+**Instructor setup (new screen)**
+
+- Crossing times, margin, instructor email and student code moved here from
+  Settings.
+- The instructor chooses which activities the student sees, which Practice
+  modes are offered, and for each option: on, off, or student chooses. Options
+  the instructor fixes are hidden from the student, with a short note.
+- Optional instructor code (digits) so a student cannot change the setup. It
+  locks again on leaving the screen.
+
+**Setup link and report**
+
+- The setup link (version 3) can carry any of: crossing times and margin,
+  instructor email and student code, and the activities and options chosen.
+  The instructor ticks what to include. Version 1 and 2 links still work.
+- **Share the setup link** opens the phone's share sheet. **Text it to the
+  student** opens Messages with the message filled in; the instructor adds
+  the number.
+- Links made inside the installed app point at the public web address, never
+  at the app's internal address.
+- After a browser applies a setup, it offers **Open in the Gap Sense app**,
+  which hands the same setup to the installed app through a `gapsense://` link.
+- **Send my progress to my instructor**: the student sees the report, presses
+  **Send it**, and chooses Messages, Mail or any app. No copy and paste, no
+  Mail setup needed, and no server.
+
+**Comparison preparation**
+
+- Pressing Ready says **"Get ready"** out loud (and two light taps), instead of
+  a beep that sounded like the other cues.
+- The sound can be the same steady sound used in Comparison practice, playing
+  until the student stops it, like hearing a vehicle and deciding "now I would
+  finish crossing". Or one short beep, then silence. Instructor or student
+  chooses.
+- Wait times mix quick (0.7–2 s), medium (2–5 s) and long (5–10 s), never the
+  same band three times in a row.
+- If nobody presses, the sound stops by itself and nothing is recorded.
+
+**Comparison practice**
+
+- The sample is **one steady sound at one loudness**, with no fade in or out,
+  so a student with any hearing loss hears all of it. Loudness defaults to
+  100%. A **pitch** control (lowest to high) is shared with Comparison
+  preparation.
+- Answers open a **full-screen swipe pad** that never scrolls the page: swipe up
+  for longer, down for shorter, tap for about the same. Three large buttons sit
+  on the pad for VoiceOver and TalkBack users, with focus on the middle one.
+  The instructor can choose buttons only.
+- Right or wrong is given at once on every channel: the chime or the low pulse,
+  the haptic pattern, and, with visual on, the circle or the triangle.
+- The replay no longer plays a right/wrong cue at the crossing time. It plays
+  the sample, and the student's own "this is your time" sound and flash where
+  their crossing time ends.
+- **How much longer or shorter** is offered only after a correct "longer" or
+  "shorter" answer.
+- Two replays after "how much", chosen by the instructor: (a) combined, Cindi's
+  design: a steady sound for the crossing time, the right or wrong sound where
+  the sample ended, and the student's sound at the crossing time plus or minus
+  their estimate; or (b) like Practice my timing.
+- The sample on screen is a held bar, distinct from the student's own flash.
+
+**At the street (reworked with Cindi and Dona)**
+
+- The background-noise check is gone, and with it all microphone use and the
+  microphone permission on iOS and Android. Accuracy depended on how the phone
+  was held, and judging conditions is taught by the instructor.
+- New wording: position yourself as directed by your O&M Specialist; tap when
+  you *think* you detect (see or hear) a vehicle.
+- The student marks **hearing or vision**; it is saved with each vehicle.
+- A full-screen pad: **swipe left or right** toward the side the vehicle comes
+  from (left compares with the first half of the street, right with the full
+  street), **tap** when it passes in front of you, **swipe down** if it never
+  came. Buttons do the same for screen reader users.
+- After arrival the **student judges** longer, shorter or about the same. The
+  app does not give the answer first. "How much" follows a correct
+  longer/shorter answer if switched on.
+- Replays: after every vehicle, only after a wrong answer, or never (then only
+  the right or wrong sound).
+- Reports show direction, hearing or vision, the judgment, and vehicles that
+  never came. Only judged vehicles count towards a score.
+
+**Accessibility**
+
+- **Self-voicing**: the app can speak its own directions and results, with a
+  speaking rate, for students still learning VoiceOver or TalkBack. Speech
+  stops whenever a sound is being timed.
+- Home activities are single buttons whose name is the title and the
+  description, so VoiceOver reads one item per activity. The hidden "Home"
+  heading is gone; focus moves to the visible screen title on every screen.
+- **Siri**: "Practice my timing in Gap Sense", "Comparison preparation in Gap
+  Sense", "Comparison practice in Gap Sense", "At the street in Gap Sense" work
+  with no setup, and appear in the Shortcuts app. A **Siri and shortcuts**
+  screen explains them. On Android, touch and hold the app icon for the same
+  four shortcuts.
+
+**Haptics and sound on iPhone**
+
+- A small Gap Sense plugin now plays every haptic cue through one long-lived
+  Core Haptics engine that plays haptics only and never touches audio. The
+  stock plugin built a new engine for every long buzz, freed it at once, and
+  shared the audio session with the web view.
+- Vibration is switched back on, once, for anyone upgrading with an old "off"
+  stored from an early build. Turning it off again from build 7 is respected.
+- The sound engine now resumes after iOS interrupts it (a call, Siri, another
+  app). Before, one interruption could leave the app silent until relaunch.
+- The installed app tells WebKit it is a playback app, so the ringer switch
+  does not mute it. The silent-audio workaround now runs only on iOS 16.
+- Accessibility has a **Play a test sound** button that also reports the state
+  of the sound engine.
+
+**Tests**
+
+- The browser test suite grew from 42 to 74 tests, covering every change above.
+  The iOS build was launched in the iOS 27 simulator on an iPhone 14 Pro Max
+  with a built-in self-check (plugins present, sound running in playback mode,
+  speech available, Siri path opening the right screen). The Android build was
+  launched on an Android 15 emulator, with a `gapsense://` link and the four
+  launcher shortcuts checked.
+
 ## 2026-10-14 (iOS build 6) — Hardened for every iPhone and iPad a participant might bring
 
 After the iOS 27 crash, the native shell was audited for anything else that

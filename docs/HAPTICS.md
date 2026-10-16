@@ -50,8 +50,8 @@ rather than shipping as a web app only.**
 ## 3. How this app solves it
 
 The app wraps its web UI in a [Capacitor](https://capacitorjs.com/) native shell.
-Inside that shell, JavaScript can call native iOS code — including
-`UIFeedbackGenerator`, which drives the iPhone's Taptic Engine.
+Inside that shell, JavaScript can call native iOS code — including Core
+Haptics, which drives the iPhone's Taptic Engine.
 
 ### The bridge
 
@@ -61,8 +61,11 @@ All touch feedback goes through one function, `hapticCue(type)`, in
 ```
 hapticCue(type)
      │
-     ├─ Running inside the native iOS app?  ──▶ @capacitor/haptics
-     │                                           → real Taptic Engine
+     ├─ Native iOS app (build 7+)?          ──▶ GSNative plugin
+     │                                           → one Core Haptics engine
+     │
+     ├─ Other native app (Android)?         ──▶ @capacitor/haptics
+     │                                           → VibrationEffect
      │
      ├─ Browser with navigator.vibrate?     ──▶ Web Vibration API
      │                                           → coarse on/off (Android)
@@ -78,21 +81,23 @@ conditionally compiled.
 
 Each event type maps to a deliberately distinguishable sensation:
 
-| Cue | When it fires | Native iOS | Web fallback |
+| Cue | When it fires | Native iOS (Gap Sense plugin) | Web fallback |
 |---|---|---|---|
-| `start` | Tapping **Begin**; the start signal in *Time it from a signal* | Medium impact | `[30]` ms |
-| `marker` | Tapping **Mark**; your own tap in a replay; each end of a sample | **Heavy impact** | `[45]` ms |
-| `reference_ok` | Replay: within tolerance | **Three heavy knocks**, 110 ms apart | `[35, 45, 35, 45, 35]` |
-| `reference_bad` | Replay: outside tolerance | **One 450 ms buzz** (Core Haptics continuous event at full intensity) | `[240]` |
+| `start` | Tapping **Begin**; each end of a sample warning time; the sound starting in *Comparison preparation*; detecting a vehicle | One medium tap | `[30]` ms |
+| `ready` | Pressing **Ready** in *Comparison preparation* ("Get ready") | Two light taps, 95 ms apart | `[25, 70, 25]` |
+| `marker` | Tapping **Mark**; your own tap in a replay; where your crossing time ends in a comparison replay | **One strong tap** | `[45]` ms |
+| `reference_ok` | Within the margin, or a right answer | **Three strong taps**, 110 ms apart | `[35, 45, 35, 45, 35]` |
+| `reference_bad` | Outside the margin, or a wrong answer | **One 450 ms buzz** (continuous, full intensity) | `[240]` |
 
 The two replay cues are the important pair: a rhythm of three knocks versus one
 long buzz several times longer than anything else, which is exactly the
 "within / outside" distinction the app teaches, delivered through skin instead
 of ears. Apple's "notification" haptics were tried first and were too subtle
 through fabric or a glove; these are tuned for a hand in a pocket or holding a
-cane. In the comparison replays the sample's two ends are marker knocks and the
-crossing time ends with the ok/bad cue, so the direction and size of the
-difference are felt the same way they are heard.
+cane. In the comparison replays the sample's two ends are medium taps and the
+end of the crossing time is your own strong tap, so the direction and size of
+the difference are felt the same way they are heard. Right or wrong is felt
+straight after the answer, before the replay.
 
 ### Where it fires from
 
@@ -113,7 +118,8 @@ nobody has to find the switch. To check or change it:
 
 | Note text | Meaning |
 |---|---|
-| "Native haptics active — this build drives the iPhone Taptic Engine directly." | ✅ Native app, everything works |
+| "Native haptics active. If you feel nothing, check iPhone Settings…" | ✅ iPhone app, Gap Sense haptics plugin |
+| "Native vibration active…" | ✅ Android app |
 | "Web vibration available. Patterns are coarse on/off only…" | ⚠️ Android browser |
 | "No haptics on this browser. iOS Safari has never supported web vibration…" | ❌ Web on iOS, or desktop |
 
@@ -164,7 +170,7 @@ the app's hardest-to-serve users.
 | Symptom | Cause / fix |
 |---|---|
 | Nothing at all, in Safari on iPhone | Expected. iOS Safari has no vibration API. Install the native build. |
-| Nothing at all, in the native app | Check **Vibrate on cue** is ticked. Then check iOS **Settings → Sounds & Haptics → System Haptics** is on. |
+| Nothing at all, in the native app | Check **Vibrate on cue** is ticked (it is on by default, and build 7 switched it back on once for anyone who had an old "off" stored). Then check iOS **Settings → Accessibility → Touch → Vibration** and **Settings → Sounds & Haptics → System Haptics** are on. |
 | Nothing in the simulator | Expected — simulators have no Taptic Engine. Use a real device. |
 | All three test pulses feel identical | Usually grip. Hold the phone loosely. Also confirm the note says "Native haptics active". |
 | Works on Android web, weak/undifferentiated | Expected. The Web Vibration API has no intensity control. |
@@ -185,15 +191,18 @@ loaded device the pulse can lag the tone slightly. The proper fix is to drive
 haptics from the same replay timeline that drives audio, which is a larger
 refactor and is noted in the changelog as outstanding.
 
-**No intensity envelopes.** `@capacitor/haptics` exposes discrete impact and
-notification styles, not continuous control. Richer, duration-shaped patterns —
-where the *length* of a buzz encodes the *size* of the timing error, which would
-suit this app's "feedback as felt duration" principle exactly — require iOS
-**Core Haptics** (`CHHapticEngine`) via a small custom plugin. This is the most
-promising next step for the DeafBlind use case.
+**Duration-shaped patterns.** From build 7 the iOS app plays every cue through
+its own small plugin, `GSNativePlugin` in `ios-app/ios/App/App/GapSenseNative.swift`.
+It keeps one Core Haptics engine (`CHHapticEngine`) for the life of the app,
+set to play haptics only, so it never touches the audio session the sounds use.
+Each cue is one `CHHapticPattern`, so the taps in a pattern are evenly spaced.
+(The stock `@capacitor/haptics` plugin created a new engine for every long buzz
+and let it be freed at once, and that engine shared the audio session.) A buzz
+whose *length* encodes the *size* of the timing error is now possible with the
+same engine; it is not built yet.
 
-**Android.** The native Android project exists under `ios-app/android/`; the
-plugin maps the same calls to `VibrationEffect`. Android browsers use
+**Android.** The Android app uses `@capacitor/haptics`, which maps the same
+calls to `VibrationEffect`. Android browsers use
 `navigator.vibrate` with the patterns above. Amplitude shaping is not used yet.
 
 ---
@@ -206,16 +215,19 @@ plugin maps the same calls to `VibrationEffect`. Android browsers use
 - `describeHapticsSupport` — the text shown under the test button
 - `WEB_VIBRATION_PATTERNS` — the web fallback patterns
 - `emitCue` — the single event stream that calls it from Practice
-- `gsHapticAt` / `gsFeelInterval` in `js/comparison.js` — timed pulses for the
-  comparison replays, tracked so a cancelled flow clears them
+- `gsHapticAt` in `js/comparison.js` — timed pulses for the comparison
+  replays, tracked so a cancelled flow clears them
+- `GSHaptics` in `ios-app/ios/App/App/GapSenseNative.swift` — the iOS patterns
 
 **To add a new haptic cue:**
 
 1. Add the cue type to the `messages` map in `emitCue()`.
-2. Add a native mapping in `hapticCue()`.
+2. Add a native mapping in `hapticCue()`, and a pattern in `GSHaptics.events(for:)`
+   for iOS.
 3. Add a web fallback pattern to `WEB_VIBRATION_PATTERNS`.
 4. Run `npx cap copy ios && npx cap copy android` and rebuild.
 
-**Plugin:** [`@capacitor/haptics`](https://capacitorjs.com/docs/apis/haptics).
-Already installed and registered — `packageClassList` in
-`ios-app/ios/App/App/capacitor.config.json` lists `HapticsPlugin`.
+**Plugins:** iOS uses `GSNativePlugin`, registered in code by
+`MainViewController.capacitorDidLoad()` (the storyboard's root view
+controller). [`@capacitor/haptics`](https://capacitorjs.com/docs/apis/haptics)
+stays installed as the fallback and for Android.
