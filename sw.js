@@ -6,7 +6,7 @@
  *
  * Bump CACHE_VERSION whenever www/ changes, or the old files keep being served.
  */
-const CACHE_VERSION = "gapsense-v7";
+const CACHE_VERSION = "gapsense-v8";
 const PRECACHE = [
   "./",
   "./index.html",
@@ -14,6 +14,7 @@ const PRECACHE = [
   "./css/app.css",
   "./js/engine.js",
   "./js/history.js",
+  "./js/features.js",
   "./js/signal.js",
   "./js/comparison.js",
   "./js/app.js",

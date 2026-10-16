@@ -1289,7 +1289,7 @@ body[data-theme="inverted"] .step-number {
   gap: 14px;
   text-align: left;
   width: 100%;
-  /* Deliberately large: at a kerb, with gloves or a cane in one hand, and
+  /* Deliberately large: at a curb, with gloves or a cane in one hand, and
      reachable without hunting for a small control under VoiceOver. */
   min-height: 4.2rem;
   padding: 14px 18px;
@@ -1450,7 +1450,7 @@ body.large-text-layout .trial-row { flex-direction: column; gap: 4px; }
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
-/* A colour bar per step, echoing the stage colours used on the action
+/* A color bar per step, echoing the stage colors used on the action
    button. Never the only signal — the number and title always carry it. */
 .step-card::before {
   content: "";
@@ -1485,7 +1485,7 @@ body.large-text-layout .trial-row { flex-direction: column; gap: 4px; }
 .answer-btn:not(:disabled):hover { border-color: var(--accent); }
 
 /* A very soft brand glow behind the header, which lifts the whole screen
-   without introducing any new foreground colour. */
+   without introducing any new foreground color. */
 body::before {
   content: "";
   position: fixed;
@@ -1662,3 +1662,216 @@ html, body {
   /* No double-tap zoom; see lockNativeViewport() in engine.js for the shell. */
 }
 button, label, input, select, textarea, summary, a { touch-action: manipulation; }
+
+/* ============================================================
+   BUILD 7: instructor setup, full-screen pads,
+   safety notes, O&M guidance, single-button activity cards
+   ============================================================ */
+
+/* The hidden attribute always wins, even over display rules on cards and
+   labels (the instructor's on/off switches rely on it). */
+[hidden] { display: none !important; }
+
+/* Persistent, prominent: for use with an O&M Specialist. */
+.om-guidance {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--accent);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.screen-intro {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+/* Activity cards: the whole card is one button. */
+.step-card { padding: 0; display: block; }
+.step-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  width: 100%;
+  min-height: 44px;
+  padding: 16px 16px 16px 20px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+.step-button:disabled { cursor: not-allowed; }
+.step-button:focus-visible { outline: 4px solid var(--outline); outline-offset: -4px; }
+.step-button .step-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.step-button .step-title,
+.step-button .step-desc { display: block; }
+body.large-text-layout .step-button { grid-template-columns: minmax(0, 1fr); }
+.step-card[data-screen="signal"]::before { background: var(--brand-2); }
+
+/* Safety note: "longer does not mean long enough". */
+.safety-note {
+  border: 2px solid var(--warn);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.safety-note p { margin: 0; line-height: 1.4; }
+.safety-note-title { font-weight: 800; }
+.safety-note .settings-action { width: 100%; }
+
+/* Instructor setup */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 0;
+  line-height: 1.35;
+}
+.setup .text-input,
+.card .text-input {
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.text-input:focus-visible { outline: 4px solid var(--outline); outline-offset: 2px; }
+#screen-instructor .setup { display: flex; flex-direction: column; gap: 14px; }
+#screen-instructor select,
+#screen-live select {
+  width: 100%;
+  max-width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text);
+}
+#screen-instructor .settings-action { width: 100%; }
+.share-details > summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.share-details[open] > summary { margin-bottom: 8px; }
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  width: 100%;
+}
+
+/* Full-screen gesture pads. Below the visual replay overlay (z 9999) so the
+   flash and shapes show on top of them; above everything else. */
+.gesture-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  height: var(--viewport-height);
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: contain;
+}
+#answerOverlay,
+#howMuchOverlay { z-index: 9100; }
+.gesture-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.gesture-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+.gesture-title:focus { outline: none; }
+.gesture-title:focus-visible { outline: 4px solid var(--outline); outline-offset: 3px; }
+.gesture-status {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+.gesture-surface {
+  flex: 1 1 auto;
+  min-height: 8rem;
+  border: 3px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  padding: 16px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.gesture-arrow {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--accent);
+}
+body.high-contrast .gesture-surface,
+body[data-theme="inverted"] .gesture-surface { border-style: solid; }
+body.high-contrast .gesture-arrow,
+body[data-theme="inverted"] .gesture-arrow { color: var(--text); }
+.gesture-overlay .answer-grid { flex: 0 0 auto; }
+.gesture-overlay.buttons-only .answer-grid { flex: 1 1 auto; align-content: center; }
+.gesture-overlay.buttons-only .answer-btn { min-height: 5rem; }
+.howmuch-btn { flex: 1 1 auto; height: auto; min-height: 12rem; }
+body.pad-open { overflow: hidden; }
+
+/* The sample warning time on the visual channel: a held bar across the
+   middle of the screen, never the student's own flash. Calibrated for low
+   vision on black; not themed. */
+.visual-replay-sample {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 42%;
+  height: 16%;
+  background: #4DA3FF;
+  border-radius: 999px;
+  display: none;
+  z-index: 1;
+}
+
+.disclaimer-text { font-size: 1rem; color: var(--text); }
+
+/* The screen title takes focus on every screen change so screen readers
+   announce it; it is not a control, so no focus box for sighted users. */
+#screenTitle:focus { outline: none; }
+dialog h2[tabindex="-1"]:focus { outline: none; }

@@ -29,7 +29,11 @@ const GS_HISTORY_LIMIT = 800; // ~ a year of heavy practice; old entries roll of
  * @property {number} marginSec   the margin in force at the time
  * @property {string} [answer]    comparison tasks: "longer"|"shorter"|"same"
  * @property {string} [expected]  comparison tasks: the true category
- * @property {boolean} [noisy]    live task: ambient noise was above baseline
+ * @property {boolean} [noisy]    live task, builds before 7 only
+ * @property {string} [direction] live task: "left" | "right"
+ * @property {string} [sense]     live task: "hearing" | "vision"
+ * @property {boolean} [judged]   live task: the student judged it (build 7+)
+ * @property {boolean} [never]    live task: the vehicle never came
  */
 
 function gsLoadHistory() {
@@ -86,7 +90,7 @@ function gsAccuracy(entries) {
  * ------------------------------------------------------------
  * Cindi's request, and the maths she asked for help with.
  *
- * The idea is behavioural shaping / zone of proximal development: hold the
+ * The idea is behavioral shaping / zone of proximal development: hold the
  * student just past comfortable, but never so tight that the task becomes
  * impossible and demoralising.
  *
@@ -97,7 +101,7 @@ function gsAccuracy(entries) {
  *            duration, so tightening further would teach nothing.
  *   WINDOW   the last 10 attempts of the same activity and street type.
  *
- * STATUS: EXPERIMENTAL, off by default. Cindi's review (7 Oct 2026): there is
+ * STATUS: EXPERIMENTAL, off by default. Cindi's review: there is
  * no research support for the window, the step or the stopping rule, and the
  * first version "pinned the learner down" and tightened too fast. What is
  * kept, per her notes:
@@ -253,8 +257,8 @@ function gsResetAdaptiveLanes() {
  * ============================================================ */
 
 const GS_ACTIVITY_LABELS = {
-  practice: "Crossing-time practice",
-  signal: "Timing from a signal",
+  practice: "Practice my timing",
+  signal: "Comparison preparation",
   compare: "Comparison practice",
   live: "At the street",
   measure: "Crossing measured" // legacy entries from builds before 10 Oct 2026
@@ -263,10 +267,10 @@ const GS_ACTIVITY_LABELS = {
 const GS_STREET_LABELS = { half: "First half", full: "Full street" };
 
 const GS_LANE_LABELS = {
-  "practice:half": "Crossing-time practice, first half",
-  "practice:full": "Crossing-time practice, full street",
-  "signal:half": "Timing from a signal, first half",
-  "signal:full": "Timing from a signal, full street",
+  "practice:half": "Practice my timing, first half",
+  "practice:full": "Practice my timing, full street",
+  "signal:half": "Comparison preparation, first half",
+  "signal:full": "Comparison preparation, full street",
   "compare:half": "Comparison practice, first half",
   "compare:full": "Comparison practice, full street"
 };
@@ -275,8 +279,19 @@ function gsLaneLabel(key) {
   return GS_LANE_LABELS[key] || key;
 }
 
+/*
+ * Which entries count towards a score. At the street, only vehicles the
+ * student judged (build 7 and later) are right or wrong; vehicles that never
+ * came, unjudged vehicles, and entries from earlier builds (where "correct"
+ * meant "gave enough warning") are kept in the log but not scored.
+ */
+function gsIsScored(entry) {
+  if (entry.activity !== "live") return true;
+  return entry.judged === true && !entry.never;
+}
+
 function gsSummary() {
-  const all = gsLoadHistory();
+  const all = gsLoadHistory().filter(gsIsScored);
   const byActivity = {};
   all.forEach((entry) => {
     const key = entry.activity;
@@ -318,7 +333,7 @@ function gsBuildReport(options = {}) {
   lines.push("Gap Sense — practice report");
   lines.push("=".repeat(34));
   // A short code, never a name: the report travels by plain email.
-  if (options.clientCode) lines.push(`Client code: ${options.clientCode}`);
+  if (options.clientCode) lines.push(`Student code: ${options.clientCode}`);
   lines.push(`Generated: ${new Date().toLocaleString()}`);
   lines.push("");
 
@@ -328,7 +343,7 @@ function gsBuildReport(options = {}) {
   }
 
   lines.push(`Total attempts: ${summary.total}`);
-  lines.push(`Days practised: ${summary.daysPracticed}`);
+  lines.push(`Days practiced: ${summary.daysPracticed}`);
   lines.push(`First: ${gsFormatDate(summary.firstAt)}`);
   lines.push(`Most recent: ${gsFormatDate(summary.lastAt)}`);
   lines.push("");
@@ -342,7 +357,8 @@ function gsBuildReport(options = {}) {
       return;
     }
     const pct = Math.round((stats.correct / stats.total) * 100);
-    lines.push(`${label}: ${stats.correct}/${stats.total} within margin (${pct}%)`);
+    const noun = activity === "practice" || activity === "signal" ? "within margin" : "correct";
+    lines.push(`${label}: ${stats.correct}/${stats.total} ${noun} (${pct}%)`);
   });
   lines.push("");
 
@@ -360,9 +376,31 @@ function gsBuildReport(options = {}) {
     }
     const sign = (entry.diffSec || 0) >= 0 ? "+" : "";
     const diffText = `${sign}${Number(entry.diffSec || 0).toFixed(2)}s`;
+    if (entry.activity === "live" && (entry.judged !== undefined || entry.never)) {
+      const from = entry.direction ? `from the ${entry.direction}` : "";
+      const by = entry.sense ? `by ${entry.sense}` : "";
+      const context = [from, by].filter(Boolean).join(", ");
+      const where = `${label} (${street}${context ? `, ${context}` : ""})`;
+      if (entry.never) {
+        lines.push(`${when}  ${where}: vehicle never came`);
+        return;
+      }
+      if (entry.answer === "magnitude") {
+        const mark = entry.correct ? "within margin" : "outside margin";
+        lines.push(`${when}  ${where}: tapped out the difference ${diffText} — ${mark}`);
+        return;
+      }
+      if (!entry.judged) {
+        lines.push(`${when}  ${where}: warning time ${diffText} against the crossing (not judged)`);
+        return;
+      }
+      const mark = entry.correct ? "correct" : "incorrect";
+      lines.push(`${when}  ${where}: warning time ${diffText}; answered "${entry.answer}", it was "${entry.expected}" — ${mark}`);
+      return;
+    }
     if (entry.activity === "live") {
-      // A real vehicle is not a right or wrong answer. Report the verdict:
-      // was the warning time long enough for this crossing?
+      // Builds before 7: the app gave a verdict on whether the
+      // warning time was long enough for this crossing.
       const verdict = {
         longer: "longer than the crossing — enough warning",
         same: "about the same as the crossing — too close to rely on",
@@ -399,6 +437,6 @@ function gsBuildReport(options = {}) {
   }
 
   lines.push("");
-  lines.push("Sent by the client from Gap Sense. No data leaves the device unless sent.");
+  lines.push("Sent by the student from Gap Sense. No data leaves the device unless sent.");
   return lines.join("\n");
 }

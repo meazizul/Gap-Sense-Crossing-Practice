@@ -46,6 +46,11 @@
     const a11yHighContrast = document.getElementById("a11yHighContrast");
     const a11yFocusBoost = document.getElementById("a11yFocusBoost");
     const a11yAnnounceCues = document.getElementById("a11yAnnounceCues");
+    const a11ySelfVoice = document.getElementById("a11ySelfVoice");
+    const a11ySpeechRate = document.getElementById("a11ySpeechRate");
+    const soundTestBtn = document.getElementById("soundTestBtn");
+    const soundTestNote = document.getElementById("soundTestNote");
+    const textSetupBtn = document.getElementById("textSetupBtn");
     const hapticsTestBtn = document.getElementById("hapticsTestBtn");
     const hapticsSupportNote = document.getElementById("hapticsSupportNote");
     const previewUserSoundBtn = document.getElementById("previewUserSound");
@@ -87,6 +92,7 @@
       replayUsesConfirm,
       debugToggle,
       shareTimingSettingsBtn,
+      textSetupBtn,
       copySetupTimingMessageBtn,
       copyPracticeTimingMessageBtn,
       ...acceptableInputs,
@@ -96,7 +102,7 @@
       ...outsideVisualVariantInputs,
       ...userFlashContrastInputs,
       ...exemplarButtons
-    ];
+    ].filter(Boolean);
 
     const a11yControls = [
       a11yTrigger,
@@ -110,9 +116,12 @@
       a11yHighContrast,
       a11yFocusBoost,
       a11yAnnounceCues,
+      a11ySelfVoice,
+      a11ySpeechRate,
+      soundTestBtn,
       hapticsTestBtn,
       ...outputModeInputs
-    ];
+    ].filter(Boolean);
 
     const modes = {
       "2": { labels: ["Start", "Finish"] },
@@ -157,6 +166,7 @@
       replayStartTime: 0,
       userFlashUntilSec: 0,
       referenceUntilSec: 0,
+      sampleUntilSec: 0,
       currentReferenceType: null,
       target: null
     };
@@ -177,8 +187,32 @@
       textSize: "default",
       highContrast: false,
       focusBoost: false,
-      announceCues: true
+      announceCues: true,
+      // Self-voicing (build 7): the app speaks its own directions for
+      // students who are still learning VoiceOver or TalkBack. Off by default
+      // so it never doubles up with a screen reader.
+      selfVoice: false,
+      speechRate: 1
     };
+
+    /*
+     * One-time settings migrations, keyed by build. Build 7: vibration must be
+     * on for everyone. Older builds could leave a stored "false" behind (the
+     * switch defaulted off before build 4), which silently kept haptics off
+     * for testers who never touched it. Clear it once; a student who turns
+     * vibration off again from build 7 on keeps that choice.
+     */
+    const GS_SETTINGS_VERSION_KEY = "om-settings-version";
+    const GS_SETTINGS_VERSION = 7;
+    (function migrateStoredSettings() {
+      try {
+        const stored = Number(localStorage.getItem(GS_SETTINGS_VERSION_KEY) || 0);
+        if (stored < 7) localStorage.removeItem("om-a11y-vibrate");
+        if (stored < GS_SETTINGS_VERSION) localStorage.setItem(GS_SETTINGS_VERSION_KEY, String(GS_SETTINGS_VERSION));
+      } catch (error) {
+        /* storage unavailable: defaults apply */
+      }
+    })();
 
     /* ============================================================
      * NATIVE HAPTICS BRIDGE
@@ -190,11 +224,20 @@
      * ============================================================ */
     const CapacitorGlobal = window.Capacitor;
     const isNativeShell = Boolean(CapacitorGlobal?.isNativePlatform?.());
+    const nativePlatform = isNativeShell ? (CapacitorGlobal.getPlatform?.() || "") : "web";
     const HapticsPlugin = CapacitorGlobal?.Plugins?.Haptics;
+    // Gap Sense's own native plugin (iOS, build 7+): one long-lived Core
+    // Haptics engine that plays haptics only and never touches the audio
+    // session. The stock plugin built a new engine for every long buzz and let
+    // it be freed at once, and its engine shared the audio session with the
+    // web view's sound.
+    const GSNativePlugin = CapacitorGlobal?.Plugins?.GSNative;
     const hasWebVibrate = typeof navigator.vibrate === "function";
 
     const WEB_VIBRATION_PATTERNS = {
       start: [30],
+      // Two light taps = "get ready, the clock is armed".
+      ready: [25, 70, 25],
       // One short tick = "this is you".
       marker: [45],
       // Three quick ticks = within the margin.
@@ -205,12 +248,12 @@
     };
 
     function hapticsAvailable() {
-      return (isNativeShell && Boolean(HapticsPlugin)) || hasWebVibrate;
+      return (isNativeShell && Boolean(GSNativePlugin || HapticsPlugin)) || hasWebVibrate;
     }
 
     /*
      * Inside the native shell a double tap zoomed the web view and there was
-     * no way back short of relaunching. WKWebView, unlike Safari, honours
+     * no way back short of relaunching. WKWebView, unlike Safari, honors
      * user-scalable=no, so the viewport is locked there. On the web the meta
      * tag is left alone: browsers need pinch-zoom for accessibility, and the
      * app's own text-size setting goes to 300%. touch-action: manipulation in
@@ -229,8 +272,13 @@
     lockNativeViewport();
 
     function describeHapticsSupport() {
+      if (isNativeShell && GSNativePlugin) {
+        return "Native haptics active. If you feel nothing, check iPhone Settings, Accessibility, Touch, Vibration, and Settings, Sounds and Haptics, System Haptics.";
+      }
       if (isNativeShell && HapticsPlugin) {
-        return "Native haptics active — this build drives the iPhone Taptic Engine directly.";
+        return nativePlatform === "android"
+          ? "Native vibration active. If you feel nothing, check that vibration is on in your phone's sound settings."
+          : "Native haptics active.";
       }
       if (hasWebVibrate) {
         return "Web vibration available. Patterns are coarse on/off only (typical on Android browsers).";
@@ -240,6 +288,20 @@
 
     function hapticCue(type) {
       if (!a11ySettings.vibrate) return;
+      if (isNativeShell && GSNativePlugin) {
+        // Patterns live in the native plugin (GSNativePlugin.swift) so each
+        // one plays as a single Core Haptics pattern with exact spacing.
+        const known = ["start", "ready", "marker", "reference_ok", "reference_bad"];
+        if (known.includes(type)) {
+          try {
+            const result = GSNativePlugin.haptic({ type });
+            if (result && typeof result.catch === "function") result.catch(() => {});
+          } catch (error) {
+            /* non-fatal */
+          }
+        }
+        return;
+      }
       if (isNativeShell && HapticsPlugin) {
         try {
           // iOS's "notification" haptics are deliberately subtle, and MEDIUM
@@ -260,6 +322,9 @@
             HapticsPlugin.impact({ style: "HEAVY" });
           } else if (type === "start") {
             HapticsPlugin.impact({ style: "MEDIUM" });
+          } else if (type === "ready") {
+            HapticsPlugin.impact({ style: "LIGHT" });
+            setTimeout(() => HapticsPlugin.impact({ style: "LIGHT" }), 95);
           }
           return;
         } catch (error) {
@@ -535,39 +600,81 @@
         masterLimiter.attack.value = 0.001;
         masterLimiter.release.value = 0.05;
         masterLimiter.connect(audioContext.destination);
+        // iOS moves a context to "interrupted" (not "suspended") when
+        // something else takes the audio hardware for a moment: a call, Siri,
+        // another app, a haptic engine starting. The old check only resumed
+        // "suspended", so after one interruption every later tone was
+        // scheduled on a stopped clock and the app went silent until it was
+        // relaunched. Resume from any state that is not running or closed.
+        audioContext.addEventListener?.("statechange", () => {
+          if (audioContext.state === "interrupted") {
+            audioContext.resume().catch(() => {});
+          }
+        });
       }
-      if (audioContext.state === "suspended") {
-        audioContext.resume();
+      if (audioContext.state !== "running" && audioContext.state !== "closed") {
+        const pending = audioContext.resume();
+        if (pending && typeof pending.catch === "function") pending.catch(() => {});
       }
       return audioContext;
     }
 
     /*
+     * Tell WebKit this is a playback app (iOS 17+, Safari and the native web
+     * view). Without it, Web Audio plays in the "ambient" category, which the
+     * ringer switch mutes. Set in the installed app only: on a website it
+     * would pause the person's own music.
+     */
+    function configureWebAudioSession() {
+      if (!isNativeShell) return;
+      try {
+        if (navigator.audioSession && "type" in navigator.audioSession) {
+          navigator.audioSession.type = "playback";
+        }
+      } catch (error) {
+        /* older WebKit: AVAudioSession in the app delegate still applies */
+      }
+    }
+    configureWebAudioSession();
+
+    /*
      * envelope: "pulse" (default) is the short attack/release used by every
-     * cue. "rising" grows from quiet to full over the whole duration and then
-     * stops dead — the shape of a vehicle approaching, used for the sample
-     * warning time in the comparison tasks. Cindi: the old steady tone with a
-     * fade "tapers off at the end" and is "the opposite of vehicles – they
-     * start off soft and get loud".
+     * cue. "steady" holds one level from the first moment to the last, with
+     * only a few milliseconds of ramp at each end to avoid clicks: the sample
+     * warning time in the comparison tasks. Cindi: a student with
+     * any hearing loss may not hear a sound while it is quiet, so the sample
+     * must be "a single steady sound and able to be set at a high volume".
+     * "rising" (quiet to loud, an earlier design) is kept for reference only.
      */
     function playCompositeTone(partials, duration = 0.16, startTime = 0, volumeScale = 1, envelope = "pulse") {
       if (a11ySettings.outputMode === "visual-only") return;
       const context = ensureAudioContext();
-      if (context.state === "suspended") {
+      if (context.state !== "running" && !playCompositeTone.retrying) {
+        // Suspended or interrupted: wait for the clock to run, then schedule
+        // once. A second failure plays on whatever clock there is rather than
+        // looping.
         context.resume().then(() => {
-          playCompositeTone(partials, duration, startTime, volumeScale, envelope);
-        });
+          playCompositeTone.retrying = true;
+          try {
+            playCompositeTone(partials, duration, startTime, volumeScale, envelope);
+          } finally {
+            playCompositeTone.retrying = false;
+          }
+        }).catch(() => {});
         return;
       }
       const now = context.currentTime + startTime;
       const gain = context.createGain();
-      const attack = 0.01;
-      const release = envelope === "rising" ? 0.015 : 0.07;
+      const attack = envelope === "steady" ? 0.006 : 0.01;
+      const release = envelope === "pulse" ? 0.07 : 0.012;
       const outputLevel = TEST_TUNING.masterVolume * volumeScale;
       gain.gain.setValueAtTime(0, now);
       if (envelope === "rising") {
         gain.gain.linearRampToValueAtTime(outputLevel * 0.22, now + attack);
         gain.gain.linearRampToValueAtTime(outputLevel, now + duration);
+      } else if (envelope === "steady") {
+        gain.gain.linearRampToValueAtTime(outputLevel, now + attack);
+        gain.gain.setValueAtTime(outputLevel, now + Math.max(attack, duration));
       } else {
         gain.gain.linearRampToValueAtTime(outputLevel, now + attack);
       }
@@ -583,6 +690,47 @@
         osc.stop(now + duration + release + 0.02);
       });
       gain.connect(masterLimiter);
+    }
+
+    /*
+     * A steady tone with no set length: starts now, keeps going until the
+     * returned stop() is called. Used by Comparison preparation, where the
+     * sound plays until the student stops it. Returns a no-op stop in
+     * visual-only mode so callers never need to check.
+     */
+    function startSustainedTone(partials, volumeScale = 1) {
+      if (a11ySettings.outputMode === "visual-only") return () => {};
+      const context = ensureAudioContext();
+      const now = context.currentTime;
+      const gain = context.createGain();
+      const level = TEST_TUNING.masterVolume * volumeScale;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(level, now + 0.006);
+      const oscillators = partials.map((partial) => {
+        const osc = context.createOscillator();
+        osc.type = "sine";
+        osc.frequency.value = partial.freq;
+        const oscGain = context.createGain();
+        oscGain.gain.setValueAtTime(partial.gain, now);
+        osc.connect(oscGain).connect(gain);
+        osc.start(now);
+        return osc;
+      });
+      gain.connect(masterLimiter);
+      let stopped = false;
+      return () => {
+        if (stopped) return;
+        stopped = true;
+        const end = context.currentTime;
+        try {
+          gain.gain.cancelScheduledValues(end);
+          gain.gain.setValueAtTime(gain.gain.value, end);
+          gain.gain.linearRampToValueAtTime(0, end + 0.012);
+          oscillators.forEach((osc) => osc.stop(end + 0.03));
+        } catch (error) {
+          /* already stopped */
+        }
+      };
     }
 
     function playSoundOption(option, startTime = 0, volumeScale = 1) {
@@ -739,36 +887,78 @@
       if (typeof gsRenderDemoNote === "function") gsRenderDemoNote();
     }
 
-    function buildShareTimingToken() {
-      const clearTime = normalizeTimingValue(clearTimeInput.value);
-      const fullTime = normalizeTimingValue(fullTimeInput.value);
-      const margin = normalizeTimingValue(marginInput.value);
-      const email = getInstructorEmail();
-      const code = getClientCode();
-      const rawPayload = `${clearTime}|${fullTime}|${margin}|${email}|${code}`;
-      const encodedPayload = encodeBase64Url(rawPayload);
-      const checksum = computeShareChecksum(encodedPayload);
-      return `v2.${encodedPayload}.${checksum}`;
+    /*
+     * The public address of the web app. Links made inside the installed app
+     * must point here, not at the app's own internal address
+     * (capacitor://localhost on iOS, https://localhost on Android), which
+     * means nothing on anyone else's phone.
+     */
+    const GS_PUBLIC_URL = "https://azizulhaque.me/Gap-Sense-Crossing-Practice/";
+    const GS_APP_SCHEME = "gapsense";
+
+    function shareBaseUrl() {
+      if (isNativeShell || !/^https?:$/.test(window.location.protocol)) return new URL(GS_PUBLIC_URL);
+      const url = new URL(window.location.href);
+      url.search = "";
+      url.hash = "";
+      return url;
     }
 
-    function buildShareTimingLink() {
-      const url = new URL(window.location.href);
-      url.hash = `ts=${buildShareTimingToken()}`;
+    function shareIncludes() {
+      return {
+        times: document.getElementById("shareIncludeTimes")?.checked !== false,
+        contact: document.getElementById("shareIncludeContact")?.checked !== false,
+        features: document.getElementById("shareIncludeFeatures")?.checked !== false
+      };
+    }
+
+    /*
+     * Setup link token.
+     *   v1/v2  "clear|full|margin|email|code" (still imported)
+     *   v3     JSON with any of: t (times: [clear, full, margin]),
+     *          e (instructor email), k (student code), f (feature set).
+     *          The instructor chooses which parts travel.
+     * All versions: base64url payload + FNV checksum, "vN.payload.checksum".
+     */
+    function buildShareTimingToken(includes = shareIncludes()) {
+      const payload = {};
+      if (includes.times) {
+        payload.t = [
+          normalizeTimingValue(clearTimeInput.value),
+          normalizeTimingValue(fullTimeInput.value),
+          normalizeTimingValue(marginInput.value)
+        ];
+      }
+      if (includes.contact) {
+        const email = getInstructorEmail();
+        const code = getClientCode();
+        if (email) payload.e = email;
+        if (code) payload.k = code;
+      }
+      if (includes.features && typeof gsLoadFeatures === "function") {
+        payload.f = gsLoadFeatures();
+      }
+      const encodedPayload = encodeBase64Url(JSON.stringify(payload));
+      const checksum = computeShareChecksum(encodedPayload);
+      return `v3.${encodedPayload}.${checksum}`;
+    }
+
+    function buildShareTimingLink(includes = shareIncludes()) {
+      const url = shareBaseUrl();
+      url.hash = `ts=${buildShareTimingToken(includes)}`;
       return url.toString();
     }
 
     function buildRegularSiteLink() {
-      const url = new URL(window.location.href);
-      url.hash = "";
-      return url.toString();
+      return shareBaseUrl().toString();
     }
 
     function buildSetupTimingMessage() {
-      return ["Tap this link once to set your crossing times in Gap Sense:", buildShareTimingLink()].join("\n");
+      return ["Tap this link once to set up Gap Sense for your practice:", buildShareTimingLink()].join("\n");
     }
 
     function buildPracticeTimingMessage() {
-      return ["Save/use this link to practice:", buildRegularSiteLink()].join("\n");
+      return ["Save this link to practice in a browser:", buildRegularSiteLink()].join("\n");
     }
 
     function populateShareMessagePreviews() {
@@ -797,79 +987,246 @@
       }
     }
 
+    /*
+     * Hand text to the phone's share sheet: Messages, Mail, WhatsApp, Notes,
+     * anything. Native app: Capacitor's Share plugin. Browser: the Web Share
+     * API. Neither available (a desktop browser): copy instead. Returns
+     * "shared", "copied", or "cancelled".
+     */
+    async function gsShareText({ title, text }) {
+      const SharePlugin = CapacitorGlobal?.Plugins?.Share;
+      try {
+        if (isNativeShell && SharePlugin?.share) {
+          await SharePlugin.share({ title, text, dialogTitle: title });
+          return "shared";
+        }
+        if (typeof navigator.share === "function") {
+          await navigator.share({ title, text });
+          return "shared";
+        }
+      } catch (error) {
+        const message = String(error?.message || error || "");
+        if (/cancel|abort/i.test(message) || error?.name === "AbortError") return "cancelled";
+        /* fall through to copying */
+      }
+      await copyTextToClipboard(text);
+      return "copied";
+    }
+
+    /* Open the Messages app with the text filled in; the instructor adds the number. */
+    function gsOpenSms(text) {
+      const separator = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? "&" : "?";
+      window.location.href = `sms:${separator}body=${encodeURIComponent(text)}`;
+    }
+
     function clearImportedHash() {
       const cleanedUrl = `${window.location.pathname}${window.location.search}`;
       window.history.replaceState({}, document.title, cleanedUrl);
     }
 
+    /* The token from the last successful import, so a browser can offer to
+     * hand the same setup to the installed app. */
+    let lastImportedToken = "";
+
+    /**
+     * Parse and validate a token. Returns { times, email, code, features }
+     * (any may be null) or null if the token is invalid.
+     */
+    function parseShareToken(token) {
+      const [version, encodedPayload, checksum] = String(token || "").split(".");
+      if (!["v1", "v2", "v3"].includes(version) || !encodedPayload || !checksum) return null;
+      if (encodedPayload.length > 6000) return null;
+      if (computeShareChecksum(encodedPayload) !== checksum) return null;
+
+      let decoded;
+      try {
+        decoded = decodeBase64Url(encodedPayload);
+      } catch (error) {
+        return null;
+      }
+
+      let clearValue, fullValue, marginValue, emailValue = "", codeValue = "", features = null;
+      let hasTimes = true;
+      if (version === "v3") {
+        let payload;
+        try {
+          payload = JSON.parse(decoded);
+        } catch (error) {
+          return null;
+        }
+        if (!payload || typeof payload !== "object") return null;
+        hasTimes = Array.isArray(payload.t);
+        if (hasTimes) [clearValue, fullValue, marginValue] = payload.t;
+        emailValue = typeof payload.e === "string" ? payload.e : "";
+        codeValue = typeof payload.k === "string" ? payload.k : "";
+        if (payload.f && typeof payload.f === "object") features = payload.f;
+        if (!hasTimes && !emailValue && !codeValue && !features) return null;
+      } else {
+        [clearValue, fullValue, marginValue, emailValue = "", codeValue = ""] = decoded.split("|");
+      }
+
+      const email = String(emailValue).trim();
+      const code = String(codeValue).trim().toUpperCase();
+      if (!isValidEmail(email) || !CLIENT_CODE_PATTERN.test(code)) return null;
+
+      let times = null;
+      if (hasTimes) {
+        const normalizedClear = normalizeTimingValue(clearValue);
+        const normalizedFull = normalizeTimingValue(fullValue);
+        const normalizedMargin = normalizeTimingValue(marginValue);
+        const clearNumber = Number(normalizedClear);
+        const fullNumber = Number(normalizedFull);
+        const marginNumber = Number(normalizedMargin);
+        if (
+          !normalizedClear || !normalizedFull || !normalizedMargin ||
+          !Number.isFinite(clearNumber) || !Number.isFinite(fullNumber) || !Number.isFinite(marginNumber) ||
+          clearNumber <= 0 || fullNumber <= 0 || marginNumber < 0 ||
+          clearNumber > 600 || fullNumber > 600 || marginNumber > 60
+        ) {
+          return null;
+        }
+        times = [normalizedClear, normalizedFull, normalizedMargin];
+      }
+      return { times, email, code, features };
+    }
+
+    /** Apply a token. Returns true if it was valid and applied. */
+    function applyShareToken(token) {
+      const parsed = parseShareToken(token);
+      if (!parsed) {
+        pendingStatusMessage = "This setup link is invalid.";
+        return false;
+      }
+      if (parsed.times) setReferenceTimes(...parsed.times, { source: "link" });
+      if (instructorEmailInput && parsed.email) {
+        instructorEmailInput.value = parsed.email;
+        localStorage.setItem("om-instructor-email", parsed.email);
+      }
+      if (clientCodeInput && parsed.code) {
+        clientCodeInput.value = parsed.code;
+        localStorage.setItem("om-client-code", parsed.code);
+      }
+      if (parsed.features) {
+        // At boot this runs before features.js has loaded, so store the raw
+        // set; features.js validates whatever it reads.
+        if (typeof gsSaveFeatures === "function") {
+          gsSaveFeatures(parsed.features);
+        } else {
+          try { localStorage.setItem("om-features", JSON.stringify(parsed.features)); } catch (error) { /* ignore */ }
+        }
+        if (typeof gsFeaturesChanged === "function") gsFeaturesChanged();
+      }
+      lastImportedToken = token;
+      pendingStatusMessage = "Your instructor's setup is now on this device.";
+      return true;
+    }
+
     function importSharedTimingSettings() {
       const hash = window.location.hash.replace(/^#/, "");
       if (!hash.startsWith("ts=")) return false;
-
-      const token = hash.slice(3);
-      const [version, encodedPayload, checksum] = token.split(".");
-      const invalid = () => {
-        pendingStatusMessage = "This time settings link is invalid.";
-        clearImportedHash();
-        return true;
-      };
-
-      if ((version !== "v1" && version !== "v2") || !encodedPayload || !checksum) return invalid();
-      if (computeShareChecksum(encodedPayload) !== checksum) return invalid();
-
-      let decodedPayload;
-      try {
-        decodedPayload = decodeBase64Url(encodedPayload);
-      } catch (error) {
-        return invalid();
-      }
-
-      const [clearValue, fullValue, marginValue, emailValue = "", codeValue = ""] = decodedPayload.split("|");
-      const normalizedClear = normalizeTimingValue(clearValue);
-      const normalizedFull = normalizeTimingValue(fullValue);
-      const normalizedMargin = normalizeTimingValue(marginValue);
-      const clearNumber = Number(normalizedClear);
-      const fullNumber = Number(normalizedFull);
-      const marginNumber = Number(normalizedMargin);
-      const email = String(emailValue).trim();
-      const code = String(codeValue).trim().toUpperCase();
-
-      if (
-        !normalizedClear || !normalizedFull || !normalizedMargin ||
-        !Number.isFinite(clearNumber) || !Number.isFinite(fullNumber) || !Number.isFinite(marginNumber) ||
-        clearNumber <= 0 || fullNumber <= 0 || marginNumber < 0 ||
-        clearNumber > 600 || fullNumber > 600 || marginNumber > 60 ||
-        !isValidEmail(email) || !CLIENT_CODE_PATTERN.test(code)
-      ) {
-        return invalid();
-      }
-
-      setReferenceTimes(normalizedClear, normalizedFull, normalizedMargin, { source: "link" });
-      if (instructorEmailInput && email) {
-        instructorEmailInput.value = email;
-        localStorage.setItem("om-instructor-email", email);
-      }
-      if (clientCodeInput && code) {
-        clientCodeInput.value = code;
-        localStorage.setItem("om-client-code", code);
-      }
-      pendingStatusMessage = "Time settings updated for this device.";
+      applyShareToken(hash.slice(3));
       clearImportedHash();
       return true;
     }
 
-    async function copyShareTimingLink() {
-      if (!validateSetup()) return;
-      if (!isValidEmail(getInstructorEmail())) {
-        setStatus("Check the instructor email address before sharing.", "warn");
-        announceScreenReader("Check the instructor email address before sharing.");
-        instructorEmailInput?.focus();
-        return;
+    /*
+     * gapsense://setup?ts=TOKEN   apply an instructor's setup
+     * gapsense://open/practice    open an activity (app shortcuts)
+     * Handled in the installed app only.
+     */
+    function handleAppUrl(rawUrl) {
+      if (!rawUrl) return false;
+      let url;
+      try {
+        url = new URL(rawUrl);
+      } catch (error) {
+        return false;
       }
+      if (url.protocol !== `${GS_APP_SCHEME}:`) return false;
+      const route = `${url.host}${url.pathname}`.replace(/^\/+|\/+$/g, "");
+      const token = url.searchParams.get("ts") || (url.hash.startsWith("#ts=") ? url.hash.slice(4) : "");
+      if (route === "setup" && token) {
+        const ok = applyShareToken(token);
+        const message = ok ? "Your instructor's setup is now on this device." : "This setup link is invalid.";
+        setStatus(message, ok ? "neutral" : "warn");
+        announceScreenReader(message);
+        if (ok && typeof gsShowScreen === "function") gsShowScreen("home");
+        return true;
+      }
+      const match = route.match(/^open\/(practice|signal|compare|live|progress|help)$/);
+      if (match && typeof gsShowScreen === "function") {
+        gsShowScreen(match[1]);
+        return true;
+      }
+      return false;
+    }
+
+    function bindNativeAppUrls() {
+      const AppPlugin = CapacitorGlobal?.Plugins?.App;
+      if (!isNativeShell || !AppPlugin) return;
+      try {
+        AppPlugin.addListener?.("appUrlOpen", (event) => handleAppUrl(event?.url));
+        const launch = AppPlugin.getLaunchUrl?.();
+        if (launch && typeof launch.then === "function") {
+          launch.then((result) => {
+            // Wait for the shell to finish booting before navigating.
+            if (result?.url) setTimeout(() => handleAppUrl(result.url), 0);
+          }).catch(() => {});
+        }
+      } catch (error) {
+        /* non-fatal */
+      }
+    }
+
+    /* After a browser imports a setup, offer to open the same setup in the app. */
+    function offerOpenInApp() {
+      if (isNativeShell || !lastImportedToken) return;
+      const dialog = document.getElementById("openInAppModal");
+      const link = document.getElementById("openInAppLink");
+      if (!dialog || !link || typeof dialog.showModal !== "function") return;
+      link.href = `${GS_APP_SCHEME}://setup?ts=${lastImportedToken}`;
+      if (dialog.open) return;
+      lockPageScroll();
+      setMainContentInert(true);
+      dialog.showModal();
+      document.getElementById("openInAppTitle")?.focus();
+    }
+
+    function validateShareSetup() {
+      const includes = shareIncludes();
+      if (!includes.times && !includes.contact && !includes.features) {
+        setShareNote("Choose at least one thing for the link to carry.");
+        return false;
+      }
+      if (includes.times && !validateSetup()) return false;
+      if (includes.contact && !isValidEmail(getInstructorEmail())) {
+        setShareNote("Check the instructor email address before sharing.");
+        instructorEmailInput?.focus();
+        return false;
+      }
+      return true;
+    }
+
+    function setShareNote(message) {
+      const note = document.getElementById("shareNote");
+      if (note) note.textContent = message;
+      announceScreenReader(message);
+    }
+
+    async function copyShareTimingLink() {
+      if (!validateShareSetup()) return;
       populateShareMessagePreviews();
-      await copyTextToClipboard(setupTimingMessage.value);
-      setStatus("Setup message ready. Practice message is shown below.");
-      announceScreenReader("Setup message ready. Practice message is shown below.");
+      const outcome = await gsShareText({ title: "Gap Sense setup", text: setupTimingMessage.value });
+      if (outcome === "shared") setShareNote("Setup link shared.");
+      else if (outcome === "copied") setShareNote("Setup message copied. Paste it into a text or email to the student.");
+      else setShareNote("Not shared.");
+    }
+
+    function textSetupToStudent() {
+      if (!validateShareSetup()) return;
+      populateShareMessagePreviews();
+      setShareNote("Opening Messages. Add the student's number, then send.");
+      gsOpenSms(setupTimingMessage.value);
     }
 
     function getMissingTimingFields() {
@@ -884,19 +1241,19 @@
       const missing = getMissingTimingFields();
       if (missing.length === 0) return "";
       if (missing.length === 2) {
-        return "Enter your first-half and full-street crossing times in Settings, or open the link your instructor sent, before practising.";
+        return "Enter your first-half and full-street crossing times in Instructor setup, or open the link your instructor sent, before practicing.";
       }
       if (missing[0] === "clear") {
-        return "Enter your first-half crossing time in Settings before practising.";
+        return "Enter your first-half crossing time in Instructor setup before practicing.";
       }
-      return "Enter your full-street crossing time in Settings before practising.";
+      return "Enter your full-street crossing time in Instructor setup before practicing.";
     }
 
     function refreshTimingRequirementPrompt() {
       const message = getTimingRequirementMessage();
       const hasMissingTimes = Boolean(message);
       timingRequiredPrompt.hidden = !hasMissingTimes;
-      timingRequiredPromptText.textContent = message || "Enter both crossing times in Settings before practising.";
+      timingRequiredPromptText.textContent = message || "Enter both crossing times in Instructor setup before practicing.";
       return !hasMissingTimes;
     }
 
@@ -911,14 +1268,20 @@
       target.select?.();
     }
 
+    /* Crossing times live in Instructor setup (build 7), not Settings. */
+    function instructorScreenShowing() {
+      return typeof gsCurrentScreen !== "undefined" && gsCurrentScreen === "instructor";
+    }
+
     function openSettingsForTimingEntry() {
-      if (!settingsModal.open) {
-        lastDialogTrigger = timingRequiredPromptButton;
-        lockPageScroll();
-        setMainContentInert(true);
-        settingsModal.showModal();
+      if (settingsModal.open) {
+        lastDialogTrigger = document.getElementById("screenTitle");
+        settingsModal.close();
       }
-      requestAnimationFrame(() => { focusFirstMissingTimingField(); });
+      if (typeof gsShowScreen === "function") gsShowScreen("instructor");
+      requestAnimationFrame(() => {
+        if (!document.getElementById("instructorBody")?.hidden) focusFirstMissingTimingField();
+      });
     }
 
     function requireTimingInputs() {
@@ -931,7 +1294,7 @@
       refreshTimingRequirementPrompt();
       setStatus("");
       announceScreenReader(message);
-      if (settingsModal.open) {
+      if (instructorScreenShowing()) {
         focusFirstMissingTimingField();
       } else {
         timingRequiredPromptButton.focus();
@@ -1006,8 +1369,11 @@
       const shape = visualReplayState.target?.shape || visualReplayShape;
       const isUserPulseActive = elapsedSec < visualReplayState.userFlashUntilSec;
       const isReferencePulseActive = elapsedSec < visualReplayState.referenceUntilSec;
+      const isSampleActive = elapsedSec < visualReplayState.sampleUntilSec;
       overlay.dataset.active = "true";
       flash.style.background = isUserPulseActive ? getUserFlashColor() : "#000000";
+      const sample = overlay.querySelector(".visual-replay-sample");
+      if (sample) sample.style.display = isSampleActive ? "block" : "none";
       if (isReferencePulseActive && visualReplayState.currentReferenceType) {
         shape.style.display = "block";
         shape.dataset.type = visualReplayState.currentReferenceType;
@@ -1024,8 +1390,11 @@
       overlay.dataset.active = "false";
       flash.style.background = "transparent";
       shape.style.display = "none";
+      const sample = overlay.querySelector(".visual-replay-sample");
+      if (sample) sample.style.display = "none";
       visualReplayState.userFlashUntilSec = 0;
       visualReplayState.referenceUntilSec = 0;
+      visualReplayState.sampleUntilSec = 0;
       visualReplayState.currentReferenceType = null;
       visualReplayState.target = null;
     }
@@ -1080,6 +1449,12 @@
         );
         return;
       }
+      if (event.type === "sample") {
+        // The sample warning time: a held bar across the screen, never the
+        // student's own flash, which now means "this is your time".
+        visualReplayState.sampleUntilSec = Math.max(visualReplayState.sampleUntilSec, elapsedSec + hold);
+        return;
+      }
       if (event.type === "reference") {
         visualReplayState.currentReferenceType = event.feedbackType;
         visualReplayState.referenceUntilSec = Math.max(
@@ -1107,6 +1482,7 @@
       visualReplayState.replayStartTime = context.currentTime;
       visualReplayState.userFlashUntilSec = 0;
       visualReplayState.referenceUntilSec = 0;
+      visualReplayState.sampleUntilSec = 0;
       visualReplayState.currentReferenceType = null;
       visualReplayState.target = target;
 
@@ -1124,7 +1500,8 @@
           elapsedSec >= visualReplayState.endAtSec &&
           visualReplayState.nextIndex >= visualReplayState.events.length &&
           elapsedSec >= visualReplayState.userFlashUntilSec &&
-          elapsedSec >= visualReplayState.referenceUntilSec;
+          elapsedSec >= visualReplayState.referenceUntilSec &&
+          elapsedSec >= visualReplayState.sampleUntilSec;
         if (done) {
           stopVisualReplay();
           return;
@@ -1147,7 +1524,7 @@
 
       clearTimeout(exemplarTimeout);
       clearExemplarVisuals();
-      suppressSrAnnouncements = true;
+      gsBeginQuiet();
       actionBtn.classList.remove("idle");
       actionBtn.classList.add("running");
       actionBtn.disabled = true;
@@ -1302,11 +1679,85 @@
      */
     let srAnnounceToggle = false;
     function announceScreenReader(message) {
-      if (!a11ySettings.announceCues) return;
-      if (suppressSrAnnouncements) return;
       if (!message) return;
+      if (suppressSrAnnouncements) return;
+      // Self-voicing speaks every announcement aloud, whether or not a screen
+      // reader is running. It is the student's choice, under Accessibility.
+      // Never while a practice crossing is being timed.
+      if (a11ySettings.selfVoice && !started) gsSpeak(message);
+      if (!a11ySettings.announceCues) return;
       srAnnounceToggle = !srAnnounceToggle;
       srAnnouncer.textContent = srAnnounceToggle ? message : `${message}​`;
+    }
+
+    /* ---------------- Speech ----------------
+     * The browser's own text-to-speech (Web Speech API). Works in Safari, the
+     * iOS and Android web views, and Chrome. Used for two things: self-voicing
+     * (above), and the spoken "Get ready" in Comparison preparation, which
+     * replaced a beep that sounded too much like the other cues.
+     */
+    function speechAvailable() {
+      return typeof window.speechSynthesis !== "undefined" && typeof window.SpeechSynthesisUtterance === "function";
+    }
+
+    function pickEnglishVoice() {
+      try {
+        const voices = window.speechSynthesis.getVoices() || [];
+        return voices.find((v) => v.lang === "en-US" && v.localService)
+          || voices.find((v) => v.lang === "en-US")
+          || voices.find((v) => /^en/i.test(v.lang))
+          || null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    /**
+     * Speak text. Calls onDone when finished (or after a safety timeout, since
+     * some web views never fire "end"). Returns false when there is no speech.
+     */
+    function gsSpeak(text, { onDone = null, interrupt = true, maxWaitMs = 4000 } = {}) {
+      let finished = false;
+      const done = () => {
+        if (finished) return;
+        finished = true;
+        if (typeof onDone === "function") onDone();
+      };
+      if (!text || !speechAvailable() || a11ySettings.outputMode === "visual-only") {
+        if (onDone) setTimeout(done, 0);
+        return false;
+      }
+      try {
+        if (interrupt) window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-US";
+        const voice = pickEnglishVoice();
+        if (voice) utterance.voice = voice;
+        utterance.rate = Number(a11ySettings.speechRate) || 1;
+        utterance.volume = 1;
+        utterance.onend = done;
+        utterance.onerror = done;
+        window.speechSynthesis.speak(utterance);
+        if (onDone) setTimeout(done, maxWaitMs);
+        return true;
+      } catch (error) {
+        if (onDone) setTimeout(done, 0);
+        return false;
+      }
+    }
+
+    function gsStopSpeech() {
+      try {
+        if (speechAvailable()) window.speechSynthesis.cancel();
+      } catch (error) {
+        /* ignore */
+      }
+    }
+
+    /** Start a stretch where nothing may talk over the timing sounds. */
+    function gsBeginQuiet() {
+      suppressSrAnnouncements = true;
+      if (a11ySettings.selfVoice) gsStopSpeech();
     }
 
     function visualOutputEnabled() {
@@ -1421,7 +1872,7 @@
       const maxTime = Math.max(...markerTimes, ...reference);
       clearExemplarVisuals();
       emitCue("replay_start", { referenceTimes: reference, markerTimes });
-      suppressSrAnnouncements = true;
+      gsBeginQuiet();
 
       if (labels[0]) {
         exemplarVisualTimeouts.push(
@@ -1634,6 +2085,8 @@
       const storedSyncVisualReplay = localStorage.getItem("om-a11y-sync-visual-replay");
       const storedOutsideVisualVariant = localStorage.getItem("om-a11y-outside-visual-variant");
       const storedUserFlashContrast = localStorage.getItem("om-a11y-user-flash-contrast");
+      const storedSelfVoice = localStorage.getItem("om-a11y-self-voice");
+      const storedSpeechRate = Number(localStorage.getItem("om-a11y-speech-rate"));
 
       if (storedClear) clearTimeInput.value = storedClear;
       if (storedFull) fullTimeInput.value = storedFull;
@@ -1663,6 +2116,8 @@
       if (storedHighContrast) a11ySettings.highContrast = storedHighContrast === "true";
       if (storedFocusBoost) a11ySettings.focusBoost = storedFocusBoost === "true";
       if (storedAnnounceCues) a11ySettings.announceCues = storedAnnounceCues === "true";
+      if (storedSelfVoice) a11ySettings.selfVoice = storedSelfVoice === "true";
+      if ([0.8, 1, 1.25].includes(storedSpeechRate)) a11ySettings.speechRate = storedSpeechRate;
       if (storedSyncVisualReplay) a11ySettings.syncVisualReplay = storedSyncVisualReplay === "true";
       if (storedOutsideVisualVariant === "up" || storedOutsideVisualVariant === "down") {
         a11ySettings.outsideVisualVariant = storedOutsideVisualVariant;
@@ -1687,6 +2142,8 @@
       a11yHighContrast.checked = a11ySettings.highContrast;
       a11yFocusBoost.checked = a11ySettings.focusBoost;
       a11yAnnounceCues.checked = a11ySettings.announceCues;
+      if (a11ySelfVoice) a11ySelfVoice.checked = a11ySettings.selfVoice;
+      if (a11ySpeechRate) a11ySpeechRate.value = String(a11ySettings.speechRate);
       applyA11ySettings();
     }
 
@@ -1909,6 +2366,53 @@
       localStorage.setItem("om-a11y-announce-cues", String(a11ySettings.announceCues));
     });
 
+    a11ySelfVoice?.addEventListener("change", () => {
+      a11ySettings.selfVoice = a11ySelfVoice.checked;
+      localStorage.setItem("om-a11y-self-voice", String(a11ySettings.selfVoice));
+      if (a11ySettings.selfVoice) {
+        gsSpeak(speechAvailable()
+          ? "Speaking directions aloud is on."
+          : "");
+        if (!speechAvailable()) setStatus("Speech is not available on this device.", "warn");
+      } else {
+        gsStopSpeech();
+      }
+    });
+
+    a11ySpeechRate?.addEventListener("change", () => {
+      const rate = Number(a11ySpeechRate.value);
+      a11ySettings.speechRate = [0.8, 1, 1.25].includes(rate) ? rate : 1;
+      localStorage.setItem("om-a11y-speech-rate", String(a11ySettings.speechRate));
+      gsSpeak("This is the speaking rate.");
+    });
+
+    /*
+     * A one-tap check that sound works, with the state of the sound engine in
+     * words. If a tester hears nothing, the note tells us why.
+     */
+    soundTestBtn?.addEventListener("click", () => {
+      const context = ensureAudioContext();
+      const note = () => {
+        if (!soundTestNote) return;
+        if (a11ySettings.outputMode === "visual-only") {
+          soundTestNote.textContent = "Visual-only mode is on, so the app makes no sounds.";
+          return;
+        }
+        const state = context.state === "running" ? "on" : context.state;
+        soundTestNote.textContent = `Sound engine: ${state}. You should hear a steady tone, then a chime.`;
+      };
+      const play = () => {
+        playCompositeTone(gsSamplePartials(), 1.0, 0.05, gsSampleLevel(), "steady");
+        playFeedbackTone("acceptable", 1.3);
+        note();
+      };
+      if (context.state !== "running") {
+        context.resume().then(play).catch(play);
+      } else {
+        play();
+      }
+    });
+
     a11ySyncVisualReplay.addEventListener("change", () => {
       a11ySettings.syncVisualReplay = a11ySyncVisualReplay.checked;
       localStorage.setItem("om-a11y-sync-visual-replay", String(a11ySettings.syncVisualReplay));
@@ -1943,6 +2447,7 @@
         setStatus(pendingStatusMessage);
         announceScreenReader(pendingStatusMessage);
       }
+      offerOpenInApp();
     });
 
     window.addEventListener("resize", syncViewportHeight);
@@ -1963,7 +2468,7 @@
      * and the Web Audio tones follow. So: loop a silent clip, started from the
      * first user gesture (autoplay rules require it). It pauses whenever the
      * page is hidden, so it costs nothing in the background. For a tool used
-     * at a kerb with the switch flipped, this is the difference between
+     * at a curb with the switch flipped, this is the difference between
      * hearing the cues and hearing nothing.
      * ------------------------------------------------------------------ */
     const isApplePlatform = isNativeShell || /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -2006,10 +2511,12 @@
 
     const unlockAudio = () => {
       warmUpAudio();
-      // Only the native shell needs the keep-alive (and there the AVAudioSession
-      // category already covers it, so this is belt and braces). In Safari on
+      // Only the native shell on iOS 16 needs the keep-alive. From iOS 17 the
+      // web view takes navigator.audioSession.type = "playback" instead (see
+      // configureWebAudioSession), and a looping media element alongside Web
+      // Audio is one more thing that can take the audio route. In Safari on
       // the web a playing media element would silence the user's own music.
-      if (isNativeShell) startSilentKeepAlive();
+      if (isNativeShell && nativePlatform === "ios" && !navigator.audioSession) startSilentKeepAlive();
       document.removeEventListener("pointerdown", unlockAudio);
       document.removeEventListener("keydown", unlockAudio);
     };
@@ -2017,30 +2524,32 @@
     document.addEventListener("keydown", unlockAudio, { once: true });
 
     shareTimingSettingsBtn.addEventListener("click", () => { copyShareTimingLink(); });
+    textSetupBtn?.addEventListener("click", () => { textSetupToStudent(); });
 
     copySetupTimingMessageBtn.addEventListener("click", async () => {
-      if (!setupTimingMessage.value) {
-        if (!validateSetup()) return;
-        populateShareMessagePreviews();
-      }
+      if (!validateShareSetup()) return;
+      populateShareMessagePreviews();
       await copyTextToClipboard(setupTimingMessage.value);
-      setStatus("Copied the setup message.");
-      announceScreenReader("Copied the setup message.");
+      setShareNote("Copied the setup message.");
     });
 
     copyPracticeTimingMessageBtn.addEventListener("click", async () => {
-      if (!practiceTimingMessage.value) {
-        if (!validateSetup()) return;
-        populateShareMessagePreviews();
-      }
+      populateShareMessagePreviews();
       await copyTextToClipboard(practiceTimingMessage.value);
-      setStatus("Copied the practice message.");
-      announceScreenReader("Copied the practice message.");
+      setShareNote("Copied the practice link.");
+    });
+
+    // Keep the previews current while the instructor changes what to include.
+    ["shareIncludeTimes", "shareIncludeContact", "shareIncludeFeatures"].forEach((id) => {
+      document.getElementById(id)?.addEventListener("change", () => {
+        if (setupTimingMessage.value) populateShareMessagePreviews();
+      });
     });
 
     /* ---------------- Boot ---------------- */
     syncViewportHeight();
     importSharedTimingSettings();
+    bindNativeAppUrls();
     applyStoredSelections();
     restoreStoredSettings();
     renderMarkers();
