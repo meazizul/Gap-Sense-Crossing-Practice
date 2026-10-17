@@ -33,6 +33,13 @@ class MainViewController: CAPBridgeViewController {
 ///   sustainStop({ id })
 ///   stopSound()        silence every tone now
 ///   keepAwake({ on })  keep the screen on while a pad is open
+///   directTouchShow({ x, y, width, height, label })
+///                      lay a native direct-touch area over the page at that
+///                      rectangle (CSS px). With VoiceOver on, touches there
+///                      reach the app unchanged, so swipes and taps work the
+///                      same as without VoiceOver (build 12).
+///   directTouchHide()  remove it
+///   Event "directTouch" { kind: tap|up|down|left|right, durationMs, dx, dy }
 ///   audioStatus()      engine, session category, phone volume, route, peak
 ///   speak({ text, rate, interrupt })  resolves when the speech ends
 ///   stopSpeaking()
@@ -57,11 +64,14 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "stopSpeaking", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pendingScreen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "keepAwake", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "directTouchShow", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "directTouchHide", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "log", returnType: CAPPluginReturnPromise)
     ]
 
     private let haptics = GSHaptics()
     private var shortcutObserver: NSObjectProtocol?
+    private var directTouch: GSDirectTouchView?
 
     private var volumeObservation: NSKeyValueObservation?
 
@@ -148,6 +158,43 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func stopSpeaking(_ call: CAPPluginCall) {
         DispatchQueue.main.async { GSSpeech.shared.stop() }
         call.resolve()
+    }
+
+    /// directTouchShow: a native view marked for direct interaction, placed
+    /// over the pad's gesture area. VoiceOver passes touches inside it straight
+    /// to the app (the student turns Direct Touch on for Gap Sense once), so a
+    /// swipe at the curb is the same swipe with VoiceOver on or off. Without
+    /// VoiceOver it simply forwards the same gestures.
+    @objc func directTouchShow(_ call: CAPPluginCall) {
+        let x = CGFloat(call.getDouble("x") ?? 0)
+        let y = CGFloat(call.getDouble("y") ?? 0)
+        let width = CGFloat(call.getDouble("width") ?? 0)
+        let height = CGFloat(call.getDouble("height") ?? 0)
+        let label = call.getString("label") ?? "Gesture area"
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let webView = self.bridge?.webView else { call.resolve(["shown": false]); return }
+            if self.directTouch == nil {
+                let view = GSDirectTouchView(frame: .zero)
+                view.onGesture = { [weak self] kind, durationMs, dx, dy in
+                    self?.notifyListeners("directTouch", data: ["kind": kind, "durationMs": durationMs, "dx": dx, "dy": dy])
+                }
+                webView.addSubview(view)
+                self.directTouch = view
+            }
+            guard let view = self.directTouch else { call.resolve(["shown": false]); return }
+            view.frame = CGRect(x: x, y: y, width: width, height: height)
+            view.accessibilityLabel = label
+            view.isHidden = width < 1 || height < 1
+            webView.bringSubviewToFront(view)
+            call.resolve(["shown": !view.isHidden])
+        }
+    }
+
+    @objc func directTouchHide(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            self?.directTouch?.isHidden = true
+            call.resolve()
+        }
     }
 
     /// keepAwake({ on }): stop the phone from locking while a full-screen pad
@@ -490,5 +537,62 @@ enum GSSelfTest {
                 }
             }
         }
+    }
+}
+
+
+/// A transparent view that VoiceOver treats as a direct-touch area. It reads
+/// one finger: where it went down, where it lifted, and how long it took,
+/// and classifies the gesture with the same thresholds as the web pads
+/// (36 pt; vertical wins a tie). The page gets the result as an event and
+/// times the vehicle from the touch-down, not the lift.
+final class GSDirectTouchView: UIView {
+    var onGesture: ((String, Double, Double, Double) -> Void)?
+    private var startPoint: CGPoint?
+    private var startTime: TimeInterval = 0
+    private var trackedTouch: UITouch?
+    private let minSwipe: CGFloat = 36
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isOpaque = false
+        isMultipleTouchEnabled = false
+        isAccessibilityElement = true
+        accessibilityTraits = [.allowsDirectInteraction]
+        accessibilityHint = "Direct touch area. Swipe or tap here as you would without VoiceOver."
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard trackedTouch == nil, let touch = touches.first else { return }
+        trackedTouch = touch
+        startPoint = touch.location(in: self)
+        startTime = touch.timestamp
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = trackedTouch, touches.contains(touch), let start = startPoint else { return }
+        let end = touch.location(in: self)
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let durationMs = max(0, (touch.timestamp - startTime) * 1000)
+        let kind: String
+        if abs(dx) < minSwipe && abs(dy) < minSwipe {
+            kind = "tap"
+        } else if abs(dy) >= abs(dx) {
+            kind = dy < 0 ? "up" : "down"
+        } else {
+            kind = dx < 0 ? "left" : "right"
+        }
+        trackedTouch = nil
+        startPoint = nil
+        onGesture?(kind, durationMs, Double(dx), Double(dy))
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        trackedTouch = nil
+        startPoint = nil
     }
 }
