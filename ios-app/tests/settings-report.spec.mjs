@@ -241,7 +241,8 @@ test("sending a report: confirm first, then the share sheet; never a name; stree
   expect(report).not.toMatch(/Name:|Client code/);
   expect(report).toContain("At the street (First half, from the left, by hearing): warning time +2.00s; answered \"longer\", it was \"longer\" — correct");
   expect(report).toContain("At the street (Full street, from the right, by vision): vehicle never came");
-  expect(report).toContain("warning time -1.00s, shorter than the crossing — not enough warning [not quiet when started]");
+  expect(report).toContain("warning time -1.00s, shorter than the crossing [not quiet when started]");
+  expect(report).not.toMatch(/enough warning/);
   expect(report).toContain('answered "same", it was "longer" — incorrect');
   expect(report).toContain("tapped out the difference +0.10s — within margin");
   expect(report).toContain("Comparison preparation");

@@ -89,6 +89,10 @@ Each event type maps to a deliberately distinguishable sensation:
 | `reference_ok` | Within the margin, or a right answer | **Three strong knocks**, 160 ms apart | `[70, 90, 70, 90, 70]` |
 | `reference_bad` | Outside the margin, or a wrong answer | **One 600 ms buzz** (continuous, full intensity) | `[550]` |
 
+At the street, the instructor can set confirmation of a swipe or tap to
+vibration only (build 10), so a student listening for traffic hears nothing
+from the phone; the vibration pattern is the same either way.
+
 Since build 9 each knock on iPhone is a sharp tap followed by a short
 full-strength rumble. Testers found the earlier single taps (a few
 milliseconds long) too faint. The Android app vibrates for the lengths shown

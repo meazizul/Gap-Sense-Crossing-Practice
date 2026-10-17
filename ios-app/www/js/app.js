@@ -31,7 +31,7 @@ let gsCurrentScreen = "home";
  * and CACHE_VERSION (sw.js). In the native app the real bundle values are
  * read from the App plugin and override these. */
 const GS_APP_VERSION = "1.0";
-const GS_APP_BUILD = "9";
+const GS_APP_BUILD = "10";
 const GS_APP_DATE = "16 October 2026";
 
 async function gsRenderAbout() {
@@ -65,9 +65,29 @@ function gsCancelActivities() {
   if (typeof gsLiveLeave === "function") gsLiveLeave();
   if (typeof gsSignalCancel === "function") gsSignalCancel();
   if (typeof gsClearHaptics === "function") gsClearHaptics();
+  // Sounds already scheduled used to play on into the next screen for up to
+  // the length of a replay; now Back silences them at once.
+  if (typeof stopAllSound === "function") stopAllSound();
+  if (typeof gsStopSpeech === "function") gsStopSpeech();
   suppressSrAnnouncements = false;
   stopVisualReplay();
   gsHideIntervalVisual();
+}
+
+/*
+ * Each settings box is a labelled group: its heading (a real h2/h3 since
+ * build 10) names the group, so VoiceOver reads "Crossing times, group" on
+ * entering it and the headings rotor can jump between sections.
+ */
+function gsLabelSections() {
+  let n = 0;
+  document.querySelectorAll(".setup-heading, .card-label").forEach((heading) => {
+    const group = heading.closest(".setup-group, .card, .help-card, .progress-section") || heading.parentElement;
+    if (!group || group === document.body || group.tagName === "SECTION") return;
+    if (!heading.id) heading.id = `gsSectionHeading${++n}`;
+    if (!group.hasAttribute("role")) group.setAttribute("role", "group");
+    if (!group.hasAttribute("aria-labelledby")) group.setAttribute("aria-labelledby", heading.id);
+  });
 }
 
 /* What self-voicing says on arrival at each screen. */
@@ -357,11 +377,17 @@ function gsRenderProgress() {
       return `<div class="progress-card"><span class="progress-label">${label}</span>
         <span class="progress-value">—</span><span class="progress-note">not started</span></div>`;
     }
-    const pct = Math.round((stats.correct / stats.total) * 100);
+    const pct = stats.total ? Math.round((stats.correct / stats.total) * 100) : null;
     const noun = activity === "practice" || activity === "signal" ? "within margin" : "correct";
+    // "How much" estimates are the same vehicles or samples judged a second
+    // way, so they get their own note and are never added to the count.
+    const howMuch = stats.howMuchTotal
+      ? ` · how much: ${stats.howMuchCorrect} of ${stats.howMuchTotal} within margin`
+      : "";
+    const main = stats.total ? `${stats.correct} of ${stats.total} ${noun}` : "no judgments yet";
     return `<div class="progress-card"><span class="progress-label">${label}</span>
-      <span class="progress-value">${pct}%</span>
-      <span class="progress-note">${stats.correct} of ${stats.total} ${noun}</span></div>`;
+      <span class="progress-value">${pct === null ? "—" : `${pct}%`}</span>
+      <span class="progress-note">${main}${howMuch}</span></div>`;
   }).join("");
 
   // A small run of the last 20 timing attempts (practice and preparation).
@@ -699,6 +725,7 @@ function gsBindShell() {
 }
 
 function gsBoot() {
+  gsLabelSections();
   gsBindShell();
   if (typeof gsFeaturesInit === "function") gsFeaturesInit();
   gsComparisonInit();

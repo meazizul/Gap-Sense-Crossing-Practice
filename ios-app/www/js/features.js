@@ -36,7 +36,8 @@ const GS_FEATURE_DEFAULTS = Object.freeze({
     liveSense: "choose",          // hearing | vision | choose
     liveJudge: "on",              // on | off | choose
     liveHowMuch: "choose",        // on | off | choose
-    liveReplay: "always"          // always | errors | never | choose
+    liveReplay: "always",         // always | errors | never | choose
+    liveConfirm: "sound"          // sound | vibration  (confirmation of a street gesture)
   }
 });
 
@@ -51,7 +52,8 @@ const GS_FEATURE_VALUES = {
   liveSense: ["hearing", "vision", "choose"],
   liveJudge: ["on", "off", "choose"],
   liveHowMuch: ["on", "off", "choose"],
-  liveReplay: ["always", "errors", "never", "choose"]
+  liveReplay: ["always", "errors", "never", "choose"],
+  liveConfirm: ["sound", "vibration"]
 };
 
 const GS_ACTIVITY_IDS = ["practice", "signal", "compare", "live"];
@@ -248,6 +250,17 @@ function gsHashPin(pin) {
 
 function gsPinIsSet() {
   return Boolean(localStorage.getItem(GS_PIN_KEY));
+}
+
+/* The stored hash, for a setup link that should lock the student's phone. */
+function gsPinHash() {
+  return localStorage.getItem(GS_PIN_KEY) || "";
+}
+
+/* A setup link carried the instructor's code: lock now. */
+function gsInstructorLockNow() {
+  gsInstructorUnlocked = false;
+  if (document.getElementById("instructorLockedCard")) gsRenderInstructorLock();
 }
 
 function gsRenderInstructorLock() {

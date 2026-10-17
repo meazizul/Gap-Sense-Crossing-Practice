@@ -62,7 +62,9 @@ test("iPhone app: every tone and spoken prompt goes to the native player, and no
   await page.evaluate(() => gsSpeak("Get ready"));
   expect(await page.evaluate(() => gsSpeechBusy())).toBe(true);
   await page.waitForFunction(() => !gsSpeechBusy());
-  expect(await page.evaluate(() => window.__native.speech[0])).toMatchObject({ text: "Get ready" });
+  // Leaving a screen now stops any speech first ("stop" entries); the first
+  // utterance is still "Get ready".
+  expect(await page.evaluate(() => window.__native.speech.find((s) => typeof s === "object"))).toMatchObject({ text: "Get ready" });
   // The replays still get a running clock.
   const t1 = await page.evaluate(() => ensureAudioContext().currentTime);
   await page.waitForTimeout(120);

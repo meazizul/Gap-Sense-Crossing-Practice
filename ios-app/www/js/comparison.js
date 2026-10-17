@@ -219,10 +219,14 @@ function gsShowResult(correct) {
  * stopped it, and the right/wrong cue where their real crossing time ends.
  * Returns the time (seconds from now) at which the replay is over.
  */
-function gsReplayProduction({ producedSec, crossingSec, style = "continuous", marginSec, startDelaySec = 0.6 }) {
+function gsReplayProduction({ producedSec, crossingSec, style = "continuous", marginSec, within: verdict, startDelaySec = 0.6 }) {
   ensureAudioContext();
   const t0 = startDelaySec;
-  const within = Math.abs(producedSec - crossingSec) <= marginSec;
+  // The caller has already decided right or wrong (with its latency
+  // allowance) and told the student. The replay must repeat that verdict,
+  // never recompute it: a chime followed by a buzz for the same attempt was
+  // a real bug (Cindi, 16 Oct 2026).
+  const within = typeof verdict === "boolean" ? verdict : Math.abs(producedSec - crossingSec) <= marginSec;
   const feedbackType = within ? "acceptable" : "outside";
 
   if (style === "beep" || style === "ticks") {
@@ -368,6 +372,7 @@ function gsShowPad(el) {
   if (!el || !el.hidden) return;
   el.hidden = false;
   gsOpenPads += 1;
+  if (gsOpenPads === 1 && typeof gsKeepAwake === "function") gsKeepAwake(true);
   if (typeof setMainContentInert === "function") setMainContentInert(true);
   document.body.classList.add("pad-open");
 }
@@ -377,6 +382,7 @@ function gsHidePad(el) {
   el.hidden = true;
   gsOpenPads = Math.max(0, gsOpenPads - 1);
   if (!gsOpenPads) {
+    if (typeof gsKeepAwake === "function") gsKeepAwake(false);
     document.body.classList.remove("pad-open");
     const dialogOpen = [...document.querySelectorAll("dialog")].some((d) => d.open);
     if (!dialogOpen && typeof setMainContentInert === "function") setMainContentInert(false);
@@ -401,6 +407,9 @@ function gsBindSwipeSurface(surface, getHandlers) {
     swipe.x = event.clientX;
     swipe.y = event.clientY;
     swipe.id = event.pointerId;
+    // The moment that counts is the touch, not the lift: a 0.3 s swipe must
+    // not make the warning time 0.3 s shorter (Cindi, 16 Oct 2026).
+    swipe.downAt = performance.now();
     try { surface.setPointerCapture(event.pointerId); } catch (error) { /* optional */ }
   });
   surface.addEventListener("pointerup", (event) => {
@@ -415,7 +424,7 @@ function gsBindSwipeSurface(surface, getHandlers) {
     else kind = dx < 0 ? "left" : "right";
     if (typeof handlers[kind] === "function") {
       event.preventDefault();
-      handlers[kind]();
+      handlers[kind](swipe.downAt);
     }
   });
   surface.addEventListener("pointercancel", () => { swipe.active = false; });
@@ -425,12 +434,13 @@ function gsBindSwipeSurface(surface, getHandlers) {
 
 /* ---------------- Answer pad ---------------- */
 
-const gsAnswerPad = { onAnswer: null };
+const gsAnswerPad = { onAnswer: null, onSkip: null };
 
-function gsOpenAnswerPad({ title, onAnswer }) {
+function gsOpenAnswerPad({ title, onAnswer, onSkip = null }) {
   const overlay = document.getElementById("answerOverlay");
   if (!overlay) return;
   gsAnswerPad.onAnswer = onAnswer;
+  gsAnswerPad.onSkip = onSkip;
   const titleEl = document.getElementById("answerOverlayTitle");
   if (titleEl) titleEl.textContent = title;
   const surface = document.getElementById("answerSurface");
@@ -444,7 +454,16 @@ function gsOpenAnswerPad({ title, onAnswer }) {
 
 function gsCloseAnswerPad() {
   gsAnswerPad.onAnswer = null;
+  gsAnswerPad.onSkip = null;
   gsHidePad(document.getElementById("answerOverlay"));
+}
+
+/* Skip: close the pad and record nothing. A student who does not know is
+ * never made to guess (Cindi, 16 Oct 2026). */
+function gsAnswerPadSkip() {
+  const skip = gsAnswerPad.onSkip;
+  gsCloseAnswerPad();
+  if (typeof skip === "function") skip();
 }
 
 function gsAnswerPadAnswer(answer) {
@@ -456,14 +475,15 @@ function gsAnswerPadAnswer(answer) {
 
 /* ---------------- "How much" pad ---------------- */
 
-const gsHowMuchPad = { start: 0, onDone: null };
+const gsHowMuchPad = { start: 0, onDone: null, onSkip: null };
 
-function gsOpenHowMuchPad({ title, onDone }) {
+function gsOpenHowMuchPad({ title, onDone, onSkip = null }) {
   const overlay = document.getElementById("howMuchOverlay");
   const btn = document.getElementById("compareFollowUpBtn");
   if (!overlay || !btn) return;
   gsHowMuchPad.start = 0;
   gsHowMuchPad.onDone = onDone;
+  gsHowMuchPad.onSkip = onSkip;
   const titleEl = document.getElementById("howMuchTitle");
   if (titleEl) titleEl.textContent = title;
   btn.textContent = "TAP TO START";
@@ -475,8 +495,22 @@ function gsOpenHowMuchPad({ title, onDone }) {
 function gsCloseHowMuchPad() {
   gsHowMuchPad.start = 0;
   gsHowMuchPad.onDone = null;
+  gsHowMuchPad.onSkip = null;
   gsHidePad(document.getElementById("howMuchOverlay"));
 }
+
+function gsHowMuchPadSkip() {
+  const skip = gsHowMuchPad.onSkip;
+  gsCloseHowMuchPad();
+  if (typeof skip === "function") skip();
+}
+
+/* Escape skips whichever pad is open, for keyboard and switch users. */
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (!document.getElementById("howMuchOverlay")?.hidden) { event.preventDefault(); gsHowMuchPadSkip(); return; }
+  if (!document.getElementById("answerOverlay")?.hidden) { event.preventDefault(); gsAnswerPadSkip(); }
+});
 
 function gsHowMuchTap() {
   if (!gsHowMuchPad.onDone) return;
@@ -626,7 +660,7 @@ function gsCompareAskAnswer() {
   gsCompareState.phase = "answering";
   const title = "Was that longer, shorter, or about the same as your crossing?";
   gsCompareStatus(title, "neutral", { announce: false });
-  gsOpenAnswerPad({ title, onAnswer: gsCompareAnswer });
+  gsOpenAnswerPad({ title, onAnswer: gsCompareAnswer, onSkip: gsCompareSkip });
   announceScreenReader(gsFeature("compareSwipe") !== "off"
     ? `${title} Swipe up for longer, down for shorter, tap for about the same. Or use the buttons.`
     : title);
@@ -693,13 +727,28 @@ function gsCompareStartHowMuch() {
   const direction = gsCompareState.expected;
   const title = `How much ${direction}? Tap to start, tap again to end.`;
   gsCompareStatus(title);
-  gsOpenHowMuchPad({ title: `How much ${direction}?`, onDone: gsCompareHowMuchDone });
+  gsOpenHowMuchPad({ title: `How much ${direction}?`, onDone: gsCompareHowMuchDone, onSkip: gsCompareHowMuchSkip });
+}
+
+/* Skipped the judgment: the trial is dropped and nothing is recorded. */
+function gsCompareSkip() {
+  if (gsCompareState.phase !== "answering") return;
+  gsCompareCancel();
+  gsCompareFinish("Skipped. Nothing was recorded. Press Play for another.");
+}
+
+/* Skipped the estimate: the judgment already recorded stands. */
+function gsCompareHowMuchSkip() {
+  if (gsCompareState.phase !== "howmuch") return;
+  gsCompareFinish("Skipped the estimate. Press Play for another.");
 }
 
 function gsCompareHowMuchDone(produced) {
   if (gsCompareState.phase !== "howmuch") return;
   const trueDiff = Math.abs(gsCompareState.intervalSec - gsCompareState.crossingSec);
-  const margin = gsCompareState.marginSec;
+  // "How much" is its own skill with its own adaptive lane; the judgment's
+  // margin (which sets the "about the same" band) is not reused here.
+  const margin = gsEffectiveMargin("compare", gsCompareState.street, true);
   const correct = Math.abs(produced - trueDiff) <= margin;
 
   gsLogAttempt({
@@ -750,16 +799,21 @@ function gsCompareHowMuchDone(produced) {
 function gsCompareRenderScore() {
   const el = document.getElementById("compareScore");
   if (!el) return;
-  const recentWindow = gsHistoryFor("compare", gsCompareState.street, 10)
-    .filter((entry) => entry.answer !== "magnitude");
+  // Judgments only, and the last ten OF THOSE: "how much" estimates are a
+  // different skill and are shown on their own.
+  const recentWindow = gsHistoryFor("compare", gsCompareState.street, 10, false);
+  const howMuch = gsHistoryFor("compare", gsCompareState.street, 10, true);
   const accuracy = gsAccuracy(recentWindow);
   const margin = gsCompareMargin();
   const marginNote = gsAdaptiveEnabled()
     ? ` · margin ${margin.toFixed(2)}s (adaptive)`
     : ` · margin ${margin.toFixed(2)}s`;
+  const howMuchNote = howMuch.length
+    ? ` · how much: ${howMuch.filter((e) => e.correct).length} of ${howMuch.length} within margin`
+    : "";
   el.textContent = accuracy === null
     ? `No attempts yet${marginNote}`
-    : `Last ${recentWindow.length}: ${Math.round(accuracy * 100)}% correct${marginNote}`;
+    : `Last ${recentWindow.length}: ${Math.round(accuracy * 100)}% correct${howMuchNote}${marginNote}`;
 }
 
 function gsCompareSetStreet(street) {
@@ -881,6 +935,22 @@ function gsLiveCancelFlow() {
   gsLiveRenderPad();
 }
 
+/*
+ * The phone locked or another app came to the front: a vehicle or a sample
+ * being timed cannot be finished meaningfully, so it is dropped unrecorded.
+ */
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) return;
+  if (gsLiveState.phase === "arriving" || gsLiveState.phase === "judging" || gsLiveState.phase === "howmuch") {
+    gsLiveCancelFlow();
+    gsLiveStatus("The app was hidden, so that vehicle was not recorded. Ready for the next one.");
+  }
+  if (gsCompareState.phase !== "idle") {
+    gsCompareCancel();
+    gsCompareFinish("The app was hidden, so that one was not recorded. Press Play for another.");
+  }
+});
+
 /* Called by the shell when leaving the screen. */
 function gsLiveLeave() {
   gsLiveCancelFlow();
@@ -892,16 +962,25 @@ function gsLiveEnter() {
   gsLiveRenderTally();
 }
 
-function gsLiveDetect(direction) {
+function gsLiveDetect(direction, atMs) {
   if (gsLiveState.phase !== "detect") return;
   gsLiveState.direction = direction === "right" ? "right" : "left";
-  gsLiveState.detectedAt = performance.now();
+  gsLiveState.detectedAt = Number.isFinite(atMs) ? atMs : performance.now();
   gsLiveState.phase = "arriving";
-  hapticCue("start");
-  playConfirmTone();
+  gsLiveConfirm("start");
   gsLiveRenderPad();
   gsLiveStatus(`From the ${gsLiveState.direction}. Tap when it passes in front of you, or swipe down if it never comes.`);
   document.getElementById("liveArrivedBtn")?.focus({ preventScroll: true });
+}
+
+/*
+ * Confirm a street gesture. The student is listening for traffic, so the
+ * instructor can make this vibration only (option liveConfirm); the default
+ * keeps the short sound as well.
+ */
+function gsLiveConfirm(cue = "marker") {
+  hapticCue(cue);
+  if (gsFeature("liveConfirm") !== "vibration") playConfirmTone();
 }
 
 function gsLiveNeverCame() {
@@ -919,7 +998,7 @@ function gsLiveNeverCame() {
     diffSec: 0,
     marginSec: gsEffectiveMargin("live", street)
   });
-  playConfirmTone();
+  gsLiveConfirm("marker");
   gsLiveState.phase = "detect";
   gsLiveRenderPad();
   gsLiveRenderTally();
@@ -927,16 +1006,17 @@ function gsLiveNeverCame() {
   document.querySelector("[data-live-detect='left']")?.focus({ preventScroll: true });
 }
 
-function gsLiveArrived() {
+function gsLiveArrived(atMs) {
   if (gsLiveState.phase !== "arriving") return;
-  const warningSec = (performance.now() - gsLiveState.detectedAt) / 1000;
+  const endMs = Number.isFinite(atMs) ? atMs : performance.now();
+  const warningSec = Math.max(0, endMs - gsLiveState.detectedAt) / 1000;
   const street = gsLiveStreetFor(gsLiveState.direction);
   gsLiveState.warningSec = warningSec;
   gsLiveState.crossingSec = gsCrossingTimeFor(street);
   gsLiveState.marginSec = gsEffectiveMargin("live", street);
   gsLiveState.category = gsClassifyInterval(warningSec, gsLiveState.crossingSec, gsLiveState.marginSec);
   hapticCue("marker");
-  playConfirmTone();
+  gsLiveConfirm("marker");
 
   if (!gsLiveJudgeEnabled()) {
     gsLiveLog({ judged: false, answer: null, correct: false });
@@ -948,7 +1028,7 @@ function gsLiveArrived() {
   gsLiveRenderPad();
   const title = "Was that warning time longer, shorter, or about the same as your crossing?";
   gsLiveStatus(title, "neutral", { announce: false });
-  gsOpenAnswerPad({ title, onAnswer: gsLiveAnswer });
+  gsOpenAnswerPad({ title, onAnswer: gsLiveAnswer, onSkip: gsLiveSkipJudgment });
   announceScreenReader(title);
 }
 
@@ -982,7 +1062,10 @@ function gsLiveAnswer(answer) {
   if (offerHowMuch) {
     gsLiveState.phase = "howmuch";
     gsLater(gsLiveTimers, () => {
-      gsOpenHowMuchPad({ title: `How much ${gsLiveState.category}?`, onDone: gsLiveHowMuchDone });
+      gsOpenHowMuchPad({ title: `How much ${gsLiveState.category}?`, onDone: gsLiveHowMuchDone, onSkip: () => {
+        if (gsLiveState.phase !== "howmuch") return;
+        gsLiveAfterVehicle({ judged: true, correct: true });
+      } });
       announceScreenReader(`How much ${gsLiveState.category}? Tap to start, tap again to end.`);
     }, 1.2);
     return;
@@ -990,11 +1073,21 @@ function gsLiveAnswer(answer) {
   gsLiveAfterVehicle({ judged: true, correct });
 }
 
+/* Skipped the judgment: that vehicle is dropped, nothing is recorded. */
+function gsLiveSkipJudgment() {
+  if (gsLiveState.phase !== "judging") return;
+  gsLiveState.phase = "detect";
+  gsLiveRenderPad();
+  gsLiveStatus("Skipped. Nothing was recorded. Ready for the next vehicle.");
+  document.querySelector("[data-live-detect='left']")?.focus({ preventScroll: true });
+}
+
 function gsLiveHowMuchDone(produced) {
   if (gsLiveState.phase !== "howmuch") return;
   const trueDiff = Math.abs(gsLiveState.warningSec - gsLiveState.crossingSec);
-  const correct = Math.abs(produced - trueDiff) <= gsLiveState.marginSec;
   const street = gsLiveStreetFor(gsLiveState.direction);
+  const howMuchMargin = gsEffectiveMargin("live", street, true);
+  const correct = Math.abs(produced - trueDiff) <= howMuchMargin;
   gsLogAttempt({
     activity: "live",
     street,
@@ -1005,11 +1098,11 @@ function gsLiveHowMuchDone(produced) {
     refSec: trueDiff,
     diffSec: produced - trueDiff,
     correct,
-    marginSec: gsLiveState.marginSec,
+    marginSec: howMuchMargin,
     answer: "magnitude",
     expected: "magnitude"
   });
-  gsLiveAfterVehicle({ judged: true, correct: true, magnitude: { produced, trueDiff, correct } });
+  gsLiveAfterVehicle({ judged: true, correct: true, magnitude: { produced, trueDiff, correct, marginSec: howMuchMargin } });
 }
 
 /**
@@ -1044,14 +1137,14 @@ function gsLiveAfterVehicle({ judged, correct, magnitude = null }) {
     if (magnitude) {
       if (gsFeature("magnitudeReplay") === "b") {
         const first = gsReplayJudgment({ sampleSec: gsLiveState.warningSec, crossingSec: gsLiveState.crossingSec, style, startDelaySec: 0.3 });
-        doneAt = gsReplayMagnitudeB({ estimateSec: magnitude.produced, trueDiffSec: magnitude.trueDiff, marginSec: gsLiveState.marginSec, startDelaySec: first + 0.5 });
+        doneAt = gsReplayMagnitudeB({ estimateSec: magnitude.produced, trueDiffSec: magnitude.trueDiff, marginSec: magnitude.marginSec, startDelaySec: first + 0.5 });
       } else {
         doneAt = gsReplayMagnitudeA({
           crossingSec: gsLiveState.crossingSec,
           sampleSec: gsLiveState.warningSec,
           estimateSec: magnitude.produced,
           direction: gsLiveState.category,
-          marginSec: gsLiveState.marginSec,
+          marginSec: magnitude.marginSec,
           style,
           startDelaySec: 0.3
         });
@@ -1181,6 +1274,8 @@ function gsComparisonInit() {
   document.querySelectorAll("#answerOverlay .answer-btn").forEach((btn) => {
     btn.addEventListener("click", () => gsAnswerPadAnswer(btn.dataset.answer));
   });
+  document.getElementById("answerSkipBtn")?.addEventListener("click", gsAnswerPadSkip);
+  document.getElementById("howMuchSkipBtn")?.addEventListener("click", gsHowMuchPadSkip);
   const answerOverlay = document.getElementById("answerOverlay");
   if (answerOverlay) {
     gsBindSwipeSurface(answerOverlay, () => (gsFeature("compareSwipe") === "off" ? {} : {
@@ -1237,10 +1332,10 @@ function gsComparisonInit() {
   if (liveOverlay) {
     gsBindSwipeSurface(liveOverlay, () => {
       if (gsLiveState.phase === "detect") {
-        return { left: () => gsLiveDetect("left"), right: () => gsLiveDetect("right") };
+        return { left: (at) => gsLiveDetect("left", at), right: (at) => gsLiveDetect("right", at) };
       }
       if (gsLiveState.phase === "arriving") {
-        return { tap: gsLiveArrived, up: gsLiveArrived, down: gsLiveNeverCame };
+        return { tap: (at) => gsLiveArrived(at), up: (at) => gsLiveArrived(at), down: gsLiveNeverCame };
       }
       return {};
     });

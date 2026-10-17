@@ -27,7 +27,9 @@ test("home activities are single buttons named by title and description (VoiceOv
   // No hidden "Home" heading for VoiceOver to land on; the one heading is
   // the visible screen title.
   await expect(page.locator("h2.sr-only")).toHaveCount(0);
-  await expect(page.locator("main h1, main h2")).toHaveCount(1);
+  // Only the visible screen's headings count: hidden screens keep their own
+  // section headings (h2) for VoiceOver's headings rotor.
+  await expect(page.locator("main h1:visible, main h2:visible")).toHaveCount(1);
   await practice.click();
   await screenVisible(page, "practice");
   await expect(page.locator("#screenTitle")).toBeFocused();
@@ -197,7 +199,7 @@ test("web build keeps pinch zoom but blocks double-tap zoom; Help shows the buil
   expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).toBe("manipulation");
   expect(await page.evaluate(() => getComputedStyle(document.getElementById("settingsTrigger")).touchAction)).toBe("manipulation");
   await page.evaluate(() => gsShowScreen("help"));
-  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 9 (web), 16 October 2026.");
+  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 10 (web), 16 October 2026.");
 });
 
 test("native shell: locked viewport, bundle version, Gap Sense haptics plugin, playback audio session", async ({ page }) => {
@@ -215,7 +217,7 @@ test("native shell: locked viewport, bundle version, Gap Sense haptics plugin, p
           pendingScreen: async () => ({}),
           addListener: () => {}
         },
-        App: { getInfo: async () => ({ version: "1.0", build: "9" }), addListener: () => {}, getLaunchUrl: async () => ({}) },
+        App: { getInfo: async () => ({ version: "1.0", build: "10" }), addListener: () => {}, getLaunchUrl: async () => ({}) },
         StatusBar: { setStyle: async () => {} }
       }
     };
@@ -225,7 +227,7 @@ test("native shell: locked viewport, bundle version, Gap Sense haptics plugin, p
   expect(meta).toContain("user-scalable=no");
   expect(meta).toContain("maximum-scale=1.0");
   await page.evaluate(() => gsShowScreen("help"));
-  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 9 (iPhone app), 16 October 2026.");
+  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 10 (iPhone app), 16 October 2026.");
   await expect(page.locator("#hapticsSupportNote")).toContainText("Native haptics active");
   await page.evaluate(() => { hapticCue("marker"); hapticCue("reference_ok"); hapticCue("reference_bad"); hapticCue("ready"); });
   expect(await page.evaluate(() => window.__haptics)).toEqual(["marker", "reference_ok", "reference_bad", "ready"]);
@@ -248,7 +250,7 @@ test("native shell: Siri / shortcut requests open the activity, cold and warm", 
           pendingScreen: async () => ({ screen: "compare" }),
           addListener: (name, fn) => { window.__listeners[name] = fn; }
         },
-        App: { getInfo: async () => ({ version: "1.0", build: "9" }), addListener: () => {}, getLaunchUrl: async () => ({}) },
+        App: { getInfo: async () => ({ version: "1.0", build: "10" }), addListener: () => {}, getLaunchUrl: async () => ({}) },
         StatusBar: { setStyle: async () => {} }
       }
     };
@@ -268,7 +270,7 @@ test("native shell: gapsense:// links apply a setup and open activities", async 
       Plugins: {
         Haptics: { impact: async () => {}, vibrate: async () => {} },
         App: {
-          getInfo: async () => ({ version: "1.0", build: "9" }),
+          getInfo: async () => ({ version: "1.0", build: "10" }),
           addListener: (name, fn) => { window.__appListeners[name] = fn; },
           getLaunchUrl: async () => ({})
         },
@@ -342,7 +344,7 @@ test("service worker: fetches fresh files online and still works offline", async
   await page.waitForFunction(async () => (await navigator.serviceWorker.ready).active?.state === "activated", null, { timeout: 15000 });
   await page.reload();
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), null, { timeout: 15000 });
-  expect(await page.evaluate(async () => (await caches.keys()))).toContain("gapsense-v10");
+  expect(await page.evaluate(async () => (await caches.keys()))).toContain("gapsense-v11");
   await context.setOffline(true);
   await page.reload();
   await expect(page.locator("#screen-home")).toBeVisible();
