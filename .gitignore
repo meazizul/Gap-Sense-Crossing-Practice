@@ -17,8 +17,6 @@ Thumbs.db
 *.swo
 *~
 
-.claude/
-.claude/worktrees/
 
 # ---------------------------------------------------------------
 # iOS / Capacitor
