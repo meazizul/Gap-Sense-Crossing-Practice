@@ -730,17 +730,47 @@ function gsCompareStartHowMuch() {
   gsOpenHowMuchPad({ title: `How much ${direction}?`, onDone: gsCompareHowMuchDone, onSkip: gsCompareHowMuchSkip });
 }
 
-/* Skipped the judgment: the trial is dropped and nothing is recorded. */
+/*
+ * Skipped the judgment. Recorded as skipped so the instructor sees it in the
+ * report, never scored (Cindi's decision, 16 Oct 2026; build 11).
+ */
 function gsCompareSkip() {
   if (gsCompareState.phase !== "answering") return;
+  gsLogAttempt({
+    activity: "compare",
+    street: gsCompareState.street,
+    userSec: gsCompareState.intervalSec,
+    refSec: gsCompareState.crossingSec,
+    diffSec: gsCompareState.intervalSec - gsCompareState.crossingSec,
+    correct: false,
+    marginSec: gsCompareState.marginSec,
+    expected: gsCompareState.expected,
+    skipped: true,
+    skip: "judgment"
+  });
   gsCompareCancel();
-  gsCompareFinish("Skipped. Nothing was recorded. Press Play for another.");
+  gsCompareRenderScore();
+  gsCompareFinish("Skipped. Noted as skipped, not scored. Press Play for another.");
 }
 
-/* Skipped the estimate: the judgment already recorded stands. */
+/* Skipped the estimate: the judgment already recorded stands; the skip is noted. */
 function gsCompareHowMuchSkip() {
   if (gsCompareState.phase !== "howmuch") return;
-  gsCompareFinish("Skipped the estimate. Press Play for another.");
+  const trueDiff = Math.abs(gsCompareState.intervalSec - gsCompareState.crossingSec);
+  gsLogAttempt({
+    activity: "compare",
+    street: gsCompareState.street,
+    userSec: 0,
+    refSec: trueDiff,
+    diffSec: 0,
+    correct: false,
+    marginSec: gsEffectiveMargin("compare", gsCompareState.street, true),
+    answer: "magnitude",
+    expected: "magnitude",
+    skipped: true,
+    skip: "magnitude"
+  });
+  gsCompareFinish("Skipped the estimate. Noted as skipped, not scored. Press Play for another.");
 }
 
 function gsCompareHowMuchDone(produced) {
@@ -1062,10 +1092,7 @@ function gsLiveAnswer(answer) {
   if (offerHowMuch) {
     gsLiveState.phase = "howmuch";
     gsLater(gsLiveTimers, () => {
-      gsOpenHowMuchPad({ title: `How much ${gsLiveState.category}?`, onDone: gsLiveHowMuchDone, onSkip: () => {
-        if (gsLiveState.phase !== "howmuch") return;
-        gsLiveAfterVehicle({ judged: true, correct: true });
-      } });
+      gsOpenHowMuchPad({ title: `How much ${gsLiveState.category}?`, onDone: gsLiveHowMuchDone, onSkip: gsLiveHowMuchSkip });
       announceScreenReader(`How much ${gsLiveState.category}? Tap to start, tap again to end.`);
     }, 1.2);
     return;
@@ -1073,13 +1100,57 @@ function gsLiveAnswer(answer) {
   gsLiveAfterVehicle({ judged: true, correct });
 }
 
-/* Skipped the judgment: that vehicle is dropped, nothing is recorded. */
+/*
+ * Skipped the judgment. The vehicle is kept in the log as skipped, with its
+ * warning time, so the instructor sees it; it is never scored (build 11).
+ */
 function gsLiveSkipJudgment() {
   if (gsLiveState.phase !== "judging") return;
+  const street = gsLiveStreetFor(gsLiveState.direction);
+  gsLogAttempt({
+    activity: "live",
+    street,
+    direction: gsLiveState.direction,
+    sense: gsLiveSense(),
+    judged: false,
+    skipped: true,
+    skip: "judgment",
+    userSec: gsLiveState.warningSec,
+    refSec: gsLiveState.crossingSec,
+    diffSec: gsLiveState.warningSec - gsLiveState.crossingSec,
+    correct: false,
+    marginSec: gsLiveState.marginSec,
+    expected: gsLiveState.category
+  });
   gsLiveState.phase = "detect";
   gsLiveRenderPad();
-  gsLiveStatus("Skipped. Nothing was recorded. Ready for the next vehicle.");
+  gsLiveRenderTally();
+  gsLiveStatus("Skipped. Noted as skipped, not scored. Ready for the next vehicle.");
   document.querySelector("[data-live-detect='left']")?.focus({ preventScroll: true });
+}
+
+/* Skipped the estimate: the judgment stands, the skip is noted. */
+function gsLiveHowMuchSkip() {
+  if (gsLiveState.phase !== "howmuch") return;
+  const street = gsLiveStreetFor(gsLiveState.direction);
+  const trueDiff = Math.abs(gsLiveState.warningSec - gsLiveState.crossingSec);
+  gsLogAttempt({
+    activity: "live",
+    street,
+    direction: gsLiveState.direction,
+    sense: gsLiveSense(),
+    judged: true,
+    skipped: true,
+    skip: "magnitude",
+    userSec: 0,
+    refSec: trueDiff,
+    diffSec: 0,
+    correct: false,
+    marginSec: gsEffectiveMargin("live", street, true),
+    answer: "magnitude",
+    expected: "magnitude"
+  });
+  gsLiveAfterVehicle({ judged: true, correct: true });
 }
 
 function gsLiveHowMuchDone(produced) {
@@ -1168,7 +1239,7 @@ function gsLiveReady() {
 function gsLiveRenderTally() {
   const el = document.getElementById("liveTally");
   if (!el) return;
-  const entries = gsLoadHistory().filter((e) => e.activity === "live" && e.answer !== "magnitude").slice(-20);
+  const entries = gsLoadHistory().filter((e) => e.activity === "live" && e.answer !== "magnitude" && !e.skipped).slice(-20);
   const vehicles = entries.filter((e) => !e.never);
   if (!vehicles.length && !entries.length) {
     el.textContent = "No vehicles timed yet.";

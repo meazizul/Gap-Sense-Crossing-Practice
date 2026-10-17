@@ -8,6 +8,19 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-16 (build 11: iOS, Android, web) — A skipped answer is recorded as skipped
+
+Cindi Lashinsky's rule: every answer screen has a way out, and leaving is
+recorded. Build 10 added Skip but recorded nothing. Build 11 records the skip.
+
+- **Skip is noted, never scored.** A skipped longer/shorter/same answer, or a
+  skipped "how much" estimate, goes into the log marked skipped. It appears in
+  the report's recent list ("skipped the answer (not scored)", with the
+  warning time at the street) and as a count per activity ("At the street: 2
+  skipped"), and on the Progress cards. It is left out of every score, the
+  last-ten windows, the street tally and the adaptive lanes.
+- Skipping "how much" keeps the judgment already given, as before.
+
 ## 2026-10-16 (build 10: iOS, Android, web) — Scoring, timing and street fixes from Cindi Lashinsky's review of build 9
 
 Cindi Lashinsky reviewed build 9 in detail: how the app records and scores
