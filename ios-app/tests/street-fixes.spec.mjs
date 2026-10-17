@@ -60,7 +60,7 @@ test("street: the warning time runs from the touch, not the lift, of the swipe",
   expect(warning).toBeLessThan(6.6);
 });
 
-test("street: Skip on the answer pad records nothing; Escape does the same", async ({ page }) => {
+test("street: Skip on the answer pad is recorded as skipped and never scored; Escape does the same", async ({ page }) => {
   await openLive(page);
   await page.click("[data-live-detect='left']");
   await tick(page, 3000);
@@ -69,7 +69,10 @@ test("street: Skip on the answer pad records nothing; Escape does the same", asy
   await expect(page.locator("#answerSkipBtn")).toBeVisible();
   await page.click("#answerSkipBtn");
   await expect(page.locator("#answerOverlay")).toBeHidden();
-  expect(await history(page)).toEqual([]);
+  let log = await history(page);
+  expect(log).toHaveLength(1);
+  expect(log[0]).toMatchObject({ activity: "live", street: "half", direction: "left", skipped: true, skip: "judgment", judged: false, correct: false });
+  expect(log[0].userSec).toBeGreaterThan(2.8);
   expect(await page.evaluate(() => gsLiveState.phase)).toBe("detect");
   expect(await statusText(page, "liveOverlayStatus")).toContain("Skipped");
   // Escape on the next vehicle.
@@ -79,7 +82,16 @@ test("street: Skip on the answer pad records nothing; Escape does the same", asy
   await expect(page.locator("#answerOverlay")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.locator("#answerOverlay")).toBeHidden();
-  expect(await history(page)).toEqual([]);
+  log = await history(page);
+  expect(log).toHaveLength(2);
+  // Shown, never scored: no attempt in the summary, the tally or the report's totals.
+  expect(await page.evaluate(() => gsSummary().total)).toBe(0);
+  expect(await page.evaluate(() => gsSummary().byActivity.live.skipped)).toBe(2);
+  await expect(page.locator("#liveTally")).toContainText("No vehicles timed yet");
+  const report = await page.evaluate(() => gsBuildReport());
+  expect(report).toContain("At the street: 2 skipped");
+  expect(report).toMatch(/At the street \(First half, from the left, by hearing\): warning time [+-]\d+\.\d\ds against the crossing, skipped the answer \(not scored\)/);
+  expect(report).not.toContain("correct (");
 });
 
 test("street: Skip on 'how much' keeps the judgment and drops the estimate", async ({ page }) => {
@@ -93,8 +105,15 @@ test("street: Skip on 'how much' keeps the judgment and drops the estimate", asy
   await page.click("#howMuchSkipBtn");
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
   const log = await history(page);
-  expect(log).toHaveLength(1);
+  expect(log).toHaveLength(2);
   expect(log[0]).toMatchObject({ activity: "live", answer: "longer", correct: true });
+  expect(log[1]).toMatchObject({ activity: "live", skipped: true, skip: "magnitude", correct: false });
+  // The judgment counts; the skipped estimate does not.
+  const live = await page.evaluate(() => gsSummary().byActivity.live);
+  expect(live).toMatchObject({ total: 1, correct: 1, howMuchTotal: 0, skipped: 1 });
+  expect(await page.evaluate(() => gsHistoryFor("live", "half", 10, true).length)).toBe(0);
+  const report = await page.evaluate(() => gsBuildReport());
+  expect(report).toContain("skipped the how much estimate (not scored)");
   await tick(page, 1500);
   expect(await page.evaluate(() => gsLiveState.phase)).toBe("detect");
 });
@@ -150,9 +169,19 @@ test("comparison practice: Skip drops the trial unrecorded; a hidden app cancels
   await expect(page.locator("#answerOverlay")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.locator("#answerOverlay")).toBeHidden();
-  expect(await history(page)).toEqual([]);
+  const log = await history(page);
+  expect(log).toHaveLength(1);
+  expect(log[0]).toMatchObject({ activity: "compare", skipped: true, skip: "judgment", correct: false });
   expect(await page.evaluate(() => gsCompareState.phase)).toBe("idle");
   expect(await statusText(page, "compareStatusText")).toContain("Skipped");
+  // Out of the score, the summary and the adaptive lane.
+  await expect(page.locator("#compareScore")).toContainText("No attempts yet");
+  expect(await page.evaluate(() => gsSummary().total)).toBe(0);
+  expect(await page.evaluate(() => gsSummary().byActivity.compare.skipped)).toBe(1);
+  expect(await page.evaluate(() => { gsSetAdaptiveEnabled(true); for (let i = 0; i < 10; i += 1) gsLogAttempt({ activity: "compare", street: "full", userSec: 9, refSec: 8, diffSec: 1, correct: false, marginSec: 0.4, skipped: true, skip: "judgment" }); return gsLoadAdaptive().lanes["compare:full"]?.attemptsSinceStep || 0; })).toBe(0);
+  const report = await page.evaluate(() => gsBuildReport());
+  expect(report).toContain("Comparison practice: 11 skipped");
+  expect(report).toContain("skipped the answer (not scored)");
   await page.evaluate(() => { gsCompareState.phase = "playing"; });
   await page.evaluate(() => {
     Object.defineProperty(document, "hidden", { value: true, configurable: true });

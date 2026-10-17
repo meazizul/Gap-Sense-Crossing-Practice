@@ -220,9 +220,11 @@ code. It is a guard against accidental changes, not security.
 ### Skipping an answer
 
 The "longer, shorter or about the same" pad and the "how much" pad both have
-a **Skip** button (Escape on a keyboard). Skip closes the pad and records
-nothing: a student who does not know is never made to guess. Skipping "how
-much" keeps the judgment already given.
+a **Skip** button (Escape on a keyboard). A student who does not know is never
+made to guess. The skip is noted in the log and the report as "skipped (not
+scored)", so the instructor sees it, but it never counts as right or wrong
+and never moves a score or an adaptive margin. Skipping "how much" keeps the
+judgment already given.
 
 ### Sound at the street
 
