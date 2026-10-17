@@ -27,7 +27,8 @@ const GS_HISTORY_LIMIT = 800; // ~ a year of heavy practice; old entries roll of
  * @property {number} diffSec     signed: positive = student was long
  * @property {boolean} correct    within the margin in force at the time
  * @property {number} marginSec   the margin in force at the time
- * @property {string} [answer]    comparison tasks: "longer"|"shorter"|"same"
+ * @property {string} [answer]    comparison tasks: "longer"|"shorter"|"same",
+ *                                or "magnitude" for a "how much" estimate
  * @property {string} [expected]  comparison tasks: the true category
  * @property {boolean} [noisy]    live task, builds before 7 only
  * @property {string} [direction] live task: "left" | "right"
@@ -59,7 +60,7 @@ function gsLogAttempt(entry) {
   const entries = gsLoadHistory();
   entries.push({ time: Date.now(), ...entry });
   gsSaveHistory(entries);
-  gsUpdateAdaptiveMargin(entry.activity, entry.street);
+  gsUpdateAdaptiveMargin(entry.activity, entry.street, gsIsMagnitude(entry));
   return entries.length;
 }
 
@@ -72,9 +73,26 @@ function gsClearHistory() {
   }
 }
 
-function gsHistoryFor(activity, street, limit = 0) {
+/*
+ * Two skills are recorded under one activity: judging a sample (longer,
+ * shorter, about the same) and tapping out HOW MUCH longer or shorter. They
+ * are scored, adapted and reported separately (Cindi, 16 Oct 2026).
+ */
+function gsIsMagnitude(entry) {
+  return entry.answer === "magnitude";
+}
+
+/**
+ * Attempts for an activity and street. `magnitude` narrows to one skill:
+ * true = only "how much" estimates, false = only judgments and timings,
+ * undefined = both. The filter runs BEFORE the window is cut, so "last 10"
+ * means the last ten of that skill.
+ */
+function gsHistoryFor(activity, street, limit = 0, magnitude) {
   const all = gsLoadHistory().filter(
-    (e) => (!activity || e.activity === activity) && (!street || e.street === street)
+    (e) => (!activity || e.activity === activity)
+      && (!street || e.street === street)
+      && (magnitude === undefined || gsIsMagnitude(e) === magnitude)
   );
   return limit > 0 ? all.slice(-limit) : all;
 }
@@ -99,16 +117,18 @@ function gsAccuracy(entries) {
  *   FLOOR    a hard 0.10 s. Below this we would be measuring the student's
  *            reaction time and the touchscreen's latency, not their sense of
  *            duration, so tightening further would teach nothing.
- *   WINDOW   the last 10 attempts of the same activity and street type.
+ *   WINDOW   the last 10 attempts of the same activity, skill and street type.
  *
  * STATUS: EXPERIMENTAL, off by default. Cindi's review: there is
  * no research support for the window, the step or the stopping rule, and the
  * first version "pinned the learner down" and tightened too fast. What is
  * kept, per her notes:
  *
- *   - one margin PER TASK AND STREET TYPE (a "lane"), never one overall;
- *     reproducing an interval, judging one, and tapping out a difference are
- *     different skills, and a 3 s half street is not an 8 s full street;
+ *   - one margin PER TASK, SKILL AND STREET TYPE (a "lane"), never one
+ *     overall; reproducing an interval, judging one, and tapping out a
+ *     difference are different skills, and a 3 s half street is not an 8 s
+ *     full street. "How much" estimates have their own lane
+ *     ("compare-howmuch:full"), separate from the longer/shorter judgments;
  *   - tighten slowly (x 0.92 per window) and release quickly: a bad window
  *     goes straight back to the instructor's margin, not to a pinned level;
  *   - there is no learner floor any more; nothing holds a student down.
@@ -169,8 +189,8 @@ function gsSetAdaptiveEnabled(on) {
   gsSaveAdaptive(state);
 }
 
-function gsLaneKey(activity, street) {
-  return `${activity || "practice"}:${street || "full"}`;
+function gsLaneKey(activity, street, magnitude = false) {
+  return `${activity || "practice"}${magnitude ? "-howmuch" : ""}:${street || "full"}`;
 }
 
 function gsCeilingMargin() {
@@ -179,8 +199,8 @@ function gsCeilingMargin() {
   return Number.isFinite(value) && value > 0 ? value : 0.4;
 }
 
-function gsLane(state, activity, street) {
-  const key = gsLaneKey(activity, street);
+function gsLane(state, activity, street, magnitude = false) {
+  const key = gsLaneKey(activity, street, magnitude);
   if (!state.lanes[key]) {
     state.lanes[key] = {
       margin: gsCeilingMargin(),
@@ -192,14 +212,15 @@ function gsLane(state, activity, street) {
 }
 
 /**
- * The margin actually in force right now for a given activity/street.
+ * The margin actually in force right now for a given activity/street, and
+ * skill (`magnitude` true = the "how much" lane).
  * Falls back to the instructor's fixed margin when adaptive mode is off.
  */
-function gsEffectiveMargin(activity, street) {
+function gsEffectiveMargin(activity, street, magnitude = false) {
   const ceiling = gsCeilingMargin();
   const state = gsLoadAdaptive();
   if (!state.enabled) return ceiling;
-  const lane = gsLane(state, activity, street);
+  const lane = gsLane(state, activity, street, magnitude);
   // The ceiling can be edited at any time; never let a stored value exceed it.
   const margin = Number.isFinite(lane.margin) ? lane.margin : ceiling;
   return Math.min(ceiling, Math.max(GS_ADAPTIVE.hardFloor, margin));
@@ -223,12 +244,12 @@ function gsAdaptiveStep(currentMargin, accuracy, ceiling) {
 /**
  * Re-evaluate the lane after an attempt. Safe to call unconditionally.
  */
-function gsUpdateAdaptiveMargin(activity, street) {
+function gsUpdateAdaptiveMargin(activity, street, magnitude = false) {
   const state = gsLoadAdaptive();
   if (!state.enabled) return;
   if (!GS_ADAPTIVE_ACTIVITIES.includes(activity)) return;
 
-  const lane = gsLane(state, activity, street);
+  const lane = gsLane(state, activity, street, magnitude);
 
   // Evaluate in blocks of `windowSize` attempts, never a sliding window. The
   // first version re-evaluated after every attempt once ten existed, so a
@@ -239,7 +260,9 @@ function gsUpdateAdaptiveMargin(activity, street) {
     gsSaveAdaptive(state);
     return;
   }
-  const block = gsHistoryFor(activity, street, GS_ADAPTIVE.windowSize);
+  // Only this lane's own skill counts: a student who tells longer from
+  // shorter but cannot yet tap out the difference is not mixed into one score.
+  const block = gsHistoryFor(activity, street, GS_ADAPTIVE.windowSize, magnitude);
   lane.margin = gsAdaptiveStep(lane.margin, gsAccuracy(block), gsCeilingMargin());
   lane.attemptsSinceStep = 0;
   gsSaveAdaptive(state);
@@ -272,7 +295,9 @@ const GS_LANE_LABELS = {
   "signal:half": "Comparison preparation, first half",
   "signal:full": "Comparison preparation, full street",
   "compare:half": "Comparison practice, first half",
-  "compare:full": "Comparison practice, full street"
+  "compare:full": "Comparison practice, full street",
+  "compare-howmuch:half": "Comparison practice, how much, first half",
+  "compare-howmuch:full": "Comparison practice, how much, full street"
 };
 
 function gsLaneLabel(key) {
@@ -290,28 +315,47 @@ function gsIsScored(entry) {
   return entry.judged === true && !entry.never;
 }
 
+/*
+ * One vehicle (or one sample) is one attempt. A "how much" estimate that
+ * follows a correct judgment is a second entry in the log, but it is the same
+ * encounter, so it is counted on its own line (howMuchTotal / howMuchCorrect)
+ * and never added to `total` or `correct`.
+ */
 function gsSummary() {
   const all = gsLoadHistory().filter(gsIsScored);
   const byActivity = {};
+  let encounters = 0;
   all.forEach((entry) => {
     const key = entry.activity;
-    if (!byActivity[key]) byActivity[key] = { total: 0, correct: 0, last: 0 };
-    byActivity[key].total += 1;
-    if (entry.correct) byActivity[key].correct += 1;
-    byActivity[key].last = Math.max(byActivity[key].last, entry.time || 0);
+    if (!byActivity[key]) byActivity[key] = { total: 0, correct: 0, howMuchTotal: 0, howMuchCorrect: 0, last: 0 };
+    const stats = byActivity[key];
+    if (gsIsMagnitude(entry)) {
+      stats.howMuchTotal += 1;
+      if (entry.correct) stats.howMuchCorrect += 1;
+    } else {
+      encounters += 1;
+      stats.total += 1;
+      if (entry.correct) stats.correct += 1;
+    }
+    stats.last = Math.max(stats.last, entry.time || 0);
   });
 
-  const days = new Set(
-    all.map((entry) => new Date(entry.time).toISOString().slice(0, 10))
-  );
+  // The phone's own date, not UTC: an evening's practice in New York is one
+  // day, not two (Cindi, 16 Oct 2026).
+  const days = new Set(all.map((entry) => gsLocalDay(entry.time)));
 
   return {
-    total: all.length,
+    total: encounters,
     daysPracticed: days.size,
     firstAt: all.length ? all[0].time : null,
     lastAt: all.length ? all[all.length - 1].time : null,
     byActivity
   };
+}
+
+function gsLocalDay(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function gsFormatDate(ms) {
@@ -337,7 +381,10 @@ function gsBuildReport(options = {}) {
   lines.push(`Generated: ${new Date().toLocaleString()}`);
   lines.push("");
 
-  if (!summary.total) {
+  // Entries that are kept but not scored (a vehicle that never came, a
+  // warning time recorded with judging off, records from older builds) still
+  // belong in the report, so only an empty log means nothing to report.
+  if (!gsLoadHistory().length) {
     lines.push("No practice recorded yet.");
     return lines.join("\n");
   }
@@ -356,9 +403,17 @@ function gsBuildReport(options = {}) {
       lines.push(`${label}: ${stats.total} measurement(s)`);
       return;
     }
-    const pct = Math.round((stats.correct / stats.total) * 100);
-    const noun = activity === "practice" || activity === "signal" ? "within margin" : "correct";
-    lines.push(`${label}: ${stats.correct}/${stats.total} ${noun} (${pct}%)`);
+    if (stats.total) {
+      const pct = Math.round((stats.correct / stats.total) * 100);
+      const noun = activity === "practice" || activity === "signal" ? "within margin" : "correct";
+      lines.push(`${label}: ${stats.correct}/${stats.total} ${noun} (${pct}%)`);
+    }
+    if (stats.howMuchTotal) {
+      // The same vehicles or samples, a different skill: reported on its own
+      // line so the two are never added together.
+      const pct = Math.round((stats.howMuchCorrect / stats.howMuchTotal) * 100);
+      lines.push(`${label}, how much: ${stats.howMuchCorrect}/${stats.howMuchTotal} within margin (${pct}%)`);
+    }
   });
   lines.push("");
 
@@ -399,12 +454,13 @@ function gsBuildReport(options = {}) {
       return;
     }
     if (entry.activity === "live") {
-      // Builds before 7: the app gave a verdict on whether the
-      // warning time was long enough for this crossing.
+      // Builds before 7 recorded the comparison without a judgment. Only
+      // the comparison is reported: the app never says whether a warning
+      // time was enough to cross on. That is the instructor's call.
       const verdict = {
-        longer: "longer than the crossing — enough warning",
-        same: "about the same as the crossing — too close to rely on",
-        shorter: "shorter than the crossing — not enough warning"
+        longer: "longer than the crossing",
+        same: "about the same as the crossing",
+        shorter: "shorter than the crossing"
       }[entry.expected] || entry.expected;
       const noisy = entry.noisy ? " [not quiet when started]" : "";
       lines.push(`${when}  ${label} (${street}): warning time ${diffText}, ${verdict}${noisy}`);
