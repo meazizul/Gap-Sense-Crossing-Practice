@@ -35,6 +35,9 @@ const GS_HISTORY_LIMIT = 800; // ~ a year of heavy practice; old entries roll of
  * @property {string} [sense]     live task: "hearing" | "vision"
  * @property {boolean} [judged]   live task: the student judged it (build 7+)
  * @property {boolean} [never]    live task: the vehicle never came
+ * @property {boolean} [skipped]  the student pressed Skip (build 11+): kept
+ *                                in the log and the report, never scored
+ * @property {string}  [skip]     what was skipped: "judgment" | "magnitude"
  */
 
 function gsLoadHistory() {
@@ -60,7 +63,8 @@ function gsLogAttempt(entry) {
   const entries = gsLoadHistory();
   entries.push({ time: Date.now(), ...entry });
   gsSaveHistory(entries);
-  gsUpdateAdaptiveMargin(entry.activity, entry.street, gsIsMagnitude(entry));
+  // A skipped attempt is not an attempt at the skill: it moves no lane.
+  if (!entry.skipped) gsUpdateAdaptiveMargin(entry.activity, entry.street, gsIsMagnitude(entry));
   return entries.length;
 }
 
@@ -79,7 +83,13 @@ function gsClearHistory() {
  * are scored, adapted and reported separately (Cindi, 16 Oct 2026).
  */
 function gsIsMagnitude(entry) {
-  return entry.answer === "magnitude";
+  return entry.answer === "magnitude" || entry.skip === "magnitude";
+}
+
+/* Skipped attempts (build 11+) are recorded so the instructor sees them, but
+ * they are never right or wrong: out of every score, window and lane. */
+function gsIsSkipped(entry) {
+  return entry.skipped === true;
 }
 
 /**
@@ -90,7 +100,8 @@ function gsIsMagnitude(entry) {
  */
 function gsHistoryFor(activity, street, limit = 0, magnitude) {
   const all = gsLoadHistory().filter(
-    (e) => (!activity || e.activity === activity)
+    (e) => !gsIsSkipped(e)
+      && (!activity || e.activity === activity)
       && (!street || e.street === street)
       && (magnitude === undefined || gsIsMagnitude(e) === magnitude)
   );
@@ -311,8 +322,19 @@ function gsLaneLabel(key) {
  * meant "gave enough warning") are kept in the log but not scored.
  */
 function gsIsScored(entry) {
+  if (gsIsSkipped(entry)) return false;
   if (entry.activity !== "live") return true;
   return entry.judged === true && !entry.never;
+}
+
+/* Skipped attempts per activity, for the "N skipped" notes. */
+function gsSkippedCounts() {
+  const counts = {};
+  gsLoadHistory().forEach((entry) => {
+    if (!gsIsSkipped(entry)) return;
+    counts[entry.activity] = (counts[entry.activity] || 0) + 1;
+  });
+  return counts;
 }
 
 /*
@@ -343,6 +365,12 @@ function gsSummary() {
   // The phone's own date, not UTC: an evening's practice in New York is one
   // day, not two (Cindi, 16 Oct 2026).
   const days = new Set(all.map((entry) => gsLocalDay(entry.time)));
+
+  const skipped = gsSkippedCounts();
+  Object.entries(skipped).forEach(([key, n]) => {
+    if (!byActivity[key]) byActivity[key] = { total: 0, correct: 0, howMuchTotal: 0, howMuchCorrect: 0, last: 0 };
+    byActivity[key].skipped = n;
+  });
 
   return {
     total: encounters,
@@ -414,6 +442,10 @@ function gsBuildReport(options = {}) {
       const pct = Math.round((stats.howMuchCorrect / stats.howMuchTotal) * 100);
       lines.push(`${label}, how much: ${stats.howMuchCorrect}/${stats.howMuchTotal} within margin (${pct}%)`);
     }
+    if (stats.skipped) {
+      // Shown, never counted as right or wrong (Cindi's decision, 16 Oct 2026).
+      lines.push(`${label}: ${stats.skipped} skipped`);
+    }
   });
   lines.push("");
 
@@ -431,6 +463,16 @@ function gsBuildReport(options = {}) {
     }
     const sign = (entry.diffSec || 0) >= 0 ? "+" : "";
     const diffText = `${sign}${Number(entry.diffSec || 0).toFixed(2)}s`;
+    if (gsIsSkipped(entry)) {
+      const what = entry.skip === "magnitude" ? "skipped the how much estimate" : "skipped the answer";
+      const context = entry.activity === "live"
+        ? [entry.direction ? `from the ${entry.direction}` : "", entry.sense ? `by ${entry.sense}` : ""].filter(Boolean).join(", ")
+        : "";
+      const where = `${label} (${street}${context ? `, ${context}` : ""})`;
+      const timing = entry.activity === "live" && entry.skip !== "magnitude" ? `: warning time ${diffText} against the crossing, ` : ": ";
+      lines.push(`${when}  ${where}${timing}${what} (not scored)`);
+      return;
+    }
     if (entry.activity === "live" && (entry.judged !== undefined || entry.never)) {
       const from = entry.direction ? `from the ${entry.direction}` : "";
       const by = entry.sense ? `by ${entry.sense}` : "";

@@ -31,7 +31,7 @@ let gsCurrentScreen = "home";
  * and CACHE_VERSION (sw.js). In the native app the real bundle values are
  * read from the App plugin and override these. */
 const GS_APP_VERSION = "1.0";
-const GS_APP_BUILD = "10";
+const GS_APP_BUILD = "11";
 const GS_APP_DATE = "16 October 2026";
 
 async function gsRenderAbout() {
@@ -385,9 +385,10 @@ function gsRenderProgress() {
       ? ` · how much: ${stats.howMuchCorrect} of ${stats.howMuchTotal} within margin`
       : "";
     const main = stats.total ? `${stats.correct} of ${stats.total} ${noun}` : "no judgments yet";
+    const skipped = stats.skipped ? ` · ${stats.skipped} skipped` : "";
     return `<div class="progress-card"><span class="progress-label">${label}</span>
       <span class="progress-value">${pct === null ? "—" : `${pct}%`}</span>
-      <span class="progress-note">${main}${howMuch}</span></div>`;
+      <span class="progress-note">${main}${howMuch}${skipped}</span></div>`;
   }).join("");
 
   // A small run of the last 20 timing attempts (practice and preparation).
