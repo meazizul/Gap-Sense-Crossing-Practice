@@ -167,7 +167,7 @@
       <p class="demo-note" hidden>Using example times. Your instructor sets your real crossing times.</p>
 
     <section class="card" aria-labelledby="modeCardLabel">
-      <p class="card-label" id="modeCardLabel">Practice mode</p>
+      <h2 class="card-label" id="modeCardLabel">Practice mode</h2>
       <div class="mode-toggle" role="radiogroup" aria-label="Practice mode">
         <label data-mode-option="2b">
           <input type="radio" id="mode-start-halfway" name="mode" value="2b" checked aria-label="Start to Halfway" />
@@ -341,7 +341,7 @@
       <div id="progressBody"></div>
 
       <section class="card">
-        <p class="card-label">Send to my instructor</p>
+        <h2 class="card-label">Send to my instructor</h2>
         <p class="field-help">Nothing is ever sent automatically. You see the report first, then choose how to send it: Messages, Mail, or any other app. It carries your student code, never your name.</p>
         <p class="field-help" id="reportRecipient"></p>
         <button class="settings-action primary" id="sendReportBtn" type="button">Send my progress to my instructor</button>
@@ -359,7 +359,7 @@
       </section>
 
       <section class="card">
-        <p class="card-label">My data</p>
+        <h2 class="card-label">My data</h2>
         <p class="field-help">Everything stays on this device. Deleting is permanent.</p>
         <button class="settings-action" id="clearDataBtn" type="button">Delete all my practice history</button>
       </section>
@@ -368,19 +368,19 @@
     <!-- ================= HELP ================= -->
     <section id="screen-help" class="screen" aria-labelledby="screenTitle" hidden>
       <section class="card">
-        <p class="card-label">Use with your O&amp;M Specialist</p>
+        <h2 class="card-label">Use with your O&amp;M Specialist</h2>
         <p class="field-help">Gap Sense is meant to be used under the guidance of an Orientation and Mobility Specialist. It is not a replacement for instruction and does not cover all the skills needed to cross streets.</p>
         <button class="settings-action" id="showSafetyNotesBtn" type="button">Show the safety notes again</button>
       </section>
 
       <section class="card">
-        <p class="card-label">Sounds</p>
+        <h2 class="card-label">Sounds</h2>
         <p class="field-help">Every sound means something. Play them here any time.</p>
         <button class="settings-action primary" id="openTutorialBtn" type="button">Run the sound tutorial</button>
       </section>
 
       <section class="card">
-        <p class="card-label">For students</p>
+        <h2 class="card-label">For students</h2>
         <ul class="plain-list">
           <li><strong>Your crossing times</strong> come from your O&amp;M Specialist. They time you crossing and set the times in Instructor setup, or send you a link that sets them.</li>
           <li><strong>1. Practice my timing.</strong> Tap Begin, then tap again when you think you would have arrived. You hear the difference rather than being told a number.</li>
@@ -392,7 +392,7 @@
       </section>
 
       <section class="card">
-        <p class="card-label">For instructors</p>
+        <h2 class="card-label">For instructors</h2>
         <ul class="plain-list">
           <li><strong>Setting up.</strong> Time at least three crossings and use the longest. Enter the first-half and full-street times in Instructor setup. There you also choose which activities and options the student sees, then send everything to the student's phone as one link.</li>
           <li><strong>Margin of error.</strong> You choose and set it. The app defaults to 0.40 seconds; 0.50 seconds has historically been taught with a stopwatch. There is no research yet on the right value.</li>
@@ -404,7 +404,7 @@
       </section>
 
       <section class="card">
-        <p class="card-label">About</p>
+        <h2 class="card-label">About</h2>
         <p class="field-help" id="aboutVersion">Gap Sense</p>
         <p class="field-help">Free, open source, and private. Nothing leaves this device unless you send it.</p>
       </section>
@@ -415,7 +415,7 @@
       <p class="screen-intro">For the O&amp;M Specialist. Set the crossing times, choose what the student can see and change, then send it all to the student's phone as one link.</p>
 
       <section class="card" id="instructorLockedCard" hidden>
-        <p class="card-label">Instructor code</p>
+        <h2 class="card-label">Instructor code</h2>
         <label for="instructorPinEntry">Enter the instructor code to change these settings</label>
         <input id="instructorPinEntry" class="text-input" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
         <button class="settings-action primary" id="instructorUnlockBtn" type="button">Unlock</button>
@@ -424,7 +424,7 @@
 
       <div id="instructorBody" class="setup">
         <div class="setup-group">
-          <p class="setup-heading">Crossing times</p>
+          <h2 class="setup-heading">Crossing times</h2>
           <p class="setup-note">Measured and set by the O&amp;M Specialist. Time at least three crossings and use the longest.</p>
           <label for="clearTime">First half of the street, traffic from the left (seconds)</label>
           <input id="clearTime" type="number" step="0.1" min="0.1" max="600" inputmode="decimal" />
@@ -436,7 +436,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Activities the student sees</p>
+          <h2 class="setup-heading">Activities the student sees</h2>
           <label class="check-row"><input type="checkbox" data-feature-activity="practice" /> Practice my timing</label>
           <label class="check-row"><input type="checkbox" data-feature-activity="signal" /> Comparison preparation</label>
           <label class="check-row"><input type="checkbox" data-feature-activity="compare" /> Comparison practice</label>
@@ -444,7 +444,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Practice my timing</p>
+          <h2 class="setup-heading">Practice my timing</h2>
           <p class="setup-note">Which practice modes the student can choose.</p>
           <label class="check-row"><input type="checkbox" data-feature-mode="2b" /> Start → Halfway</label>
           <label class="check-row"><input type="checkbox" data-feature-mode="2" /> Start → Finish</label>
@@ -452,7 +452,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Comparison preparation</p>
+          <h2 class="setup-heading">Comparison preparation</h2>
           <label for="ftPrepSound">The sound</label>
           <select id="ftPrepSound" data-feature="prepSound">
             <option value="continuous">Steady sound until stopped</option>
@@ -462,7 +462,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Comparison practice</p>
+          <h2 class="setup-heading">Comparison practice</h2>
           <label for="ftCompareSound">The sample sound</label>
           <select id="ftCompareSound" data-feature="compareSound">
             <option value="continuous">One steady sound</option>
@@ -496,7 +496,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">At the street</p>
+          <h2 class="setup-heading">At the street</h2>
           <label for="ftLiveSense">Hearing or vision</label>
           <select id="ftLiveSense" data-feature="liveSense">
             <option value="choose">Student marks it</option>
@@ -515,6 +515,11 @@
             <option value="on">On</option>
             <option value="choose">Student chooses</option>
           </select>
+          <label for="ftLiveConfirm">Confirm a swipe or tap at the street with</label>
+          <select id="ftLiveConfirm" data-feature="liveConfirm">
+            <option value="sound">A short sound and a vibration</option>
+            <option value="vibration">Vibration only, so nothing sounds while listening for traffic</option>
+          </select>
           <label for="ftLiveReplay">Replay</label>
           <select id="ftLiveReplay" data-feature="liveReplay">
             <option value="always">After every vehicle</option>
@@ -525,14 +530,14 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Difficulty <span class="badge-experimental">Experimental</span></p>
+          <h2 class="setup-heading">Difficulty <span class="badge-experimental">Experimental</span></h2>
           <label class="check-row"><input type="checkbox" id="adaptiveMarginToggle" /> Adaptive margin of error</label>
           <p class="setup-note">Off by default; the instructor decides. When on, each task and street keeps its own margin. It tightens slowly while accuracy stays high and goes straight back to the set margin when accuracy drops. It never goes easier than the margin above, and never below 0.10 seconds. The research on the right pace is not settled.</p>
           <button class="settings-action" id="resetAdaptiveBtn" type="button">Reset adaptive margins</button>
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Instructor and student</p>
+          <h2 class="setup-heading">Instructor and student</h2>
           <label for="instructorEmail">Instructor email (optional)</label>
           <input id="instructorEmail" class="text-input" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="120" />
           <label for="clientCode">Student code (optional, letters and digits, up to 8)</label>
@@ -541,11 +546,12 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Send this setup to the student</p>
+          <h2 class="setup-heading">Send this setup to the student</h2>
           <p class="setup-note">Makes one link that sets up the student's phone. Choose what it carries.</p>
           <label class="check-row"><input type="checkbox" id="shareIncludeTimes" checked /> Crossing times and margin</label>
           <label class="check-row"><input type="checkbox" id="shareIncludeContact" checked /> Instructor email and student code</label>
           <label class="check-row"><input type="checkbox" id="shareIncludeFeatures" checked /> Activities and options chosen above</label>
+          <label class="check-row"><input type="checkbox" id="shareIncludeLock" checked /> Lock Instructor setup on the student's phone with my instructor code (when one is set)</label>
           <button type="button" class="settings-action primary" id="shareTimingSettings">Share the setup link</button>
           <button type="button" class="settings-action" id="textSetupBtn">Text it to the student</button>
           <p class="setup-note">The student taps the link once. If the app is installed, they then choose "Open in the Gap Sense app".</p>
@@ -580,7 +586,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Instructor code (optional)</p>
+          <h2 class="setup-heading">Instructor code (optional)</h2>
           <p class="setup-note">Set a code so the student cannot change these settings. Leave empty for no code.</p>
           <label for="instructorPinSet">New instructor code (digits, up to 8)</label>
           <input id="instructorPinSet" class="text-input" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
@@ -594,7 +600,7 @@
     <section id="screen-shortcuts" class="screen" aria-labelledby="screenTitle" hidden>
       <div id="shortcutsIos" hidden>
         <section class="card">
-          <p class="card-label">Open an activity with Siri</p>
+          <h2 class="card-label">Open an activity with Siri</h2>
           <p class="field-help">These work without any setup. Say "Hey Siri", then one of these:</p>
           <ul class="plain-list">
             <li>"Practice my timing in Gap Sense"</li>
@@ -608,14 +614,14 @@
       </div>
       <div id="shortcutsAndroid" hidden>
         <section class="card">
-          <p class="card-label">App shortcuts</p>
+          <h2 class="card-label">App shortcuts</h2>
           <p class="field-help">Touch and hold the Gap Sense icon on your home screen to open any of the four activities directly. Drag one onto your home screen to keep it there.</p>
           <p class="field-help">With Google Assistant, say "Open Gap Sense".</p>
         </section>
       </div>
       <div id="shortcutsWeb" hidden>
         <section class="card">
-          <p class="card-label">Shortcuts</p>
+          <h2 class="card-label">Shortcuts</h2>
           <p class="field-help">Siri and app shortcuts work in the installed iPhone and Android apps. In a browser, add this page to your home screen to open it in one tap.</p>
         </section>
       </div>
@@ -624,7 +630,10 @@
 
   <!-- ============ FULL-SCREEN ANSWER PAD (comparison practice, at the street) ============ -->
   <div class="gesture-overlay" id="answerOverlay" role="dialog" aria-modal="true" aria-labelledby="answerOverlayTitle" hidden>
-    <p class="gesture-title" id="answerOverlayTitle" tabindex="-1">Was it longer, shorter, or about the same as your crossing?</p>
+    <div class="gesture-header">
+      <p class="gesture-title" id="answerOverlayTitle" tabindex="-1">Was it longer, shorter, or about the same as your crossing?</p>
+      <button class="settings-action" id="answerSkipBtn" type="button" aria-label="Skip, nothing is recorded">Skip</button>
+    </div>
     <div class="gesture-surface" id="answerSurface" aria-hidden="true">
       <span class="gesture-arrow">&#9650;</span>
       <span>Swipe up: longer</span>
@@ -650,7 +659,10 @@
 
   <!-- ============ FULL-SCREEN "HOW MUCH" PAD ============ -->
   <div class="gesture-overlay" id="howMuchOverlay" role="dialog" aria-modal="true" aria-labelledby="howMuchTitle" hidden>
-    <p class="gesture-title" id="howMuchTitle" tabindex="-1">How much longer or shorter?</p>
+    <div class="gesture-header">
+      <p class="gesture-title" id="howMuchTitle" tabindex="-1">How much longer or shorter?</p>
+      <button class="settings-action" id="howMuchSkipBtn" type="button" aria-label="Skip the estimate, nothing more is recorded">Skip</button>
+    </div>
     <button class="action-btn idle howmuch-btn" id="compareFollowUpBtn" type="button">TAP TO START</button>
   </div>
 
@@ -693,13 +705,13 @@
       </div>
       <div class="setup">
         <div class="setup-group">
-          <p class="setup-heading">Instructor setup</p>
+          <h3 class="setup-heading">Instructor setup</h3>
           <p class="setup-note">Crossing times, which activities and options the student sees, and the link that sets up the student's phone.</p>
           <button type="button" class="settings-action primary" id="openInstructorSetupBtn">Open Instructor setup</button>
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Sound calibration</p>
+          <h3 class="setup-heading">Sound calibration</h3>
           <fieldset class="option-group">
             <legend class="option-group-title">Acceptable (within the margin)</legend>
             <div class="sound-options">
@@ -738,7 +750,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Visual calibration</p>
+          <h3 class="setup-heading">Visual calibration</h3>
           <fieldset class="option-group">
             <legend class="option-group-title">Outside triangle orientation</legend>
             <label><input type="radio" name="outsideVisualVariant" value="up" checked /> Up</label>
@@ -758,7 +770,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Training examples</p>
+          <h3 class="setup-heading">Training examples</h3>
           <p class="setup-note">Hear what a correct crossing feels like before you try it.</p>
           <div class="exemplar-actions">
             <button type="button" class="settings-action exemplar-btn" data-exemplar-mode="2b" aria-label="Play Start to Halfway">Play: Start → Halfway</button>
@@ -768,7 +780,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Debug</p>
+          <h3 class="setup-heading">Debug</h3>
           <label>
             <input type="checkbox" id="debugToggle" />
             Show user times vs reference at replay start
@@ -787,7 +799,7 @@
       </div>
       <div class="setup">
         <div class="setup-group">
-          <p class="setup-heading">Output / feedback mode</p>
+          <h3 class="setup-heading">Output / feedback mode</h3>
           <fieldset class="option-group">
             <legend class="option-group-title">Preferred feedback</legend>
             <label><input type="radio" name="a11yOutputMode" value="audio-only" checked /> Audio only (default)</label>
@@ -799,7 +811,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Touch feedback (haptics)</p>
+          <h3 class="setup-heading">Touch feedback (haptics)</h3>
           <label>
             <input type="checkbox" id="a11yVibrate" checked />
             Vibrate on cue (on by default)
@@ -809,7 +821,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Speech</p>
+          <h3 class="setup-heading">Speech</h3>
           <label>
             <input type="checkbox" id="a11ySelfVoice" />
             Speak directions aloud (for use without VoiceOver or TalkBack)
@@ -824,7 +836,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Visual feedback</p>
+          <h3 class="setup-heading">Visual feedback</h3>
           <label><input type="checkbox" id="a11yShowBanner" /> Show on-screen cue banner</label>
           <label><input type="checkbox" id="a11yFlashAction" /> Flash the action button briefly on cue</label>
           <label><input type="checkbox" id="a11yUseTextLabels" /> Use text labels</label>
@@ -832,7 +844,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Vision preferences</p>
+          <h3 class="setup-heading">Vision preferences</h3>
           <label for="a11yTheme">Theme</label>
           <select id="a11yTheme">
             <option value="system">System default</option>
@@ -857,7 +869,7 @@
         </div>
 
         <div class="setup-group">
-          <p class="setup-heading">Screen reader</p>
+          <h3 class="setup-heading">Screen reader</h3>
           <label><input type="checkbox" id="a11yAnnounceCues" /> Announce cues</label>
           <p class="setup-note">Announcements pause during replay so VoiceOver does not talk over the timing tones.</p>
         </div>
@@ -885,7 +897,7 @@
           <p class="field-help disclaimer-text">It is not a replacement for O&amp;M instruction, and it does not cover all the skills needed to cross streets.</p>
         </div>
         <div class="setup-group">
-          <p class="setup-heading">Got a link from your instructor?</p>
+          <h3 class="setup-heading">Got a link from your instructor?</h3>
           <p class="field-help">Open it now. It sets up this app for you. If the app was not installed when you first tapped the link, go back and tap it again, then choose "Open in the Gap Sense app".</p>
         </div>
         <button class="settings-action primary" type="button" id="disclaimerAcceptBtn">I understand</button>
@@ -916,32 +928,32 @@
       </div>
       <div class="setup">
         <div class="setup-group">
-          <p class="setup-heading">This is your time</p>
+          <h3 class="setup-heading">This is your time</h3>
           <p class="field-help">Your own sound. In a replay it marks your taps, and in the comparison replays it marks where your crossing time ends.</p>
           <button class="settings-action" type="button" data-demo="marker">Play my sound</button>
         </div>
         <div class="setup-group">
-          <p class="setup-heading">Close enough</p>
+          <h3 class="setup-heading">Close enough</h3>
           <p class="field-help">A short, bright chime. You were within the margin, or your answer was right.</p>
           <button class="settings-action" type="button" data-demo="acceptable">Play the within-margin sound</button>
         </div>
         <div class="setup-group">
-          <p class="setup-heading">Outside the margin</p>
+          <h3 class="setup-heading">Outside the margin</h3>
           <p class="field-help">A longer, low, buzzing pulse. You were too far off, or your answer was wrong.</p>
           <button class="settings-action" type="button" data-demo="outside">Play the outside-margin sound</button>
         </div>
         <div class="setup-group">
-          <p class="setup-heading">A sample warning time</p>
+          <h3 class="setup-heading">A sample warning time</h3>
           <p class="field-help">In the comparison activities: one steady sound, the same loudness from start to end. Its length is the warning time.</p>
           <button class="settings-action" type="button" data-demo="sample">Play a sample warning time</button>
         </div>
         <div class="setup-group">
-          <p class="setup-heading">Get ready</p>
+          <h3 class="setup-heading">Get ready</h3>
           <p class="field-help">In Comparison preparation, the app says "Get ready" when you press Ready. Then wait for the sound.</p>
           <button class="settings-action" type="button" data-demo="ready">Hear "Get ready"</button>
         </div>
         <div class="setup-group">
-          <p class="setup-heading">The important part</p>
+          <h3 class="setup-heading">The important part</h3>
           <p class="field-help">What matters is the distance between your sound and the other sound. The further apart they are, the further off you were. Never count seconds; listen for the distance between them.</p>
         </div>
       </div>
