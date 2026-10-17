@@ -368,11 +368,93 @@ function gsReplayMagnitudeB({ estimateSec, trueDiffSec, marginSec, startDelaySec
 
 let gsOpenPads = 0;
 
+/* ============================================================
+ * DIRECT TOUCH (iPhone app, build 12)
+ * ------------------------------------------------------------
+ * Cindi's design: swipes and taps must work the same with VoiceOver on or
+ * off. A web page cannot get raw swipes under VoiceOver, so the iPhone app
+ * lays a native view marked for direct interaction over the pad's gesture
+ * area whenever a pad is open. The student turns Direct Touch on for Gap
+ * Sense once (VoiceOver rotor); from then on a swipe in that area reaches
+ * the app unchanged. The native side classifies the gesture with the same
+ * thresholds as the web pad and reports how long the finger was down, so
+ * the vehicle is still timed from the touch, not the lift.
+ * ============================================================ */
+
+function gsDirectTouchSupported() {
+  return typeof GSNativePlugin?.directTouchShow === "function";
+}
+
+/* Which pad is on top, where its gesture area is, and who handles gestures. */
+function gsDirectTouchTarget() {
+  const howMuch = document.getElementById("howMuchOverlay");
+  if (howMuch && !howMuch.hidden) {
+    return {
+      area: document.getElementById("compareFollowUpBtn"),
+      handlers: () => ({ tap: gsHowMuchTap }),
+      label: "How much: tap to start, tap again to end"
+    };
+  }
+  const answer = document.getElementById("answerOverlay");
+  if (answer && !answer.hidden) {
+    const surface = document.getElementById("answerSurface");
+    if (!surface || surface.hidden) return null;        // buttons only
+    return {
+      area: surface,
+      handlers: () => (gsSwipeHandlers.get(answer) || (() => ({})))(),
+      label: "Answer: swipe up for longer, down for shorter, tap for about the same"
+    };
+  }
+  const live = document.getElementById("liveOverlay");
+  if (live && !live.hidden) {
+    return {
+      area: document.getElementById("liveSurface"),
+      handlers: () => (gsSwipeHandlers.get(live) || (() => ({})))(),
+      label: "Street: swipe left or right when you detect a vehicle, tap when it passes, swipe down if it never comes"
+    };
+  }
+  return null;
+}
+
+let gsDirectTouchTimer = null;
+function gsDirectTouchSync() {
+  if (!gsDirectTouchSupported()) return;
+  clearTimeout(gsDirectTouchTimer);
+  // After layout: the pad has just been shown or hidden.
+  gsDirectTouchTimer = setTimeout(() => {
+    const target = gsDirectTouchTarget();
+    const rect = target?.area?.getBoundingClientRect?.();
+    if (!target || !rect || rect.width < 1 || rect.height < 1) {
+      GSNativePlugin.directTouchHide({}).catch?.(() => {});
+      return;
+    }
+    GSNativePlugin.directTouchShow({
+      x: rect.left, y: rect.top, width: rect.width, height: rect.height, label: target.label
+    }).catch?.(() => {});
+  }, 60);
+}
+
+/* A gesture from the native area: same handlers as a pointer gesture, timed
+ * from the touch-down (now minus how long the finger was down). */
+function gsDirectTouchEvent(event) {
+  const target = gsDirectTouchTarget();
+  if (!target) return false;
+  const handlers = target.handlers() || {};
+  const fn = handlers[event?.kind];
+  if (typeof fn !== "function") return false;
+  const durationMs = Number(event?.durationMs) || 0;
+  fn(performance.now() - durationMs);
+  return true;
+}
+
+window.addEventListener("resize", () => { if (gsOpenPads > 0) gsDirectTouchSync(); });
+
 function gsShowPad(el) {
   if (!el || !el.hidden) return;
   el.hidden = false;
   gsOpenPads += 1;
   if (gsOpenPads === 1 && typeof gsKeepAwake === "function") gsKeepAwake(true);
+  gsDirectTouchSync();
   if (typeof setMainContentInert === "function") setMainContentInert(true);
   document.body.classList.add("pad-open");
 }
@@ -381,6 +463,7 @@ function gsHidePad(el) {
   if (!el || el.hidden) return;
   el.hidden = true;
   gsOpenPads = Math.max(0, gsOpenPads - 1);
+  gsDirectTouchSync();
   if (!gsOpenPads) {
     if (typeof gsKeepAwake === "function") gsKeepAwake(false);
     document.body.classList.remove("pad-open");
@@ -396,7 +479,12 @@ const GS_SWIPE_MIN_PX = 36;
  * Pointer events that start on a button, select or link are left alone so
  * the buttons on the pad still work normally.
  */
+/* The handler lookups per pad, so the native direct-touch area (iPhone,
+ * build 12) can route a gesture to the same code as a web pointer event. */
+const gsSwipeHandlers = new Map();
+
 function gsBindSwipeSurface(surface, getHandlers) {
+  gsSwipeHandlers.set(surface, getHandlers);
   const swipe = { active: false, x: 0, y: 0, id: null };
   // Controls keep their own behavior; the title is excluded so that a
   // screen-reader double tap on it can never count as an answer.
@@ -1410,6 +1498,11 @@ function gsComparisonInit() {
       }
       return {};
     });
+  }
+
+  // iPhone: gestures from the native direct-touch area.
+  if (gsDirectTouchSupported() && typeof GSNativePlugin.addListener === "function") {
+    try { GSNativePlugin.addListener("directTouch", (event) => gsDirectTouchEvent(event)); } catch (error) { /* no native events */ }
   }
 
   gsCompareSetStartEnabled(true);
