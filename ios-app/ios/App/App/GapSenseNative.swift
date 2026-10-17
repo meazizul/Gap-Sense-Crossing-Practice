@@ -32,6 +32,7 @@ class MainViewController: CAPBridgeViewController {
 ///   sustainStart({ partials, level }) -> { id }   a steady tone until stopped
 ///   sustainStop({ id })
 ///   stopSound()        silence every tone now
+///   keepAwake({ on })  keep the screen on while a pad is open
 ///   audioStatus()      engine, session category, phone volume, route, peak
 ///   speak({ text, rate, interrupt })  resolves when the speech ends
 ///   stopSpeaking()
@@ -55,6 +56,7 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "speak", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopSpeaking", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pendingScreen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "keepAwake", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "log", returnType: CAPPluginReturnPromise)
     ]
 
@@ -145,6 +147,14 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func stopSpeaking(_ call: CAPPluginCall) {
         DispatchQueue.main.async { GSSpeech.shared.stop() }
+        call.resolve()
+    }
+
+    /// keepAwake({ on }): stop the phone from locking while a full-screen pad
+    /// is open. At the street a student may wait minutes for a vehicle.
+    @objc func keepAwake(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        DispatchQueue.main.async { UIApplication.shared.isIdleTimerDisabled = on }
         call.resolve()
     }
 

@@ -8,6 +8,81 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-16 (build 10: iOS, Android, web) — Scoring, timing and street fixes from Cindi Lashinsky's review of build 9
+
+Cindi Lashinsky reviewed build 9 in detail: how the app records and scores
+practice, and eleven bugs found by running it. Build 10 fixes all of them
+that are code. The first group is about scoring and reporting; the second is
+about timing, sound and the street.
+
+**Timing, sound and the street**
+
+- **The warning time starts when the finger touches the screen**, not when
+  it lifts at the end of the swipe. A 0.3 s swipe used to make the warning
+  time 0.3 s shorter, so a right answer near the margin could be marked
+  wrong. The arrival tap is measured the same way.
+- **Headphone delay is taken off the measured time** in Comparison
+  preparation instead of widening the margin on both sides. With Bluetooth
+  (about 0.2 s), a student who stopped 0.6 s early was told "within the
+  margin"; now the screen, the record and the replay all agree.
+- **Back silences the sound.** Leaving a screen during a replay used to let
+  its sounds play on into the next screen for up to the length of the replay.
+  Every scheduled sound and the steady sample stop at once, in the iPhone
+  app's player too.
+- **The screen stays awake while a pad is open.** At the street a student may
+  wait minutes for a vehicle; the phone no longer locks in that time. If the
+  app is hidden anyway (a call, another app), the vehicle or sample being
+  timed is dropped unrecorded rather than timed on in the background.
+- **Skip on the answer pads.** "Was it longer, shorter or about the same?" and
+  "How much?" have a Skip button, and Escape does the same. A student who does
+  not know is never made to guess; nothing is recorded.
+- **Quiet confirmation at the street.** The instructor can set swipe and tap
+  confirmation to vibration only, so nothing sounds while the student is
+  listening for traffic. The default keeps the short sound.
+- **A setup link can lock the student's Instructor setup.** When the
+  instructor has set a code, the link carries it (as a hash, never the code)
+  and the student's phone asks for it before any setting can be changed. A
+  tick box under "Send this setup to the student" controls this.
+- **"Days practiced" uses the phone's own date.** An evening's practice
+  counted as two days east of the date line in UTC terms.
+- **Section headings are real headings.** Instructor setup, Help, Progress
+  and the Settings and Accessibility dialogs use h2/h3 for their sections, and
+  each box is a labelled group, so VoiceOver's headings rotor can jump between
+  them. The look is unchanged.
+
+**Scoring and reporting**
+
+Nothing changes in how an activity is played; what changes is what the
+scores, the adaptive margin and the report are built from.
+
+- **Judging and "how much" are scored as two skills.** Judging a sample as
+  longer, shorter or about the same, and tapping out how much longer or
+  shorter, were recorded under one activity and counted together. Now each
+  score, each adaptive lane and each report line keeps them apart. The
+  Comparison practice score reads, for example, "Last 10: 70% correct · how
+  much: 2 of 5 within margin".
+- **One vehicle is one attempt.** A "how much" estimate after a correct answer
+  is the same vehicle or sample judged a second way. It no longer adds to the
+  total or the accuracy. The report shows it on its own line: "At the street:
+  7/10 correct" and "At the street, how much: 4/7 within margin".
+- **The last ten means the last ten judgments.** The Comparison practice score
+  used to cut the last ten entries first and then drop the "how much" ones, so
+  it could show fewer than ten even when ten judgments existed.
+- **The replay repeats the verdict.** In Comparison preparation the app allows
+  a small timing tolerance (0.02 s, or the measured sound latency) when it
+  decides within or outside the margin. The replay recomputed the verdict
+  without that tolerance, so an attempt just past the margin could get the
+  chime and then the buzz. The replay now repeats the verdict already given.
+- **"How much" has its own adaptive lane** ("Comparison practice, how much,
+  full street"), starting from the set margin. Existing lanes keep their
+  values. Adaptive mode is still experimental and off by default.
+- **Old street records** from builds before 7 are now reported as "longer than
+  the crossing", "about the same as the crossing" or "shorter than the
+  crossing", with no verdict on whether the warning was enough. The app never
+  makes that call.
+- A report is produced whenever anything is in the log, including vehicles
+  that never came or warning times recorded with judging off.
+
 ## 2026-10-16 (build 9: iOS, Android, web) — Louder sound, stronger vibration, sound with the silent switch on
 
 From testing build 8 on an iPhone: the sound was too quiet and the vibration

@@ -730,6 +730,40 @@
      * must be "a single steady sound and able to be set at a high volume".
      * "rising" (quiet to loud, an earlier design) is kept for reference only.
      */
+    /*
+     * Every scheduled or sustained sound is remembered here so that leaving a
+     * screen can silence it at once. Before build 10 a replay kept playing on
+     * the Home screen for up to its full length after Back was pressed.
+     */
+    const scheduledSounds = [];
+    const activeSustains = new Set();
+
+    function rememberScheduledSound(entry) {
+      const now = audioContext ? audioContext.currentTime : 0;
+      for (let i = scheduledSounds.length - 1; i >= 0; i -= 1) {
+        if (scheduledSounds[i].endAt < now) scheduledSounds.splice(i, 1);
+      }
+      scheduledSounds.push(entry);
+    }
+
+    /** Silence every tone now: scheduled cues, replays and the steady sample. */
+    function stopAllSound() {
+      if (nativeSound) nativeCall("stopSound", {});
+      activeSustains.forEach((stop) => { try { stop(); } catch (error) { /* already stopped */ } });
+      activeSustains.clear();
+      if (audioContext && !nativeSound) {
+        const now = audioContext.currentTime;
+        scheduledSounds.forEach(({ gain, oscillators }) => {
+          try {
+            gain.gain.cancelScheduledValues(0);
+            gain.gain.setValueAtTime(0, now);
+            oscillators.forEach((osc) => osc.stop(now));
+          } catch (error) { /* already finished */ }
+        });
+      }
+      scheduledSounds.length = 0;
+    }
+
     function playCompositeTone(partials, duration = 0.16, startTime = 0, volumeScale = 1, envelope = "pulse") {
       if (a11ySettings.outputMode === "visual-only") return;
       if (nativeSound) {
@@ -773,7 +807,7 @@
         gain.gain.linearRampToValueAtTime(outputLevel, now + attack);
       }
       gain.gain.linearRampToValueAtTime(0, now + duration + release);
-      partials.forEach((partial) => {
+      const oscillators = partials.map((partial) => {
         const osc = context.createOscillator();
         osc.type = "sine";
         osc.frequency.value = partial.freq;
@@ -782,8 +816,10 @@
         osc.connect(oscGain).connect(gain);
         osc.start(now);
         osc.stop(now + duration + release + 0.02);
+        return osc;
       });
       gain.connect(masterLimiter);
+      rememberScheduledSound({ gain, oscillators, endAt: now + duration + release + 0.02 });
     }
 
     /*
@@ -806,11 +842,14 @@
           nativeId = result?.id ?? null;
           if (stopRequested && nativeId !== null) nativeCall("sustainStop", { id: nativeId });
         }).catch(() => {});
-        return () => {
+        const stopNative = () => {
           if (stopRequested) return;
           stopRequested = true;
+          activeSustains.delete(stopNative);
           if (nativeId !== null) nativeCall("sustainStop", { id: nativeId });
         };
+        activeSustains.add(stopNative);
+        return stopNative;
       }
       const context = ensureAudioContext();
       const now = context.currentTime;
@@ -830,9 +869,10 @@
       });
       gain.connect(masterLimiter);
       let stopped = false;
-      return () => {
+      const stopWeb = () => {
         if (stopped) return;
         stopped = true;
+        activeSustains.delete(stopWeb);
         const end = context.currentTime;
         try {
           gain.gain.cancelScheduledValues(end);
@@ -843,6 +883,8 @@
           /* already stopped */
         }
       };
+      activeSustains.add(stopWeb);
+      return stopWeb;
     }
 
     function playSoundOption(option, startTime = 0, volumeScale = 1) {
@@ -1020,7 +1062,8 @@
       return {
         times: document.getElementById("shareIncludeTimes")?.checked !== false,
         contact: document.getElementById("shareIncludeContact")?.checked !== false,
-        features: document.getElementById("shareIncludeFeatures")?.checked !== false
+        features: document.getElementById("shareIncludeFeatures")?.checked !== false,
+        lock: document.getElementById("shareIncludeLock")?.checked !== false
       };
     }
 
@@ -1049,6 +1092,12 @@
       }
       if (includes.features && typeof gsLoadFeatures === "function") {
         payload.f = gsLoadFeatures();
+      }
+      if (includes.lock && typeof gsPinHash === "function") {
+        // The stored hash, never the code itself. On the student's phone it
+        // locks Instructor setup until the instructor's code is entered.
+        const hash = gsPinHash();
+        if (hash) payload.l = hash;
       }
       const encodedPayload = encodeBase64Url(JSON.stringify(payload));
       const checksum = computeShareChecksum(encodedPayload);
@@ -1157,7 +1206,7 @@
         return null;
       }
 
-      let clearValue, fullValue, marginValue, emailValue = "", codeValue = "", features = null;
+      let clearValue, fullValue, marginValue, emailValue = "", codeValue = "", features = null, lock = "";
       let hasTimes = true;
       if (version === "v3") {
         let payload;
@@ -1172,7 +1221,8 @@
         emailValue = typeof payload.e === "string" ? payload.e : "";
         codeValue = typeof payload.k === "string" ? payload.k : "";
         if (payload.f && typeof payload.f === "object") features = payload.f;
-        if (!hasTimes && !emailValue && !codeValue && !features) return null;
+        if (typeof payload.l === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(payload.l)) lock = payload.l;
+        if (!hasTimes && !emailValue && !codeValue && !features && !lock) return null;
       } else {
         [clearValue, fullValue, marginValue, emailValue = "", codeValue = ""] = decoded.split("|");
       }
@@ -1199,7 +1249,7 @@
         }
         times = [normalizedClear, normalizedFull, normalizedMargin];
       }
-      return { times, email, code, features };
+      return { times, email, code, features, lock };
     }
 
     /** Apply a token. Returns true if it was valid and applied. */
@@ -1227,6 +1277,12 @@
           try { localStorage.setItem("om-features", JSON.stringify(parsed.features)); } catch (error) { /* ignore */ }
         }
         if (typeof gsFeaturesChanged === "function") gsFeaturesChanged();
+      }
+      if (parsed.lock) {
+        // Cindi: a link that turns activities off must also keep the student
+        // from turning them back on. Instructor setup now asks for the code.
+        try { localStorage.setItem("om-instructor-pin", parsed.lock); } catch (error) { /* ignore */ }
+        if (typeof gsInstructorLockNow === "function") gsInstructorLockNow();
       }
       lastImportedToken = token;
       pendingStatusMessage = "Your instructor's setup is now on this device.";
@@ -1462,8 +1518,10 @@
 
     function classifyMark(userTime, referenceTime, street = "full", activity = "practice") {
       const diff = Math.abs((userTime ?? 0) - referenceTime);
-      const latency = (audioContext?.baseLatency || 0) + (audioContext?.outputLatency || 0);
-      const timingEpsilon = Math.max(0.02, latency);
+      // Practice times the student's own taps against each other; no sound
+      // is being timed, so the headphone delay plays no part here. Only a
+      // small allowance for the touchscreen remains.
+      const timingEpsilon = 0.02;
       const marginSec = marginFor(activity, street);
       const feedbackType = diff <= marginSec + timingEpsilon ? "acceptable" : "outside";
       return { diff, feedbackType, marginSec };
@@ -2668,6 +2726,43 @@
       if (!silentKeepAlive) return;
       if (document.hidden) silentKeepAlive.pause();
       else silentKeepAlive.play().catch(() => {});
+    });
+
+    /*
+     * Keep the screen awake while a full-screen pad is open: at the street a
+     * student may wait minutes for a vehicle, and a locked phone would stop
+     * the pad from taking the swipe. The iPhone app sets the idle timer; the
+     * web and Android builds use the Screen Wake Lock API when they have it.
+     */
+    let gsWakeLock = null;
+    let gsWakeWanted = false;
+    async function gsKeepAwake(on) {
+      gsWakeWanted = Boolean(on);
+      if (isNativeShell && nativePlatform === "ios" && typeof GSNativePlugin?.keepAwake === "function") {
+        nativeCall("keepAwake", { on: gsWakeWanted });
+        return;
+      }
+      try {
+        if (gsWakeWanted && !gsWakeLock && navigator.wakeLock) {
+          gsWakeLock = await navigator.wakeLock.request("screen");
+          gsWakeLock.addEventListener?.("release", () => { gsWakeLock = null; });
+        } else if (!gsWakeWanted && gsWakeLock) {
+          const lock = gsWakeLock;
+          gsWakeLock = null;
+          await lock.release();
+        }
+      } catch (error) {
+        gsWakeLock = null;
+      }
+    }
+    document.addEventListener("visibilitychange", () => {
+      // The system drops a wake lock when the app is hidden; take it again.
+      if (!document.hidden && gsWakeWanted) gsKeepAwake(true);
+      // A practice run cannot continue meaningfully from the background.
+      if (document.hidden && typeof started !== "undefined" && started && typeof cancelPractice === "function") {
+        cancelPractice();
+        pendingStatusMessage = "The app was hidden, so that run was not recorded.";
+      }
     });
 
     /*

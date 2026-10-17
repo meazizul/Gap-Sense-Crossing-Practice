@@ -217,13 +217,28 @@ A code of digits so the student cannot change the setup. Instructor setup then
 asks for it. It locks again whenever you leave the screen. Leave it empty for no
 code. It is a guard against accidental changes, not security.
 
+### Skipping an answer
+
+The "longer, shorter or about the same" pad and the "how much" pad both have
+a **Skip** button (Escape on a keyboard). Skip closes the pad and records
+nothing: a student who does not know is never made to guess. Skipping "how
+much" keeps the judgment already given.
+
+### Sound at the street
+
+Under **At the street**, **Confirm a swipe or tap at the street with** can be
+set to vibration only. Then nothing sounds while the student is listening for
+traffic; the short confirmation sound is the default.
+
 ### Adaptive margin (experimental)
 
 Off by default; the instructor decides, in Instructor setup. When on, each
-activity and street type keeps its own margin. After every block of ten
-attempts in that lane: accuracy of 80% or better tightens the margin by eight
-per cent; below 60% it goes straight back to the set margin; in between it
-holds. It never goes easier than the set margin or tighter than 0.10 s.
+activity, skill and street type keeps its own margin (a "lane"). Judging a
+sample and tapping out "how much" are two lanes, because they are two skills.
+After every block of ten attempts in that lane: accuracy of 80% or better
+tightens the margin by eight per cent; below 60% it goes straight back to the
+set margin; in between it holds. It never goes easier than the set margin or
+tighter than 0.10 s.
 **Reset adaptive margins** starts every lane again. The research on the right
 pace is not settled, which is why it is marked experimental.
 
@@ -232,6 +247,11 @@ pace is not settled, which is why it is marked experimental.
 Under **Send this setup to the student**, tick what the link carries: crossing
 times and margin, instructor email and student code, and the activities and
 options chosen above. Then:
+
+If an instructor code is set, the last tick box, **Lock Instructor setup on
+the student's phone with my instructor code**, puts that lock on the student's
+phone too (the link carries a hash, never the code). The student cannot turn
+an activity back on; the instructor unlocks with the same code.
 
 - **Share the setup link** opens the phone's share menu;
 - **Text it to the student** opens Messages with the message filled in; add the

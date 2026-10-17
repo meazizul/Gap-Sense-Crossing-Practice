@@ -288,7 +288,10 @@ link, through the share menu or a text message.
 ### Progress
 
 Accuracy for each part and a strip of recent attempts. At the street, only
-vehicles the person judged count towards a score.
+vehicles the person judged count towards a score. One vehicle or sample is one
+attempt: a "how much" estimate that follows a correct answer is shown on its
+own ("how much: 4 of 7 within margin") and never added to the count, because
+telling longer from shorter and tapping out the difference are two skills.
 
 **Send my progress to my instructor** shows the report in full first. **Send
 it** opens the phone's share menu (Messages, Mail, any app). No copy and paste,
@@ -296,7 +299,7 @@ no Mail setup needed, no server. The report names the person by a short
 student code, never a name.
 
 The experimental **adaptive margin** lives in Instructor setup. When on, each
-activity and street type keeps its own margin, which tightens slowly while the
+activity, skill and street type keeps its own margin, which tightens slowly while the
 person keeps succeeding and goes straight back to the instructor's margin when
 they do not. It is off by default: the research on the right pace does not
 exist yet, and the instructor decides.

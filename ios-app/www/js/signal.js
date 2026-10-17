@@ -221,17 +221,22 @@ function gsSignalResolve(producedSec) {
   const street = gsSignalState.street;
   const crossingSec = gsSignalCrossing();
   const marginSec = gsEffectiveMargin("signal", street);
+  // The sound reaches the ear `latency` late (about 0.2 s on Bluetooth), so
+  // the student's stop is late by the same amount. Take that off the measured
+  // time instead of widening the margin on both sides: a student who stopped
+  // 0.6 s early with 0.2 s of delay is outside, not within (Cindi, 16 Oct).
   const latency = (typeof audioContext !== "undefined" && audioContext)
     ? (audioContext.baseLatency || 0) + (audioContext.outputLatency || 0)
     : 0;
-  const within = Math.abs(producedSec - crossingSec) <= marginSec + Math.max(0.02, latency);
+  const measuredSec = Math.max(0, producedSec - latency);
+  const within = Math.abs(measuredSec - crossingSec) <= marginSec + 0.02;
 
   gsLogAttempt({
     activity: "signal",
     street,
-    userSec: producedSec,
+    userSec: measuredSec,
     refSec: crossingSec,
-    diffSec: producedSec - crossingSec,
+    diffSec: measuredSec - crossingSec,
     correct: within,
     marginSec
   });
@@ -244,10 +249,11 @@ function gsSignalResolve(producedSec) {
   gsBeginQuiet();
 
   const doneAt = gsReplayProduction({
-    producedSec,
+    producedSec: measuredSec,
     crossingSec,
     style: gsSignalState.style,
     marginSec,
+    within, // the verdict already given, latency allowance included
     startDelaySec: 1.0
   });
   gsLater(gsSignalTimers, () => {
@@ -257,6 +263,16 @@ function gsSignalResolve(producedSec) {
     gsSignalStatus(within ? "Within the margin. Ready for another." : "Outside the margin. Ready for another.", within ? "ok" : "warn");
   }, doneAt + 0.2);
 }
+
+/* The phone locked or another app came to the front while a sound was being
+ * timed: that attempt is dropped unrecorded. */
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) return;
+  if (gsSignalState.phase === "waiting" || gsSignalState.phase === "timing") {
+    gsSignalCancel();
+    gsSignalStatus("The app was hidden, so nothing was recorded. Press Ready to try again.", "warn");
+  }
+});
 
 function gsSignalRenderScore() {
   const el = document.getElementById("signalScore");
