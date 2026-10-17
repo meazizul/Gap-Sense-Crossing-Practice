@@ -217,6 +217,14 @@ A code of digits so the student cannot change the setup. Instructor setup then
 asks for it. It locks again whenever you leave the screen. Leave it empty for no
 code. It is a guard against accidental changes, not security.
 
+### Swiping with VoiceOver on (iPhone)
+
+The swipe areas in the iPhone app are **direct touch areas**. Turn on Direct
+Touch for Gap Sense once (VoiceOver rotor, Direct Touch), and swipes and taps
+there work exactly as they do with VoiceOver off: no double tap, no hunting for
+a button, and the vehicle is timed from the touch. The buttons remain for
+anyone who prefers them. On Android with TalkBack, use the buttons.
+
 ### Skipping an answer
 
 The "longer, shorter or about the same" pad and the "how much" pad both have

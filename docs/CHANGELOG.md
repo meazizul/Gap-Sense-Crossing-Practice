@@ -8,6 +8,27 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-16 (build 12: iOS, Android, web) — Swipes work the same with VoiceOver on (iPhone)
+
+Cindi Lashinsky's design: swipes and taps must work the same whether a screen
+reader is on or off. At a curb, one-handed, with a cane or a dog, hunting for
+a button is not workable. A web page cannot receive raw swipes under
+VoiceOver, so until now screen reader users had buttons instead.
+
+- **A native direct-touch area.** Whenever a pad is open, the iPhone app lays
+  a transparent native view marked for direct interaction over the pad's
+  gesture surface: the street surface, the answer surface, and the "how much"
+  button. With VoiceOver on, touches inside it reach the app unchanged. A
+  swipe left is a vehicle from the left, a tap is "it passed", swipe up is
+  "longer", and so on, the same as without VoiceOver. The native side
+  measures how long the finger was down, so the vehicle is still timed from
+  the touch, not the lift.
+- **One-time setup.** VoiceOver users turn on Direct Touch for Gap Sense once
+  (VoiceOver rotor, Direct Touch). Help says so. The buttons are still there.
+- Android with TalkBack is unchanged: the gesture route there is still
+  unresolved.
+- No change on the web, which has no screen-reader-safe swipe path.
+
 ## 2026-10-16 (build 11: iOS, Android, web) — A skipped answer is recorded as skipped
 
 Cindi Lashinsky's rule: every answer screen has a way out, and leaving is

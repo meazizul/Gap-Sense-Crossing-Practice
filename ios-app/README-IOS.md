@@ -92,6 +92,11 @@ the web code falls back to the Vibration API (Android browsers) or nothing
 - **Scene lifecycle.** The app uses the UIScene lifecycle (`SceneDelegate` in
   `AppDelegate.swift`, scene manifest in `Info.plist`). iOS 27 closes apps that
   do not.
+- **Direct touch (build 12).** `GSNative.directTouchShow` lays a native
+  `GSDirectTouchView` (accessibility trait `allowsDirectInteraction`) over the
+  pad's gesture surface at the rectangle the page sends; its gestures come back
+  as the `directTouch` event with how long the finger was down. VoiceOver users
+  turn on Direct Touch for the app once.
 - **Sound (build 9).** Every tone and spoken prompt is played by the app
   itself (`GapSenseAudio.swift`), not by the web view. Inside a web view,
   WebKit decides the audio session for Web Audio and can fall back to the one
