@@ -332,7 +332,7 @@ function gsReplayMagnitudeA({ crossingSec, sampleSec, estimateSec, direction, ma
  * at the start and where their tapped-out estimate ended; the right/wrong cue
  * where the true difference ends.
  */
-function gsReplayMagnitudeB({ estimateSec, trueDiffSec, marginSec, startDelaySec = 0.6 }) {
+function gsReplayMagnitudeB({ estimateSec, trueDiffSec, marginSec, startDelaySec = 0.6, append = false }) {
   ensureAudioContext();
   const t0 = startDelaySec;
   const within = Math.abs(estimateSec - trueDiffSec) <= marginSec;
@@ -351,7 +351,7 @@ function gsReplayMagnitudeB({ estimateSec, trueDiffSec, marginSec, startDelaySec
       { timeSec: t0, type: "user" },
       { timeSec: t0 + estimateSec, type: "user" },
       { timeSec: t0 + trueDiffSec, type: "reference", feedbackType }
-    ], t0 + end + 0.6);
+    ], t0 + end + 0.6, null, { append });
   }
   return t0 + end + 0.9;
 }
@@ -423,13 +423,33 @@ function gsDirectTouchSync() {
   // After layout: the pad has just been shown or hidden.
   gsDirectTouchTimer = setTimeout(() => {
     const target = gsDirectTouchTarget();
-    const rect = target?.area?.getBoundingClientRect?.();
-    if (!target || !rect || rect.width < 1 || rect.height < 1) {
+    const raw = target?.area?.getBoundingClientRect?.();
+    // With pinch zoom the native view is in screen points: map the layout
+    // rectangle through the visual viewport.
+    const vv = window.visualViewport;
+    const scale = vv?.scale || 1;
+    const box = raw && {
+      left: (raw.left - (vv?.offsetLeft || 0)) * scale,
+      top: (raw.top - (vv?.offsetTop || 0)) * scale,
+      right: (raw.right - (vv?.offsetLeft || 0)) * scale,
+      bottom: (raw.bottom - (vv?.offsetTop || 0)) * scale
+    };
+    // Only the part of the area that is on screen: an area below the bottom
+    // edge left a VoiceOver user with nowhere to swipe (bug 24).
+    const rect = box && {
+      left: Math.max(0, box.left),
+      top: Math.max(0, box.top),
+      right: Math.min(window.innerWidth, box.right),
+      bottom: Math.min(window.innerHeight, box.bottom)
+    };
+    const width = rect ? rect.right - rect.left : 0;
+    const height = rect ? rect.bottom - rect.top : 0;
+    if (!target || !rect || width < 1 || height < 1) {
       GSNativePlugin.directTouchHide({}).catch?.(() => {});
       return;
     }
     GSNativePlugin.directTouchShow({
-      x: rect.left, y: rect.top, width: rect.width, height: rect.height, label: target.label
+      x: rect.left, y: rect.top, width, height, label: target.label
     }).catch?.(() => {});
   }, 60);
 }
@@ -448,11 +468,35 @@ function gsDirectTouchEvent(event) {
 }
 
 window.addEventListener("resize", () => { if (gsOpenPads > 0) gsDirectTouchSync(); });
+window.visualViewport?.addEventListener("resize", () => { if (gsOpenPads > 0) gsDirectTouchSync(); });
+window.visualViewport?.addEventListener("scroll", () => { if (gsOpenPads > 0) gsDirectTouchSync(); });
+// The street pad's text changes after a vehicle is detected and the surface
+// moves; the native area used to stay where it was (bug 38, Oct 2026 review).
+if (typeof ResizeObserver === "function") {
+  const gsDirectTouchObserver = new ResizeObserver(() => { if (gsOpenPads > 0) gsDirectTouchSync(); });
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".gesture-overlay, .gesture-overlay > *").forEach((el) => gsDirectTouchObserver.observe(el));
+  });
+}
+
+/* Only the top pad can be reached. The answer pad opens over the street pad,
+ * and a screen reader or Tab could reach Done behind it (bug 28, Oct 2026 review). */
+function gsPadStackSync() {
+  const open = [...document.querySelectorAll(".gesture-overlay")].filter((p) => !p.hidden);
+  const top = open.reduce((best, p) => (!best || Number(getComputedStyle(p).zIndex) >= Number(getComputedStyle(best).zIndex) ? p : best), null);
+  open.forEach((p) => {
+    const covered = p !== top;
+    p.inert = covered;
+    if (covered) p.setAttribute("aria-hidden", "true"); else p.removeAttribute("aria-hidden");
+  });
+  return top;
+}
 
 function gsShowPad(el) {
   if (!el || !el.hidden) return;
   el.hidden = false;
   gsOpenPads += 1;
+  gsPadStackSync();
   if (gsOpenPads === 1 && typeof gsKeepAwake === "function") gsKeepAwake(true);
   gsDirectTouchSync();
   if (typeof setMainContentInert === "function") setMainContentInert(true);
@@ -462,7 +506,14 @@ function gsShowPad(el) {
 function gsHidePad(el) {
   if (!el || el.hidden) return;
   el.hidden = true;
+  el.inert = false;
+  el.removeAttribute("aria-hidden");
   gsOpenPads = Math.max(0, gsOpenPads - 1);
+  // Focus returns to the pad underneath, if any.
+  const below = gsPadStackSync();
+  if (below && !below.contains(document.activeElement)) {
+    below.querySelector(".gesture-title")?.focus({ preventScroll: true });
+  }
   gsDirectTouchSync();
   if (!gsOpenPads) {
     if (typeof gsKeepAwake === "function") gsKeepAwake(false);
@@ -546,8 +597,8 @@ function gsCloseAnswerPad() {
   gsHidePad(document.getElementById("answerOverlay"));
 }
 
-/* Skip: close the pad and record nothing. A student who does not know is
- * never made to guess (Cindi, 16 Oct 2026). */
+/* Skip: close the pad. A student who does not know is never made to guess
+ * (Cindi, 16 Oct 2026); the skip is noted, never scored (build 11). */
 function gsAnswerPadSkip() {
   const skip = gsAnswerPad.onSkip;
   gsCloseAnswerPad();
@@ -700,6 +751,8 @@ function gsCompareHowMuchEnabled() {
 function gsCompareCancel() {
   gsClearTimers(gsCompareTimers);
   gsClearHaptics();
+  // Sounds already scheduled played on after a cancel (bug 31, Oct 2026 review).
+  if (typeof stopAllSound === "function") stopAllSound();
   suppressSrAnnouncements = false;
   gsCompareState.phase = "idle";
   gsCloseAnswerPad();
@@ -895,7 +948,7 @@ function gsCompareHowMuchDone(produced) {
       style: gsCompareStyle(),
       startDelaySec: 0.8
     });
-    const secondDone = gsReplayMagnitudeB({ estimateSec: produced, trueDiffSec: trueDiff, marginSec: margin, startDelaySec: firstDone + 0.5 });
+    const secondDone = gsReplayMagnitudeB({ estimateSec: produced, trueDiffSec: trueDiff, marginSec: margin, startDelaySec: firstDone + 0.5, append: true });
     gsLater(gsCompareTimers, () => gsCompareFinish(closing, tone), secondDone + 0.2);
     return;
   }
@@ -999,6 +1052,7 @@ function gsLiveStatus(message, tone = "neutral", { announce = true } = {}) {
   const overlayStatus = document.getElementById("liveOverlayStatus");
   if (overlayStatus) overlayStatus.textContent = message;
   if (announce) announceScreenReader(message);
+  if (gsOpenPads > 0) gsDirectTouchSync();
 }
 
 function gsLiveRenderPad() {
@@ -1044,6 +1098,7 @@ function gsLiveClose() {
 function gsLiveCancelFlow() {
   gsClearTimers(gsLiveTimers);
   gsClearHaptics();
+  if (typeof stopAllSound === "function") stopAllSound();
   suppressSrAnnouncements = false;
   gsCloseAnswerPad();
   gsCloseHowMuchPad();
@@ -1059,13 +1114,22 @@ function gsLiveCancelFlow() {
  */
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) return;
-  if (gsLiveState.phase === "arriving" || gsLiveState.phase === "judging" || gsLiveState.phase === "howmuch") {
+  // At "how much" or a replay the answer is already in the log: say so,
+  // rather than telling the student it was lost.
+  if (gsLiveState.phase === "arriving" || gsLiveState.phase === "judging") {
     gsLiveCancelFlow();
     gsLiveStatus("The app was hidden, so that vehicle was not recorded. Ready for the next one.");
+  } else if (gsLiveState.phase === "howmuch") {
+    gsLiveCancelFlow();
+    gsLiveStatus("The app was hidden. Your answer was saved; the estimate was not. Ready for the next one.");
   }
-  if (gsCompareState.phase !== "idle") {
+  const comparePhase = gsCompareState.phase;
+  if (comparePhase !== "idle") {
     gsCompareCancel();
-    gsCompareFinish("The app was hidden, so that one was not recorded. Press Play for another.");
+    const answered = comparePhase === "judged" || comparePhase === "howmuch" || comparePhase === "replaying";
+    gsCompareFinish(answered
+      ? "The app was hidden. Your answer was saved. Press Play for another."
+      : "The app was hidden, so that one was not recorded. Press Play for another.");
   }
 });
 
@@ -1133,7 +1197,7 @@ function gsLiveArrived(atMs) {
   gsLiveState.crossingSec = gsCrossingTimeFor(street);
   gsLiveState.marginSec = gsEffectiveMargin("live", street);
   gsLiveState.category = gsClassifyInterval(warningSec, gsLiveState.crossingSec, gsLiveState.marginSec);
-  hapticCue("marker");
+  // One confirmation, like the swipe for a vehicle (it used to vibrate twice).
   gsLiveConfirm("marker");
 
   if (!gsLiveJudgeEnabled()) {
@@ -1296,7 +1360,7 @@ function gsLiveAfterVehicle({ judged, correct, magnitude = null }) {
     if (magnitude) {
       if (gsFeature("magnitudeReplay") === "b") {
         const first = gsReplayJudgment({ sampleSec: gsLiveState.warningSec, crossingSec: gsLiveState.crossingSec, style, startDelaySec: 0.3 });
-        doneAt = gsReplayMagnitudeB({ estimateSec: magnitude.produced, trueDiffSec: magnitude.trueDiff, marginSec: magnitude.marginSec, startDelaySec: first + 0.5 });
+        doneAt = gsReplayMagnitudeB({ estimateSec: magnitude.produced, trueDiffSec: magnitude.trueDiff, marginSec: magnitude.marginSec, startDelaySec: first + 0.5, append: true });
       } else {
         doneAt = gsReplayMagnitudeA({
           crossingSec: gsLiveState.crossingSec,
