@@ -272,7 +272,9 @@ test("'how much' with replay (a): steady sound for the crossing, right/wrong cue
   const cue = sounds.find((s) => s.kind === "outside");
   expect(cue.at - base.at).toBeCloseTo(sampleSec, 2);   // where the sample ended
   const user = sounds.find((s) => s.kind === "user");
-  expect(user.at - base.at).toBeCloseTo(8 + trueDiff + 1.5, 1);
+  // The replay plays the estimate the student actually produced (the log has
+  // it), not the nominal one: real time passes between the two taps.
+  expect(user.at - base.at).toBeCloseTo(8 + log[1].userSec, 1);
   await untilIdle(page);
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
   expect(await statusText(page, "compareStatusText")).toContain("Your estimate was off");

@@ -270,16 +270,12 @@
      * the stylesheet removes double-tap zoom everywhere without touching
      * pinch.
      */
-    function lockNativeViewport() {
-      if (!isNativeShell) return;
-      const meta = document.querySelector("meta[name='viewport']");
-      if (!meta) return;
-      meta.setAttribute(
-        "content",
-        "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-      );
-    }
-    lockNativeViewport();
+    /*
+     * Pinch zoom stays on in the phone apps too (bug 37, Oct 2026 review): many
+     * low-vision students rely on it. Double-tap zoom, which trapped the
+     * shell in a zoomed state, stays off through touch-action: manipulation
+     * in the stylesheet. The Direct Touch area follows the zoom.
+     */
 
     function describeHapticsSupport() {
       if (isNativeShell && GSNativePlugin) {
@@ -1071,17 +1067,78 @@
      * Setup link token.
      *   v1/v2  "clear|full|margin|email|code" (still imported)
      *   v3     JSON with any of: t (times: [clear, full, margin]),
-     *          e (instructor email), k (student code), f (feature set).
-     *          The instructor chooses which parts travel.
-     * All versions: base64url payload + FNV checksum, "vN.payload.checksum".
+     *          e (instructor email), k (student code), f (feature set),
+     *          l (lock hash). "v3.payload.checksum" (still imported).
+     *   4      the same JSON, but t holds numbers and f is a short code
+     *          (see encodeLinkFeatures). "4" + payload + 7-character
+     *          checksum, with no separators: a period in the middle of the
+     *          link let Messages cut it short, and the v3 link ran to about
+     *          600 characters, which carriers split across texts.
+     * The payload is base64url (the email address must not show as an
+     * address inside the link); the checksum is FNV, as before.
      */
+    const SHARE_CHECKSUM_LENGTH = 7;
+
+    /*
+     * The feature set as one short string, for v4 links: one digit per
+     * activity and per practice mode (1 on, 0 off), then one digit per
+     * option, its position in LINK_FEATURE_CODES. These lists are part of the
+     * link format: add new entries only at the end, never reorder. They are
+     * kept here, not read from features.js, because a link is applied at
+     * boot, before features.js has loaded (a test checks they agree).
+     */
+    const LINK_FEATURE_CODES = Object.freeze({
+      activities: ["practice", "signal", "compare", "live"],
+      practiceModes: ["2b", "2", "3"],
+      options: [
+        ["prepSound", ["continuous", "beep", "choose"]],
+        ["compareSound", ["continuous", "ticks", "choose"]],
+        ["compareSwipe", ["on", "off"]],
+        ["compareRandomPause", ["on", "off", "choose"]],
+        ["compareHowMuch", ["on", "off", "choose"]],
+        ["magnitudeReplay", ["a", "b"]],
+        ["liveSense", ["hearing", "vision", "choose"]],
+        ["liveJudge", ["on", "off", "choose"]],
+        ["liveHowMuch", ["on", "off", "choose"]],
+        ["liveReplay", ["always", "errors", "never", "choose"]],
+        ["liveConfirm", ["sound", "vibration"]]
+      ]
+    });
+
+    function encodeLinkFeatures(features) {
+      const codes = LINK_FEATURE_CODES;
+      const bits = (group, ids) => ids.map((id) => (features?.[group]?.[id] === false ? "0" : "1")).join("");
+      const options = codes.options.map(([key, values]) => {
+        const index = values.indexOf(features?.options?.[key]);
+        return String(Math.max(0, index));
+      }).join("");
+      return bits("activities", codes.activities) + bits("practiceModes", codes.practiceModes) + options;
+    }
+
+    /* Back to a feature object. Unknown or missing digits are left out, so
+     * features.js fills them with its defaults. */
+    function decodeLinkFeatures(code) {
+      if (typeof code !== "string" || !/^\d{1,64}$/.test(code)) return null;
+      const codes = LINK_FEATURE_CODES;
+      const features = { activities: {}, practiceModes: {}, options: {} };
+      let at = 0;
+      codes.activities.forEach((id) => { if (at < code.length) features.activities[id] = code[at] !== "0"; at += 1; });
+      codes.practiceModes.forEach((id) => { if (at < code.length) features.practiceModes[id] = code[at] !== "0"; at += 1; });
+      codes.options.forEach(([key, values]) => {
+        const value = values[Number(code[at])];
+        if (at < code.length && value) features.options[key] = value;
+        at += 1;
+      });
+      return features;
+    }
+
     function buildShareTimingToken(includes = shareIncludes()) {
       const payload = {};
       if (includes.times) {
         payload.t = [
-          normalizeTimingValue(clearTimeInput.value),
-          normalizeTimingValue(fullTimeInput.value),
-          normalizeTimingValue(marginInput.value)
+          Number(normalizeTimingValue(clearTimeInput.value)),
+          Number(normalizeTimingValue(fullTimeInput.value)),
+          Number(normalizeTimingValue(marginInput.value))
         ];
       }
       if (includes.contact) {
@@ -1091,7 +1148,7 @@
         if (code) payload.k = code;
       }
       if (includes.features && typeof gsLoadFeatures === "function") {
-        payload.f = gsLoadFeatures();
+        payload.f = encodeLinkFeatures(gsLoadFeatures());
       }
       if (includes.lock && typeof gsPinHash === "function") {
         // The stored hash, never the code itself. On the student's phone it
@@ -1100,8 +1157,33 @@
         if (hash) payload.l = hash;
       }
       const encodedPayload = encodeBase64Url(JSON.stringify(payload));
-      const checksum = computeShareChecksum(encodedPayload);
-      return `v3.${encodedPayload}.${checksum}`;
+      return `4${encodedPayload}${computeShareChecksum(encodedPayload)}`;
+    }
+
+    /*
+     * The token as it arrived, cleaned of what a messaging app or a copy and
+     * paste can add: spaces or line breaks inside it, and punctuation after
+     * it (a link at the end of a sentence picks up the full stop).
+     */
+    function cleanShareToken(token) {
+      let raw = String(token || "");
+      try { raw = decodeURIComponent(raw); } catch (error) { /* keep as is */ }
+      raw = raw.replace(/\s+/g, "");
+      if (/^v[123]\./.test(raw)) return raw.replace(/[^A-Za-z0-9_-]+$/, "");
+      const match = raw.match(/^[A-Za-z0-9_-]+/);
+      return match ? match[0] : "";
+    }
+
+    /* Split a token into [version, payload, checksum], or null. */
+    function splitShareToken(token) {
+      if (/^v[123]\./.test(token)) {
+        const [version, encodedPayload, checksum] = token.split(".");
+        return [version, encodedPayload, checksum];
+      }
+      if (token.startsWith("4") && token.length > 1 + SHARE_CHECKSUM_LENGTH) {
+        return ["v4", token.slice(1, -SHARE_CHECKSUM_LENGTH), token.slice(-SHARE_CHECKSUM_LENGTH)];
+      }
+      return null;
     }
 
     function buildShareTimingLink(includes = shareIncludes()) {
@@ -1114,8 +1196,10 @@
       return shareBaseUrl().toString();
     }
 
+    /* The link stands alone on the last line: nothing after it for a
+     * messaging app to take as part of it. */
     function buildSetupTimingMessage() {
-      return ["Tap this link once to set up Gap Sense for your practice:", buildShareTimingLink()].join("\n");
+      return ["Gap Sense setup from your instructor. Tap the link below once.", "", buildShareTimingLink()].join("\n");
     }
 
     function buildPracticeTimingMessage() {
@@ -1135,6 +1219,8 @@
         await navigator.clipboard.writeText(text);
         return true;
       } catch (error) {
+        // The old fallback reported success even when nothing was copied
+        // (bug 36, Oct 2026 review).
         const helper = document.createElement("textarea");
         helper.value = text;
         helper.setAttribute("readonly", "");
@@ -1142,9 +1228,10 @@
         helper.style.left = "-9999px";
         document.body.appendChild(helper);
         helper.select();
-        document.execCommand("copy");
+        let copied = false;
+        try { copied = document.execCommand("copy") === true; } catch (fallbackError) { copied = false; }
         document.body.removeChild(helper);
-        return true;
+        return copied;
       }
     }
 
@@ -1170,8 +1257,7 @@
         if (/cancel|abort/i.test(message) || error?.name === "AbortError") return "cancelled";
         /* fall through to copying */
       }
-      await copyTextToClipboard(text);
-      return "copied";
+      return (await copyTextToClipboard(text)) ? "copied" : "failed";
     }
 
     /* Open the Messages app with the text filled in; the instructor adds the number. */
@@ -1194,8 +1280,10 @@
      * (any may be null) or null if the token is invalid.
      */
     function parseShareToken(token) {
-      const [version, encodedPayload, checksum] = String(token || "").split(".");
-      if (!["v1", "v2", "v3"].includes(version) || !encodedPayload || !checksum) return null;
+      const parts = splitShareToken(cleanShareToken(token));
+      if (!parts) return null;
+      const [version, encodedPayload, checksum] = parts;
+      if (!["v1", "v2", "v3", "v4"].includes(version) || !encodedPayload || !checksum) return null;
       if (encodedPayload.length > 6000) return null;
       if (computeShareChecksum(encodedPayload) !== checksum) return null;
 
@@ -1208,7 +1296,7 @@
 
       let clearValue, fullValue, marginValue, emailValue = "", codeValue = "", features = null, lock = "";
       let hasTimes = true;
-      if (version === "v3") {
+      if (version === "v3" || version === "v4") {
         let payload;
         try {
           payload = JSON.parse(decoded);
@@ -1220,7 +1308,8 @@
         if (hasTimes) [clearValue, fullValue, marginValue] = payload.t;
         emailValue = typeof payload.e === "string" ? payload.e : "";
         codeValue = typeof payload.k === "string" ? payload.k : "";
-        if (payload.f && typeof payload.f === "object") features = payload.f;
+        if (version === "v4") features = decodeLinkFeatures(payload.f);
+        else if (payload.f && typeof payload.f === "object") features = payload.f;
         if (typeof payload.l === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(payload.l)) lock = payload.l;
         if (!hasTimes && !emailValue && !codeValue && !features && !lock) return null;
       } else {
@@ -1242,8 +1331,8 @@
         if (
           !normalizedClear || !normalizedFull || !normalizedMargin ||
           !Number.isFinite(clearNumber) || !Number.isFinite(fullNumber) || !Number.isFinite(marginNumber) ||
-          clearNumber <= 0 || fullNumber <= 0 || marginNumber < 0 ||
-          clearNumber > 600 || fullNumber > 600 || marginNumber > 60
+          clearNumber <= 0 || fullNumber <= 0 ||
+          gsSetupProblem({ clear: normalizedClear, full: normalizedFull, margin: normalizedMargin })
         ) {
           return null;
         }
@@ -1284,7 +1373,7 @@
         try { localStorage.setItem("om-instructor-pin", parsed.lock); } catch (error) { /* ignore */ }
         if (typeof gsInstructorLockNow === "function") gsInstructorLockNow();
       }
-      lastImportedToken = token;
+      lastImportedToken = cleanShareToken(token);
       pendingStatusMessage = "Your instructor's setup is now on this device.";
       return true;
     }
@@ -1362,7 +1451,8 @@
 
     function validateShareSetup() {
       const includes = shareIncludes();
-      if (!includes.times && !includes.contact && !includes.features) {
+      const lockTravels = includes.lock && typeof gsPinHash === "function" && Boolean(gsPinHash());
+      if (!includes.times && !includes.contact && !includes.features && !lockTravels) {
         setShareNote("Choose at least one thing for the link to carry.");
         return false;
       }
@@ -1381,19 +1471,34 @@
       announceScreenReader(message);
     }
 
+    /* The lock box is ticked by default, but only a code set on this phone
+     * can travel. Without one, the instructor must be told the link will not
+     * lock anything (bug 21). */
+    function shareLockNote() {
+      const wantsLock = shareIncludes().lock;
+      const hasCode = typeof gsPinHash === "function" && Boolean(gsPinHash());
+      return wantsLock && !hasCode
+        ? " It does not lock Instructor setup: set an instructor code first."
+        : "";
+    }
+
     async function copyShareTimingLink() {
       if (!validateShareSetup()) return;
       populateShareMessagePreviews();
       const outcome = await gsShareText({ title: "Gap Sense setup", text: setupTimingMessage.value });
-      if (outcome === "shared") setShareNote("Setup link shared.");
-      else if (outcome === "copied") setShareNote("Setup message copied. Paste it into a text or email to the student.");
-      else setShareNote("Not shared.");
+      if (outcome === "shared") setShareNote(`Setup link shared.${shareLockNote()}`);
+      else if (outcome === "copied") setShareNote(`Setup message copied. Paste it into a text or email to the student.${shareLockNote()}`);
+      else if (outcome === "failed") {
+        const details = document.querySelector(".share-details");
+        if (details) details.open = true;
+        setShareNote("Could not copy. The message is shown below: select it and copy it.");
+      } else setShareNote("Not shared.");
     }
 
     function textSetupToStudent() {
       if (!validateShareSetup()) return;
       populateShareMessagePreviews();
-      setShareNote("Opening Messages. Add the student's number, then send.");
+      setShareNote(`Opening Messages. Add the student's number, then send.${shareLockNote()}`);
       gsOpenSms(setupTimingMessage.value);
     }
 
@@ -1405,16 +1510,39 @@
       return missing;
     }
 
+    /*
+     * One check for the setup, used by manual entry, Home, the activities and
+     * setup links alike (bugs 32 and 33, Oct 17 2026). A margin of 0 or an
+     * empty margin used to become 0.4 s without a word, and impossible times
+     * (601 s, a first half longer than the full street) were accepted here
+     * but refused by the app's own link. Returns "" when the setup is usable.
+     */
+    function gsSetupProblem({ clear = clearTimeInput.value, full = fullTimeInput.value, margin = marginInput.value } = {}) {
+      const c = Number(clear), f = Number(full);
+      const m = String(margin).trim() === "" ? NaN : Number(margin);
+      if (!(c > 0) || !(f > 0)) return "";            // missing: reported by the caller
+      if (c > 600 || f > 600) return "Crossing times can be at most 600 seconds.";
+      if (c >= f) return "The first-half time must be shorter than the full-street time.";
+      if (!Number.isFinite(m)) return "Enter a margin of error, in seconds.";
+      if (m <= 0) return "The margin of error must be more than 0 seconds.";
+      if (m > 60) return "The margin of error can be at most 60 seconds.";
+      return "";
+    }
+
     function getTimingRequirementMessage() {
       const missing = getMissingTimingFields();
       if (missing.length === 0) return "";
       if (missing.length === 2) {
         return "Enter your first-half and full-street crossing times in Instructor setup, or open the link your instructor sent, before practicing.";
       }
-      if (missing[0] === "clear") {
+      if (missing.length === 1 && missing[0] === "clear") {
         return "Enter your first-half crossing time in Instructor setup before practicing.";
       }
-      return "Enter your full-street crossing time in Instructor setup before practicing.";
+      if (missing.length === 1) {
+        return "Enter your full-street crossing time in Instructor setup before practicing.";
+      }
+      const problem = gsSetupProblem();
+      return problem ? `${problem} Check Instructor setup before practicing.` : "";
     }
 
     function refreshTimingRequirementPrompt() {
@@ -1482,11 +1610,11 @@
     }
 
     function validateSetup() {
-      const margin = getMargin();
       if (!requireTimingInputs()) return false;
-      if (!Number.isFinite(margin) || margin < 0) {
-        setStatus("Enter a margin of error before starting.", "warn");
-        emitCue("validation_error", { message: "Need a margin of error before starting." });
+      const problem = gsSetupProblem();
+      if (problem) {
+        setStatus(problem, "warn");
+        emitCue("validation_error", { message: problem });
         return false;
       }
       return true;
@@ -1642,10 +1770,22 @@
       hideVisualReplayFrame();
     }
 
-    function startSynchronizedVisualReplay(events, endAtSec, target = null) {
+    function startSynchronizedVisualReplay(events, endAtSec, target = null, { append = false } = {}) {
       if (!visualOutputEnabled() || !a11ySettings.syncVisualReplay) return;
-      stopVisualReplay();
       const context = ensureAudioContext();
+      // Replay B schedules two replays back to back; the second used to stop
+      // the first, so its visuals vanished (bug 30, Oct 2026 review). With
+      // append, the new events join the timeline already running.
+      if (append && visualReplayState.rafId) {
+        const offset = context.currentTime - visualReplayState.replayStartTime;
+        visualReplayState.events = [
+          ...visualReplayState.events,
+          ...events.map((event) => ({ ...event, timeSec: event.timeSec + offset }))
+        ].sort((a, b) => a.timeSec - b.timeSec);
+        visualReplayState.endAtSec = Math.max(visualReplayState.endAtSec, endAtSec + offset);
+        return;
+      }
+      stopVisualReplay();
       visualReplayState.events = [...events].sort((a, b) => a.timeSec - b.timeSec);
       visualReplayState.nextIndex = 0;
       visualReplayState.endAtSec = endAtSec;
@@ -2170,15 +2310,22 @@
     function renderPracticeScore() {
       const el = document.getElementById("practiceScore");
       if (!el || typeof gsHistoryFor !== "function") return;
-      const street = streetForLabel(modes[currentMode].labels[1]);
-      const recent = gsHistoryFor("practice", street, 10);
-      const within = recent.filter((entry) => entry.correct).length;
-      const margin = marginFor("practice", street);
       const adaptive = typeof gsAdaptiveEnabled === "function" && gsAdaptiveEnabled();
-      const marginNote = `margin ${margin.toFixed(2)}s${adaptive ? " (adaptive)" : ""}`;
-      el.textContent = recent.length
-        ? `Last ${recent.length}: ${within} within margin · ${marginNote}`
-        : `No attempts yet · ${marginNote}`;
+      // One line per mark the mode has: halfway-and-finish used to show the
+      // halfway marks only (bug 29, Oct 17 2026).
+      const labels = modes[currentMode].labels.slice(1);
+      const parts = labels.map((label) => {
+        const street = streetForLabel(label);
+        const recent = gsHistoryFor("practice", street, 10);
+        const within = recent.filter((entry) => entry.correct).length;
+        const margin = marginFor("practice", street);
+        const marginNote = `margin ${margin.toFixed(2)}s${adaptive ? " (adaptive)" : ""}`;
+        const name = labels.length > 1 ? `${label}: ` : "";
+        return recent.length
+          ? `${name}Last ${recent.length}: ${within} within margin · ${marginNote}`
+          : `${name}No attempts yet · ${marginNote}`;
+      });
+      el.textContent = parts.join(". ");
     }
 
     /*
@@ -2744,7 +2891,13 @@
       }
       try {
         if (gsWakeWanted && !gsWakeLock && navigator.wakeLock) {
-          gsWakeLock = await navigator.wakeLock.request("screen");
+          const lock = await navigator.wakeLock.request("screen");
+          // The pad may have closed while the phone was answering.
+          if (!gsWakeWanted) {
+            await lock.release();
+            return;
+          }
+          gsWakeLock = lock;
           gsWakeLock.addEventListener?.("release", () => { gsWakeLock = null; });
         } else if (!gsWakeWanted && gsWakeLock) {
           const lock = gsWakeLock;
@@ -2758,10 +2911,19 @@
     document.addEventListener("visibilitychange", () => {
       // The system drops a wake lock when the app is hidden; take it again.
       if (!document.hidden && gsWakeWanted) gsKeepAwake(true);
-      // A practice run cannot continue meaningfully from the background.
-      if (document.hidden && typeof started !== "undefined" && started && typeof cancelPractice === "function") {
-        cancelPractice();
-        pendingStatusMessage = "The app was hidden, so that run was not recorded.";
+      // A practice run cannot continue meaningfully from the background, and
+      // a replay or exemplar hidden half way used to leave its remaining
+      // sounds scheduled (bug 31, Oct 2026). "Busy" is what cancelPractice
+      // itself treats as busy: a run in progress, or the button held
+      // disabled while a replay or exemplar plays.
+      if (document.hidden && typeof cancelPractice === "function") {
+        const running = typeof started !== "undefined" && started;
+        const busy = running || (typeof actionBtn !== "undefined" && actionBtn.disabled);
+        if (busy) {
+          cancelPractice();
+          if (typeof stopAllSound === "function") stopAllSound();
+        }
+        if (running) pendingStatusMessage = "The app was hidden, so that run was not recorded.";
       }
     });
 
@@ -2780,6 +2942,19 @@
       } catch (error) {
         return null;
       }
+    }
+
+    /*
+     * The headphone delay changes when AirPods connect or disconnect, which
+     * need not change the volume. Comparison preparation reads it again on
+     * every Ready, before the wait, so the attempt is judged with the delay
+     * of the headphones in use now (bug 19, Oct 17 2026).
+     */
+    async function gsRefreshOutputLatency() {
+      const status = await gsNativeAudioStatus();
+      if (!status || !Number.isFinite(status.outputLatency)) return;
+      nativeOutputLatency = status.outputLatency;
+      if (audioContext && nativeSound) audioContext.outputLatency = nativeOutputLatency;
     }
 
     let volumeTipAnnounced = false;

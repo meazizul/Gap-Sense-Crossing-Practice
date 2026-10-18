@@ -327,12 +327,15 @@ function gsIsScored(entry) {
   return entry.judged === true && !entry.never;
 }
 
-/* Skipped attempts per activity, for the "N skipped" notes. */
+/* Skipped attempts per activity, for the "N skipped" notes. A skipped answer
+ * and a skipped "how much" estimate are different skills, as their scores
+ * are, so they are counted apart. */
 function gsSkippedCounts() {
   const counts = {};
   gsLoadHistory().forEach((entry) => {
     if (!gsIsSkipped(entry)) return;
-    counts[entry.activity] = (counts[entry.activity] || 0) + 1;
+    const c = counts[entry.activity] || (counts[entry.activity] = { judgment: 0, magnitude: 0 });
+    c[entry.skip === "magnitude" ? "magnitude" : "judgment"] += 1;
   });
   return counts;
 }
@@ -363,20 +366,31 @@ function gsSummary() {
   });
 
   // The phone's own date, not UTC: an evening's practice in New York is one
-  // day, not two (Cindi, 16 Oct 2026).
-  const days = new Set(all.map((entry) => gsLocalDay(entry.time)));
+  // day, not two (Cindi, 16 Oct 2026). Every entry counts as practice, scored
+  // or not: a day spent timing vehicles with judging off is a day practiced.
+  const everything = gsLoadHistory();
+  const days = new Set(everything.map((entry) => gsLocalDay(entry.time)));
 
+  const blank = () => ({ total: 0, correct: 0, howMuchTotal: 0, howMuchCorrect: 0, last: 0 });
   const skipped = gsSkippedCounts();
   Object.entries(skipped).forEach(([key, n]) => {
-    if (!byActivity[key]) byActivity[key] = { total: 0, correct: 0, howMuchTotal: 0, howMuchCorrect: 0, last: 0 };
-    byActivity[key].skipped = n;
+    if (!byActivity[key]) byActivity[key] = blank();
+    byActivity[key].skipped = n.judgment;
+    byActivity[key].skippedHowMuch = n.magnitude;
+  });
+  // Kept but never right or wrong: vehicles that never came, street practice
+  // with judging off, and records from builds before 7.
+  everything.forEach((entry) => {
+    if (gsIsScored(entry) || gsIsSkipped(entry)) return;
+    if (!byActivity[entry.activity]) byActivity[entry.activity] = blank();
+    byActivity[entry.activity].unscored = (byActivity[entry.activity].unscored || 0) + 1;
   });
 
   return {
     total: encounters,
     daysPracticed: days.size,
-    firstAt: all.length ? all[0].time : null,
-    lastAt: all.length ? all[all.length - 1].time : null,
+    firstAt: everything.length ? everything[0].time : null,
+    lastAt: everything.length ? everything[everything.length - 1].time : null,
     byActivity
   };
 }
@@ -445,6 +459,12 @@ function gsBuildReport(options = {}) {
     if (stats.skipped) {
       // Shown, never counted as right or wrong (Cindi's decision, 16 Oct 2026).
       lines.push(`${label}: ${stats.skipped} skipped`);
+    }
+    if (stats.skippedHowMuch) {
+      lines.push(`${label}, how much: ${stats.skippedHowMuch} skipped`);
+    }
+    if (stats.unscored) {
+      lines.push(`${label}: ${stats.unscored} not scored (never came, or not judged)`);
     }
   });
   lines.push("");

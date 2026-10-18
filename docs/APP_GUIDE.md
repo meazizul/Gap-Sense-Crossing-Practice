@@ -181,9 +181,12 @@ Open **Instructor setup** from Home, or from **Settings** (gear icon). Under
 |---|---|---|
 | **First half of the street, traffic from the left (seconds)** | How long this student takes to clear the first half | Instructor times at least three crossings, uses the longest |
 | **Full street, traffic from the right (seconds)** | How long to cross the whole street | Same |
-| **Margin of error (seconds)** | How close counts as "on time" | Chosen by the instructor. The app starts at 0.4 s; 0.5 s has historically been taught; there is no research yet on the right value |
+| **Margin of error (seconds)** | How close counts as "on time" | Chosen by the instructor. The app starts at 0.4 s; 0.5 s has historically been taught; there is no research yet on the right value. It must be more than 0 and at most 60 s |
 
-Until both street times are entered, the activities stay locked.
+Until both street times are entered, the activities stay locked. The app also
+refuses a setup it cannot use and says why: a crossing time over 600 s, a
+first-half time that is not shorter than the full-street time, or a missing or
+zero margin. The same check applies to setup links.
 
 > **Try it quickly:** first half = `4`, full street = `8`, margin = `0.4`. Or
 > press **Try it now with example times** on the Home screen.
@@ -232,7 +235,9 @@ a **Skip** button (Escape on a keyboard). A student who does not know is never
 made to guess. The skip is noted in the log and the report as "skipped (not
 scored)", so the instructor sees it, but it never counts as right or wrong
 and never moves a score or an adaptive margin. Skipping "how much" keeps the
-judgment already given.
+judgment already given. On Android, the system Back button or gesture does the
+same as Skip on an open pad; with no pad open it leaves the street pad, then
+goes Home, and from Home puts the app in the background.
 
 ### Sound at the street
 
@@ -273,6 +278,11 @@ The student taps the link once. In a browser it applies at once, then offers
 Links made inside the installed app always point at the public web address. The
 link carries a version tag and a checksum, so a corrupted or truncated link is
 rejected rather than silently applied. Links from earlier versions still work.
+
+Since build 13 the link is short, about 150 characters with no periods inside
+it, so a text message does not break it; the activities and options travel as
+a short code. A full stop, bracket, space or line break that a messaging app
+adds to the link is ignored. The message puts the link alone on its last line.
 
 ---
 
@@ -367,8 +377,13 @@ than in a browser, and the note under the button always states which is active.
 - **Theme** — System / Light / Dark / Inverted (yellow on black, for some
   low-vision conditions).
 - **Text size** — up to **300%**, at which point the layout reflows to single
-  columns so nothing is clipped.
-- **High contrast** — pure black and white, all gradients flattened.
+  columns so nothing is clipped. The swipe pads cap their own text at about
+  twice the normal size, so the swipe area, Skip and every answer stay on one
+  screen; in landscape the swipe area sits beside the answers.
+- **High contrast** — all gradients flattened. With the Light theme it is black
+  on white; with Dark or Inverted it stays white (or yellow) on black.
+- **Pinch zoom** works in the web app and, since build 13, in the iPhone and
+  Android apps too. Double-tap zoom is off so a fast tap never zooms.
 - **Focus boost** — thicker focus outlines for keyboard and switch users.
 
 ### Speech

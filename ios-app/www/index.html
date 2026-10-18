@@ -432,7 +432,7 @@
           <label for="fullTime">Full street, traffic from the right (seconds)</label>
           <input id="fullTime" type="number" step="0.1" min="0.1" max="600" inputmode="decimal" />
           <label for="marginInput">Margin of error (seconds)</label>
-          <input id="marginInput" type="number" step="0.1" min="0" max="60" inputmode="decimal" value="0.4" />
+          <input id="marginInput" type="number" step="0.1" min="0.01" max="60" inputmode="decimal" value="0.4" />
           <p class="setup-note">Chosen and set by the instructor. 0.50 seconds has historically been taught; there is no research yet on the right value.</p>
         </div>
 
@@ -633,7 +633,7 @@
   <div class="gesture-overlay" id="answerOverlay" role="dialog" aria-modal="true" aria-labelledby="answerOverlayTitle" hidden>
     <div class="gesture-header">
       <p class="gesture-title" id="answerOverlayTitle" tabindex="-1">Was it longer, shorter, or about the same as your crossing?</p>
-      <button class="settings-action" id="answerSkipBtn" type="button" aria-label="Skip, nothing is recorded">Skip</button>
+      <button class="settings-action" id="answerSkipBtn" type="button" aria-label="Skip. Noted as skipped, not scored.">Skip</button>
     </div>
     <div class="gesture-surface" id="answerSurface" aria-hidden="true">
       <span class="gesture-arrow">&#9650;</span>
@@ -662,7 +662,7 @@
   <div class="gesture-overlay" id="howMuchOverlay" role="dialog" aria-modal="true" aria-labelledby="howMuchTitle" hidden>
     <div class="gesture-header">
       <p class="gesture-title" id="howMuchTitle" tabindex="-1">How much longer or shorter?</p>
-      <button class="settings-action" id="howMuchSkipBtn" type="button" aria-label="Skip the estimate, nothing more is recorded">Skip</button>
+      <button class="settings-action" id="howMuchSkipBtn" type="button" aria-label="Skip the estimate. Noted as skipped, not scored.">Skip</button>
     </div>
     <button class="action-btn idle howmuch-btn" id="compareFollowUpBtn" type="button">TAP TO START</button>
   </div>

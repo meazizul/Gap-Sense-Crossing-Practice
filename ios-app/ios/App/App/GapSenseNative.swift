@@ -74,6 +74,7 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
     private var directTouch: GSDirectTouchView?
 
     private var volumeObservation: NSKeyValueObservation?
+    private var routeObserver: NSObjectProtocol?
 
     override public func load() {
         // Tell the page when the phone's volume changes, so the "volume is
@@ -81,6 +82,14 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
         volumeObservation = AVAudioSession.sharedInstance().observe(\.outputVolume, options: [.new]) { [weak self] _, change in
             guard let value = change.newValue else { return }
             self?.notifyListeners("volume", data: ["value": value])
+        }
+        // Headphones connecting or disconnecting change the output delay, and
+        // need not change the volume. The page re-reads audioStatus on this
+        // event, so Comparison preparation uses the delay of the route in use.
+        routeObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.notifyListeners("volume", data: ["value": AVAudioSession.sharedInstance().outputVolume])
         }
         shortcutObserver = NotificationCenter.default.addObserver(
             forName: GSShortcutRouter.didRequest, object: nil, queue: .main
@@ -95,6 +104,9 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
 
     deinit {
         if let observer = shortcutObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = routeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }

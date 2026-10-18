@@ -428,7 +428,7 @@ npm install        # once
 npm test           # Playwright, in the Google Chrome installed on the Mac
 ```
 
-Seventy-four browser tests cover: boot with no console errors, every screen and
+The browser tests (168 at build 13) cover: boot with no console errors, every screen and
 dialog, focus on the screen title, single-button activities, names and American
 spelling, the first-run O&M notice, the demo link, vibration on by default (and
 the one-time reset), self-voicing, the native shell (haptics plugin, playback
@@ -443,6 +443,14 @@ replay modes, judging off, hearing or vision), Instructor setup (activities,
 modes, instructor code), setup links v1/v2/v3 and rejected links, the share
 sheet and Messages, the report wording, deleting data, the adaptive maths, and
 the visual-only / 300% / high-contrast / reduced-motion configuration.
+
+Since build 13 the suite also holds the acceptance tests from the 17 October
+2026 review of build 12 (`tests/oct17-review.spec.mjs`, one test per bug 14
+to 39, written to check what the student experiences rather than how the code
+is written) and two regression files beside it (`tests/oct17-fixes.spec.mjs`,
+`tests/oct17-audit-fixes.spec.mjs`). Each of those tests failed on build 12
+and passes from build 13. A bug from that list counts as fixed only while its
+test passes.
 
 They cannot hear or feel anything. Still manual, on a real phone: B1 roadside
 audio, B2 ringer switch, every test in C, D4 VoiceOver (and TalkBack), F, H4

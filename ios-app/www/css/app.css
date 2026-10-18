@@ -134,6 +134,55 @@
       --shadow-lg: none;
     }
 
+    /* High contrast on a dark or inverted theme stays dark: white (or yellow)
+       on black. It used to turn the screen white while the browser still drew
+       its own controls dark, which hid the Settings title (white on white)
+       and made an unselected radio button look selected (bug 26). */
+    body.high-contrast[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #000000;
+      --surface: #000000;
+      --surface-2: #000000;
+      --text: #FFFFFF;
+      --muted: #F2F2F2;
+      --outline: #FFFFFF;
+      --border: #FFFFFF;
+      --brand-1: #FFFFFF;
+      --brand-2: #FFFFFF;
+      --accent: #FFFFFF;
+      --on-accent: #000000;
+      --ok: #FFFFFF;
+      --on-ok: #000000;
+      --warn: #FFFFFF;
+    }
+    body.high-contrast[data-theme="inverted"] {
+      color-scheme: dark;
+      --bg: #000000;
+      --surface: #000000;
+      --surface-2: #000000;
+      --text: #FFFF00;
+      --muted: #FFF176;
+      --outline: #FFFF00;
+      --border: #FFFF00;
+      --brand-1: #00FFFF;
+      --brand-2: #00FFFF;
+      --accent: #00FFFF;
+      --on-accent: #000000;
+      --ok: #00FF66;
+      --on-ok: #000000;
+      --warn: #FF8C00;
+    }
+    dialog { color: var(--text); }
+
+    /* Input boundaries need 3:1 against what is around them; the card border
+       colour was about 1.4:1 (bug 34, Oct 2026 review). Cards keep their light border. */
+    :root, body[data-theme="light"] { --control-border: #64748B; }
+    body[data-theme="dark"] { --control-border: #8A9BB2; }
+    body[data-theme="inverted"] { --control-border: #FFFF00; }
+    body.high-contrast { --control-border: #000000; }
+    body.high-contrast[data-theme="dark"] { --control-border: #FFFFFF; }
+    body.high-contrast[data-theme="inverted"] { --control-border: #FFFF00; }
+
     /* Flatten every gradient in the two "maximum legibility" themes. */
     body.high-contrast .action-btn,
     body.high-contrast .brand-mark,
@@ -1809,6 +1858,68 @@ body.large-text-layout .step-button { grid-template-columns: minmax(0, 1fr); }
 }
 #answerOverlay,
 #howMuchOverlay { z-index: 9100; }
+/* Skip and Done keep their word on one line (Skip used to wrap to
+   "S / ki / p", bug 25); the title wraps instead. */
+.gesture-header .settings-action {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 16px;
+}
+.gesture-header .gesture-title { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
+/* A pad fills one screen and cannot scroll (a drag is a gesture), so its
+   text is capped: at 300% the title alone filled the screen and the answer
+   buttons and gesture area were below it (bug 24). The caps are still about
+   twice the default size. */
+.gesture-overlay .gesture-title { font-size: min(1.15rem, 34px); }
+.gesture-overlay .gesture-status { font-size: min(1rem, 28px); }
+.gesture-overlay .gesture-surface { font-size: min(1.1rem, 30px); min-height: min(8rem, 30vh); gap: min(10px, 1vh); }
+.gesture-overlay .gesture-arrow { font-size: min(2rem, 44px); }
+.gesture-overlay .settings-action { font-size: min(1rem, 28px); }
+.gesture-overlay .answer-btn { font-size: min(1.02rem, 28px); min-height: min(4.2rem, 12vh); padding: min(14px, 1.5vh) 18px; }
+.gesture-overlay .answer-glyph { font-size: min(1.7rem, 40px); }
+.gesture-overlay .answer-grid { gap: min(10px, 1.2vh); }
+.howmuch-btn { font-size: min(1.4rem, 40px); }
+/* At the large text sizes a pad gets fixed sizes, still about twice the
+   default, like the app header: the swipe area and the three answers must
+   all fit on one screen of an iPhone SE. The arrows repeat what the words
+   say, so they go; the symbol sits beside each answer, not above it. */
+body.large-text-layout .gesture-overlay { gap: 8px; }
+body.large-text-layout .gesture-overlay .gesture-title { font-size: 24px; line-height: 1.2; }
+body.large-text-layout .gesture-overlay .gesture-status { font-size: 22px; line-height: 1.25; }
+body.large-text-layout .gesture-overlay .gesture-surface { font-size: 22px; gap: 4px; padding: 8px; min-height: 96px; }
+body.large-text-layout .gesture-overlay .gesture-arrow { display: none; }
+body.large-text-layout .gesture-overlay .settings-action { font-size: 22px; }
+body.large-text-layout .gesture-overlay .answer-btn {
+  grid-template-columns: auto minmax(0, 1fr);
+  font-size: 22px;
+  min-height: 56px;
+  padding: 6px 14px;
+  gap: 10px;
+}
+body.large-text-layout .gesture-overlay .answer-glyph { font-size: 28px; }
+/* Landscape: the gesture area on the left, the controls on the right, so a
+   short screen holds both ("Shorter" used to be below the screen, bug 24,
+   Oct 2026 review). */
+@media (orientation: landscape) and (max-height: 520px) {
+  .gesture-overlay {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 8px;
+    padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  .gesture-overlay .gesture-header { grid-column: 1 / -1; }
+  .gesture-overlay .gesture-surface { grid-column: 1; grid-row: 2 / span 3; min-height: 0; }
+  .gesture-overlay .gesture-status { grid-column: 2; font-size: min(1rem, 20px); }
+  .gesture-overlay .answer-grid { grid-column: 2; align-content: start; gap: 6px; }
+  .gesture-overlay .answer-btn { min-height: 44px; padding: 4px 12px; font-size: min(1.02rem, 20px); grid-template-columns: auto minmax(0, 1fr); }
+  .gesture-overlay .gesture-title { font-size: min(1.15rem, 22px); }
+  .gesture-overlay .gesture-arrow { display: none; }
+  .gesture-overlay .howmuch-btn { grid-column: 1 / -1; min-height: 0; }
+}
 .gesture-header {
   display: flex;
   align-items: center;
@@ -1875,6 +1986,14 @@ body.pad-open { overflow: hidden; }
 
 .disclaimer-text { font-size: 1rem; color: var(--text); }
 
+/* Forced colors (Windows high contrast, Chrome's setting) painted the flash
+   and the circle and triangle all white, so visual feedback vanished (bug
+   28). Their colours are the feedback, so they keep them. */
+@media (forced-colors: active) {
+  .visual-replay-overlay,
+  .visual-replay-overlay * { forced-color-adjust: none; }
+}
+
 /* The screen title takes focus on every screen change so screen readers
    announce it; it is not a control, so no focus box for sighted users. */
 #screenTitle:focus { outline: none; }
@@ -1899,3 +2018,9 @@ body.large-text-layout .app-title { font-size: 26px; overflow-wrap: break-word; 
 body.large-text-layout .app-header { padding-left: 12px; padding-right: 12px; }
 body.large-text-layout #backBtn:not([hidden]) ~ .brand .brand-mark { display: none; }
 body.large-text-layout .app-title { font-size: 24px; }
+
+/* Input boundaries (bug 34): after the form rules above, so it wins. */
+.setup input[type="number"],
+.setup input[type="text"],
+.setup input[type="email"],
+.setup select { border-color: var(--control-border); }

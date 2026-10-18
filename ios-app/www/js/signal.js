@@ -130,6 +130,7 @@ function gsSignalCancel() {
   gsClearTimers(gsSignalTimers);
   gsClearHaptics();
   gsSignalStopTone();
+  if (typeof stopAllSound === "function") stopAllSound();
   suppressSrAnnouncements = false;
   gsSignalState.phase = "idle";
   gsSignalState.signalAt = 0;
@@ -151,6 +152,8 @@ function gsSignalPress() {
       return;
     }
     gsSignalState.style = gsSignalStyle();
+    // The headphones may have changed since the last attempt.
+    if (typeof gsRefreshOutputLatency === "function") gsRefreshOutputLatency();
     gsSignalState.phase = "ready";
     const session = ++gsSignalState.session;
     gsSignalUpdateButton();
@@ -225,7 +228,12 @@ function gsSignalResolve(producedSec) {
   // the student's stop is late by the same amount. Take that off the measured
   // time instead of widening the margin on both sides: a student who stopped
   // 0.6 s early with 0.2 s of delay is outside, not within (Cindi, 16 Oct).
-  const latency = (typeof audioContext !== "undefined" && audioContext)
+  // Only when the cue being timed is a sound: with visual-only feedback the
+  // student reacts to the screen, which has no headphone delay (bug 29,
+  // Oct 17 2026 review). With sound and visuals together the sound
+  // is taken as the cue; the channel is saved with the attempt.
+  const channel = a11ySettings.outputMode === "visual-only" ? "visual" : "audio";
+  const latency = channel === "audio" && typeof audioContext !== "undefined" && audioContext
     ? (audioContext.baseLatency || 0) + (audioContext.outputLatency || 0)
     : 0;
   const measuredSec = Math.max(0, producedSec - latency);
@@ -238,7 +246,9 @@ function gsSignalResolve(producedSec) {
     refSec: crossingSec,
     diffSec: measuredSec - crossingSec,
     correct: within,
-    marginSec
+    marginSec,
+    channel,
+    latencySec: latency
   });
   gsSignalRenderScore();
 

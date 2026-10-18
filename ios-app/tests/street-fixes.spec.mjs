@@ -110,7 +110,8 @@ test("street: Skip on 'how much' keeps the judgment and drops the estimate", asy
   expect(log[1]).toMatchObject({ activity: "live", skipped: true, skip: "magnitude", correct: false });
   // The judgment counts; the skipped estimate does not.
   const live = await page.evaluate(() => gsSummary().byActivity.live);
-  expect(live).toMatchObject({ total: 1, correct: 1, howMuchTotal: 0, skipped: 1 });
+  // A skipped estimate is counted apart from skipped answers.
+  expect(live).toMatchObject({ total: 1, correct: 1, howMuchTotal: 0, skippedHowMuch: 1 });
   expect(await page.evaluate(() => gsHistoryFor("live", "half", 10, true).length)).toBe(0);
   const report = await page.evaluate(() => gsBuildReport());
   expect(report).toContain("skipped the how much estimate (not scored)");
@@ -182,13 +183,18 @@ test("comparison practice: Skip drops the trial unrecorded; a hidden app cancels
   const report = await page.evaluate(() => gsBuildReport());
   expect(report).toContain("Comparison practice: 11 skipped");
   expect(report).toContain("skipped the answer (not scored)");
-  await page.evaluate(() => { gsCompareState.phase = "playing"; });
+  // A real replay with sounds scheduled, then the app is hidden.
+  await page.evaluate(() => { Object.assign(gsCompareState, { intervalSec: 9, crossingSec: 8, expected: "longer" }); gsCompareReplay(); });
+  expect(await page.evaluate(() => gsCompareState.phase)).not.toBe("idle");
+  expect(await page.evaluate(() => scheduledSounds.length)).toBeGreaterThan(0);
   await page.evaluate(() => {
     Object.defineProperty(document, "hidden", { value: true, configurable: true });
     document.dispatchEvent(new Event("visibilitychange"));
     Object.defineProperty(document, "hidden", { value: false, configurable: true });
   });
   expect(await page.evaluate(() => gsCompareState.phase)).toBe("idle");
+  // Hiding the app silenced the replay, not only its label.
+  expect(await page.evaluate(() => scheduledSounds.length)).toBe(0);
   expect(await statusText(page, "compareStatusText")).toContain("hidden");
 });
 
@@ -237,20 +243,20 @@ test("Back silences scheduled sounds and the steady sample at once", async ({ pa
   await page.evaluate(() => gsShowScreen("signal"));
   const result = await page.evaluate(() => {
     ensureAudioContext();
-    window.__stops = 0;
-    const realSustain = window.startSustainedTone;
-    window.startSustainedTone = (...a) => { const stop = realSustain(...a); return stop; };
     // A steady sound and a tone 5 s ahead, then leave the screen.
     const stop = startSustainedTone(gsSamplePartials(), 1);
     playFeedbackTone("acceptable", 5);
-    const before = typeof stopAllSound;
+    const before = { scheduled: scheduledSounds.length, sustains: activeSustains.size };
     gsShowScreen("home");
-    return { before, stopIsFunction: typeof stop === "function" };
+    return { before, after: { scheduled: scheduledSounds.length, sustains: activeSustains.size }, stopIsFunction: typeof stop === "function", screen: gsCurrentScreen };
   });
-  expect(result.before).toBe("function");
   expect(result.stopIsFunction).toBe(true);
-  // The bookkeeping is empty after Back: nothing left to play.
-  expect(await page.evaluate(() => { stopAllSound(); return gsCurrentScreen; })).toBe("home");
+  // Something was playing and scheduled before Back...
+  expect(result.before.scheduled).toBeGreaterThan(0);
+  expect(result.before.sustains).toBe(1);
+  // ...and Back itself emptied both: this fails if the shutdown is removed.
+  expect(result.after).toEqual({ scheduled: 0, sustains: 0 });
+  expect(result.screen).toBe("home");
 });
 
 test("iPhone app: Back asks the native player to stop, and pads toggle the idle timer", async ({ page }) => {

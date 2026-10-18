@@ -92,6 +92,12 @@ the web code falls back to the Vibration API (Android browsers) or nothing
 - **Scene lifecycle.** The app uses the UIScene lifecycle (`SceneDelegate` in
   `AppDelegate.swift`, scene manifest in `Info.plist`). iOS 27 closes apps that
   do not.
+- **Audio route changes (build 13).** The plugin also sends its `volume`
+  event when `AVAudioSession.routeChangeNotification` fires (headphones
+  connected or removed), so the page re-reads `audioStatus` and the output
+  delay it subtracts matches the route in use. Pinch zoom is on
+  (`zoomEnabled: true`); the Direct Touch rectangle is mapped through the
+  visual viewport.
 - **Direct touch (build 12).** `GSNative.directTouchShow` lays a native
   `GSDirectTouchView` (accessibility trait `allowsDirectInteraction`) over the
   pad's gesture surface at the rectangle the page sends; its gestures come back

@@ -31,8 +31,8 @@ let gsCurrentScreen = "home";
  * and CACHE_VERSION (sw.js). In the native app the real bundle values are
  * read from the App plugin and override these. */
 const GS_APP_VERSION = "1.0";
-const GS_APP_BUILD = "12";
-const GS_APP_DATE = "16 October 2026";
+const GS_APP_BUILD = "13";
+const GS_APP_DATE = "18 October 2026";
 
 async function gsRenderAbout() {
   const el = document.getElementById("aboutVersion");
@@ -203,7 +203,8 @@ function gsShowIntervalVisual(startDelaySec, durationSec, type = "user") {
 
 function gsHasTimes() {
   const { clearTime, fullTime } = getTimingInputs();
-  return Number.isFinite(clearTime) && clearTime > 0 && Number.isFinite(fullTime) && fullTime > 0;
+  const present = Number.isFinite(clearTime) && clearTime > 0 && Number.isFinite(fullTime) && fullTime > 0;
+  return present && (typeof gsSetupProblem !== "function" || !gsSetupProblem());
 }
 
 function gsRenderHome() {
@@ -352,6 +353,37 @@ function gsBindDisclaimer() {
   });
 }
 
+/*
+ * Android's Back button or back gesture. With no handler, Capacitor's default
+ * only steps back through web history, and this app has none, so Back did
+ * nothing at all (bug 20). Back now does what the screen's own way out does:
+ * closes a dialog, skips an answer pad, leaves the street pad, goes Home,
+ * and only from Home leaves the app (to the background, not killed).
+ */
+function gsHandleBack() {
+  const dialogs = [...document.querySelectorAll("dialog")].filter((d) => d.open);
+  if (dialogs.length) {
+    const top = dialogs[dialogs.length - 1];
+    // The first-run notice cannot be skipped, by Back either.
+    if (top.id !== "disclaimerModal") top.close();
+    return "dialog";
+  }
+  if (!document.getElementById("howMuchOverlay")?.hidden) { gsHowMuchPadSkip(); return "howmuch"; }
+  if (!document.getElementById("answerOverlay")?.hidden) { gsAnswerPadSkip(); return "answer"; }
+  if (!document.getElementById("liveOverlay")?.hidden) { gsLiveClose(); return "street"; }
+  if (gsCurrentScreen !== "home") { gsShowScreen("home"); return "home"; }
+  const AppPlugin = window.Capacitor?.Plugins?.App;
+  if (typeof AppPlugin?.minimizeApp === "function") AppPlugin.minimizeApp();
+  else AppPlugin?.exitApp?.();
+  return "exit";
+}
+
+function gsBindAndroidBack() {
+  const cap = window.Capacitor;
+  if (!cap?.isNativePlatform?.() || cap.getPlatform?.() !== "android") return;
+  try { cap.Plugins?.App?.addListener?.("backButton", () => gsHandleBack()); } catch (error) { /* no back handling */ }
+}
+
 function gsAnyDialogOpen() {
   return [...document.querySelectorAll("dialog")].some((d) => d.open);
 }
@@ -365,7 +397,10 @@ function gsRenderProgress() {
   const wrap = document.getElementById("progressBody");
   if (!wrap) return;
 
-  if (!summary.total) {
+  // Only an empty log means nothing to show: skipped answers, vehicles that
+  // never came and street practice with judging off are kept but not scored,
+  // and they belong here as they do in the report.
+  if (!gsLoadHistory().length) {
     wrap.innerHTML = `<p class="field-help">Nothing recorded yet. Practice will show up here.</p>`;
     return;
   }
@@ -384,11 +419,13 @@ function gsRenderProgress() {
     const howMuch = stats.howMuchTotal
       ? ` · how much: ${stats.howMuchCorrect} of ${stats.howMuchTotal} within margin`
       : "";
+    const unscored = stats.unscored ? ` · ${stats.unscored} not scored` : "";
     const main = stats.total ? `${stats.correct} of ${stats.total} ${noun}` : "no judgments yet";
-    const skipped = stats.skipped ? ` · ${stats.skipped} skipped` : "";
+    const skippedTotal = (stats.skipped || 0) + (stats.skippedHowMuch || 0);
+    const skipped = skippedTotal ? ` · ${skippedTotal} skipped` : "";
     return `<div class="progress-card"><span class="progress-label">${label}</span>
       <span class="progress-value">${pct === null ? "—" : `${pct}%`}</span>
-      <span class="progress-note">${main}${howMuch}${skipped}</span></div>`;
+      <span class="progress-note">${main}${howMuch}${skipped}${unscored}</span></div>`;
   }).join("");
 
   // A small run of the last 20 timing attempts (practice and preparation).
@@ -487,10 +524,13 @@ async function gsConfirmSendReport() {
 async function gsCopyReport() {
   const box = document.getElementById("reportPreview");
   if (!box || !box.value) gsPreviewReport();
-  await copyTextToClipboard(document.getElementById("reportPreview").value);
-  announceScreenReader("Report copied. You can now paste it into an email or message.");
+  const copied = await copyTextToClipboard(document.getElementById("reportPreview").value);
+  const message = copied
+    ? "Copied. Paste it into an email or message to send it."
+    : "Could not copy. Select the report text above and copy it.";
+  announceScreenReader(message);
   const note = document.getElementById("reportNote");
-  if (note) note.textContent = "Copied. Paste it into an email or message to send it.";
+  if (note) note.textContent = message;
 }
 
 function gsEmailReport() {
@@ -509,6 +549,11 @@ function gsEmailReport() {
 
 function gsClearData() {
   gsClearHistory();
+  // A preview made before the delete still held the deleted practice, and
+  // Send it would send it (bug 35, Oct 2026 review).
+  const preview = document.getElementById("reportPreview");
+  if (preview) preview.value = "";
+  gsCloseReport();
   gsRenderProgress();
   gsRenderHome();
   const note = document.getElementById("reportNote");
@@ -734,6 +779,7 @@ function gsBoot() {
   if (typeof renderPracticeScore === "function") renderPracticeScore();
   gsRenderReportControls();
   gsBindNativeShortcuts();
+  gsBindAndroidBack();
 
   // ?demo=1 — the conference link. Straight in, nothing to set up.
   const params = new URLSearchParams(window.location.search);

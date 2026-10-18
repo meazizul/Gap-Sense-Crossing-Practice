@@ -26,7 +26,7 @@ function nativeWithDirectTouch() {
           speak: async () => {}, stopSpeaking: async () => {},
           addListener: (name, fn) => { window.__native.listeners[name] = fn; return { remove: () => {} }; }
         },
-        App: { getInfo: async () => ({ version: "1.0", build: "12" }), addListener: () => {}, getLaunchUrl: async () => ({}) },
+        App: { getInfo: async () => ({ version: "1.0", build: "13" }), addListener: () => {}, getLaunchUrl: async () => ({}) },
         StatusBar: { setStyle: async () => {} }
       }
     };

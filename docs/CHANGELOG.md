@@ -8,6 +8,75 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-18 (build 13: iOS, Android, web) — The 26 bugs from the 17 October review (bugs 14 to 39)
+
+A second review of build 12, from Cindi Lashinsky's side and done in browser
+emulation rather than on a phone, found 26 more bugs. Every one
+was confirmed in the build 12 code before it was fixed here. The acceptance
+tests from that review are now part of the test suite (`tests/oct17-review.spec.mjs`
+and the two regression files beside it), so each fix has a test that failed on
+build 12 and passes now.
+
+- **Pads fit the screen at every text size and in landscape (bug 24, 25).**
+  At 200 to 300 percent text, and in landscape at normal text, the answer
+  buttons and Skip were below the bottom of the screen and the pad could not
+  scroll. The pads now cap their text at about twice the normal size, the
+  arrows go at large text, and in landscape the swipe area sits beside the
+  controls. Skip keeps its word on one line. Checked across 75 phone-size,
+  text-size and phase combinations: every control reachable (was 61 of 75
+  unreachable).
+- **Shorter setup link (bug 14).** The texted link was about 650 characters
+  with periods inside, and Messages could break it. The new link (format 4)
+  is about 150 characters with no periods; the features travel as a short
+  code. The app also ignores a full stop, bracket, space or line break added
+  by a messaging app, and refuses a damaged link rather than half applying
+  it. Links from builds 9 to 12 still open. The message text puts the link
+  alone on its last line.
+- **Every way out stops the sound (bug 31).** Changing the crossing during a
+  replay, pressing Done at the street, Ready in Comparison preparation, or
+  hiding the app during a Practice replay now silences scheduled sounds, as
+  Back already did.
+- **Latency is subtracted only when the cue is a sound (bug 29).** With
+  visual-only feedback nothing is subtracted; the channel is saved with each
+  attempt. **Headphone delay is re-read on every Ready (bug 19)**, and the
+  iPhone app also re-reads it when the audio route changes.
+- **Replay B keeps both halves on screen (bug 30).** The second visual
+  replay joins the first timeline instead of erasing it.
+- **Only the top pad can be reached (bug 28).** With the answer pad over the
+  street pad, the street pad is inert and hidden from screen readers; focus
+  returns to it when the answer pad closes.
+- **Progress and days practiced count every record (bugs 15, 23).** Skipped
+  answers, skipped estimates and unjudged vehicles show as "N skipped" and
+  "N not scored"; "Nothing recorded yet" appears only when the log is empty.
+  Skipped estimates are counted apart from skipped answers.
+- **Honest messages (bugs 16, 17, 21, 36).** Hidden during "how much" or a
+  replay, the app says the answer was saved. The Skip buttons say "Noted as
+  skipped, not scored." Sharing with the lock ticked but no instructor code
+  says the link locks nothing. A failed copy says "Could not copy" and shows
+  the text to select, instead of claiming success.
+- **One check for the setup (bugs 32, 33).** A margin of 0 or an empty
+  margin, a crossing time over 600 s, or a first-half time not shorter than
+  the full-street time is refused with a reason, on the form, on Home, and
+  in setup links alike. Nothing is silently replaced with 0.4 s.
+- **Arrival vibrates once (bug 18)**, like the detection swipe.
+- **Android Back (bug 20).** The Back button and gesture now close a dialog,
+  skip an open pad, leave the street pad, go Home, and from Home put the app
+  in the background. Before, Back did nothing.
+- **Stay-awake request answered late (bug 22).** A screen lock granted after
+  the pad closed is released at once (web and Android).
+- **High contrast keeps a dark theme dark (bug 26).** Dark or Inverted with
+  High contrast is white or yellow on black, and the iPhone status bar text
+  stays readable. **Input borders at 3:1 (bug 34)** on every theme. **Forced
+  colors (bug 27)** no longer blank the visual replay on Windows.
+- **Deleting history clears the report preview (bug 35)**, so a deleted
+  attempt can no longer be sent.
+- **Pinch zoom is on in the phone apps (bug 37).** Double-tap zoom stays off
+  through the stylesheet. The Direct Touch area follows the zoom and the
+  screen position.
+- **The Direct Touch area follows the street pad (bug 38)** when its text
+  changes after a vehicle is detected, and on rotation or scrolling.
+- **Halfway-and-finish shows a score for both marks (bug 39).**
+
 ## 2026-10-16 (build 12: iOS, Android, web) — Swipes work the same with VoiceOver on (iPhone)
 
 Cindi Lashinsky's design: swipes and taps must work the same whether a screen

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { watchErrors, openApp, setTimes, history, screenVisible } from "./helpers.mjs";
 
-test("setup link v3 carries times, margin, instructor email, student code and the instructor's choices, and imports them", async ({ page }) => {
+test("setup link carries times, margin, instructor email, student code and the instructor's choices, and imports them", async ({ page }) => {
   const errors = watchErrors(page);
   await openApp(page);
   await setTimes(page, "3.5", "7.2", "0.3");
@@ -15,7 +15,9 @@ test("setup link v3 carries times, margin, instructor email, student code and th
   await page.selectOption("#ftCompareHowMuch", "on");
   await page.selectOption("#ftMagnitudeReplay", "b");
   const link = await page.evaluate(() => buildShareTimingLink());
-  expect(link).toContain("#ts=v3.");
+  // v4: no periods inside the token, and short enough for one text.
+  expect(link).toMatch(/#ts=4[A-Za-z0-9_-]+$/);
+  expect(link.length).toBeLessThan(200);
 
   // A fresh device opens the link.
   await openApp(page);
@@ -31,7 +33,7 @@ test("setup link v3 carries times, margin, instructor email, student code and th
   expect(page.url()).not.toContain("#ts=");
   // The browser offers to hand the same setup to the installed app.
   await expect(page.locator("#openInAppModal")).toHaveJSProperty("open", true);
-  expect(await page.getAttribute("#openInAppLink", "href")).toMatch(/^gapsense:\/\/setup\?ts=v3\./);
+  expect(await page.getAttribute("#openInAppLink", "href")).toMatch(/^gapsense:\/\/setup\?ts=4[A-Za-z0-9_-]+$/);
   await page.click("#openInAppClose");
   await expect(page.locator("#openInAppModal")).toHaveJSProperty("open", false);
   expect(errors).toEqual([]);
@@ -45,11 +47,11 @@ test("the instructor chooses what the link carries", async ({ page }) => {
   await page.uncheck("#shareIncludeContact");
   const payload = await page.evaluate(() => {
     const token = buildShareTimingToken();
-    return JSON.parse(decodeBase64Url(token.split(".")[1]));
+    return JSON.parse(decodeBase64Url(token.slice(1, -7)));
   });
   expect(payload.t).toBeUndefined();
   expect(payload.e).toBeUndefined();
-  expect(payload.f.activities.practice).toBe(true);
+  expect(await page.evaluate((f) => decodeLinkFeatures(f).activities.practice, payload.f)).toBe(true);
   // Features only: the student's own times stay as they were.
   const link = await page.evaluate(() => buildShareTimingLink());
   await openApp(page);
@@ -76,9 +78,10 @@ test("sharing opens the share sheet, or copies when there is none; texting opens
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => gsShowScreen("instructor"));
   await page.click("#shareTimingSettings");
-  await expect(page.locator("#shareNote")).toHaveText("Setup link shared.");
+  // No instructor code is set, so the note also says the link locks nothing.
+  await expect(page.locator("#shareNote")).toHaveText("Setup link shared. It does not lock Instructor setup: set an instructor code first.");
   const shared = await page.evaluate(() => window.__shared);
-  expect(shared.text).toContain("#ts=v3.");
+  expect(shared.text).toMatch(/#ts=4[A-Za-z0-9_-]+$/);
   expect(shared.title).toBe("Gap Sense setup");
   // Texting: the sms: URL carries the message, no number.
   const smsUrl = await page.evaluate(() => {
@@ -89,7 +92,7 @@ test("sharing opens the share sheet, or copies when there is none; texting opens
     window.gsOpenSms = real;
     return captured;
   });
-  expect(smsUrl).toContain("Tap this link once to set up Gap Sense");
+  expect(smsUrl).toContain("Gap Sense setup from your instructor. Tap the link below once.");
 });
 
 test("old v1 and v2 links still import; tampered or oversized links are rejected", async ({ page }) => {
