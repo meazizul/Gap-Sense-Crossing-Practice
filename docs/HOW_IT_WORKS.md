@@ -212,9 +212,11 @@ answer: if you could not tell the direction, you cannot judge the size. The
 person taps the difference out on a full-screen button. The instructor chooses
 the replay that follows:
 
-- **Combined** (default): a steady sound for the crossing time, the chime or
-  pulse where the sample ended (chime if the estimate was close), and the
-  person's sound at the crossing time plus or minus their estimate.
+- **Combined** (default): the steady sound for the sample warning time (the
+  steady sound always means the warning time), the person's sound where their
+  crossing time ends and again at the crossing time plus or minus their
+  estimate (where they thought the warning time ended), and the chime or pulse
+  where the warning time really ended (chime if the estimate was close).
 - **Like Practice my timing**: their estimate against the true difference.
 
 A random pause before the sample is an option, so the start is not

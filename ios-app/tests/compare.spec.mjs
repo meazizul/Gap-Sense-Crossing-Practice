@@ -244,7 +244,7 @@ test("'how much' is offered only after a correct longer/shorter answer", async (
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
 });
 
-test("'how much' with replay (a): steady sound for the crossing, right/wrong cue where the sample ended, student's sound at crossing + estimate", async ({ page }) => {
+test("'how much' with replay (a): steady sound for the WARNING time, student's sound at the crossing and at crossing + estimate, right/wrong cue where the sample ended", async ({ page }) => {
   await openCompare(page, { "om-compareFollowUp": "true" });
   await forceCategory(page, 0.99);                      // clearly longer
   await playUntilAnswering(page);
@@ -268,13 +268,15 @@ test("'how much' with replay (a): steady sound for the crossing, right/wrong cue
   expect(log[1]).toMatchObject({ answer: "magnitude", correct: false });
   const sounds = await page.evaluate(() => window.__sounds.filter((s) => s.kind !== "tone"));
   const base = sounds.find((s) => s.kind === "sample");
-  expect(base.len).toBeCloseTo(8, 3);                   // the crossing time
+  expect(base.len).toBeCloseTo(sampleSec, 3);           // the WARNING time, never the crossing time (issue 11)
   const cue = sounds.find((s) => s.kind === "outside");
   expect(cue.at - base.at).toBeCloseTo(sampleSec, 2);   // where the sample ended
-  const user = sounds.find((s) => s.kind === "user");
+  const users = sounds.filter((s) => s.kind === "user").map((s) => s.at - base.at).sort((a, b) => a - b);
+  expect(users).toHaveLength(2);
+  expect(users[0]).toBeCloseTo(8, 2);                   // the crossing time
   // The replay plays the estimate the student actually produced (the log has
   // it), not the nominal one: real time passes between the two taps.
-  expect(user.at - base.at).toBeCloseTo(8 + log[1].userSec, 1);
+  expect(users[1]).toBeCloseTo(8 + log[1].userSec, 1);
   await untilIdle(page);
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
   expect(await statusText(page, "compareStatusText")).toContain("Your estimate was off");

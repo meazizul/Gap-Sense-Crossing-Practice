@@ -112,12 +112,14 @@ correct "longer" or "shorter" answer. A full-screen button appears: tap to
 start, tap again to end, holding the difference in mind. Then one of two
 replays, chosen by the instructor:
 
-- **(a) Combined** (the default): a steady sound for your crossing time, the
-  chime or the low pulse where the sample ended (chime if your estimate was
-  within the margin), and your own sound at your crossing time plus your
-  estimate (for longer) or minus it (for shorter). Example: crossing 6 s,
-  sample 8 s, estimate 3.5 s: sound from 0 to 6 s, low pulse at 8 s, your sound
-  at 9.5 s.
+- **(a) Combined** (the default): the steady sound for the sample warning
+  time, the same as when the sample played; your own sound where your crossing
+  time ends, and again at your crossing time plus your estimate (for longer) or
+  minus it (for shorter), which is where you thought the warning time ended;
+  and the chime or the low pulse where the warning time really ended (chime if
+  your estimate was within the margin). Example: crossing 6 s, sample 8.5 s,
+  estimate 3.5 s: sound from 0 to 8.5 s, your sound at 6 s and at 9.5 s, low
+  pulse at 8.5 s.
 - **(b) Like Practice my timing**: the comparison replay, then your sound at
   the start and where your estimate ended, and the chime or the low pulse
   where the true difference ends.

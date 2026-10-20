@@ -8,6 +8,26 @@ than commit history. They are accurate to the day.
 
 ---
 
+## Unreleased (next build) — The "how much" Combined replay plays the warning time (GitHub issue 11)
+
+Cindi Lashinsky reported (GitHub issue 11) that in build 13 the Combined replay
+after a "how much longer or shorter" estimate played the steady sound for the
+student's crossing time. The student had just heard that same sound play for
+the warning time as the sample, so the one sound changed meaning within a
+single trial. The rule is that the steady sound always stands for the warning
+time: in the sample, in the longer/shorter replay, and now in this replay too.
+
+- **The steady sound is the sample warning time** in the Combined replay, in
+  Comparison practice and At the street (which share the replay). The
+  student's own sound lands where their crossing time ends, as in the
+  longer/shorter replay, and again at the crossing time plus or minus their
+  estimate, which is where they thought the warning time ended. The chime or
+  low pulse stays where the warning time really ended. Example: crossing 6 s,
+  sample 8.5 s, estimate 3.5 s: sound 0 to 8.5 s, student's sound at 6 s and
+  9.5 s, low pulse at 8.5 s.
+- The status line, the Instructor setup note and the guides describe the new
+  order. Tests: `tests/issue11-how-much-replay.spec.mjs` (fails on build 13).
+
 ## 2026-10-18 (build 13: iOS, Android, web) — The 26 bugs from the 17 October review (bugs 14 to 39)
 
 A second review of build 12, from Cindi Lashinsky's side and done in browser

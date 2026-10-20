@@ -359,7 +359,7 @@ Home → **Comparison practice** → **Play a sample warning time**.
 - [ ] **Two beeps with silence between** changes the sample
 - [ ] **Random pause** delays the sample
 - [ ] **How much**: offered only after a correct longer or shorter answer; never after a wrong answer or "about the same"
-- [ ] Replay (a), the default: steady sound for your crossing time, the chime or pulse where the sample ended, your sound at your estimate
+- [ ] Replay (a), the default: the steady sound for the sample warning time (as long as the sample was, never the crossing time), your sound at your crossing time and again at your estimate, the chime or pulse where the sample ended
 - [ ] Replay (b) (Instructor setup): the comparison replay, then your estimate against the real difference
 - [ ] The "Longer does not mean long enough" note shows until **Got it, hide this note**; Help → **Show the safety notes again** brings it back
 - [ ] Nowhere on the screen does the word "gap" appear

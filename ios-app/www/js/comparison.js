@@ -284,15 +284,21 @@ function gsReplayJudgment({ sampleSec, crossingSec, style = "continuous", startD
 }
 
 /**
- * MAGNITUDE replay, option (a) — Cindi's design. One replay:
- *   - the steady sound for the student's crossing time,
- *   - the right/wrong cue (and circle/triangle) where the sample warning time
+ * MAGNITUDE replay, option (a): one replay against the warning time.
+ *   - the steady sound for the sample WARNING time: this sound always stands
+ *     for the warning time, in the sample, in the longer/shorter replay and
+ *     here (Cindi, GitHub issue 11: in builds 10 to 13 it played for the
+ *     crossing time, so the same sound changed meaning within one trial),
+ *   - the student's own sound (and flash) where their crossing time ends, as
+ *     in the longer/shorter replay,
+ *   - the student's sound again at the crossing time plus their estimate (for
+ *     "longer") or minus it (for "shorter"): where they thought the warning
+ *     time ended,
+ *   - the right/wrong cue (and circle/triangle) where the warning time really
  *     ended: right if the estimate was within the margin of the true
- *     difference, wrong if not,
- *   - the student's own sound (and flash) at the crossing time plus their
- *     estimate (for "longer") or minus it (for "shorter").
- * Her example: crossing 6 s, sample 8 s, estimate 3.5 s → sound 0–6 s, wrong
- * cue at 8 s, student's sound at 9.5 s.
+ *     difference, wrong if not.
+ * Example: crossing 6 s, sample 8.5 s, estimate 3.5 s → sound 0–8.5 s,
+ * student's sound at 6 s and at 9.5 s, wrong cue at 8.5 s.
  */
 function gsReplayMagnitudeA({ crossingSec, sampleSec, estimateSec, direction, marginSec, style = "continuous", startDelaySec = 0.6 }) {
   ensureAudioContext();
@@ -304,24 +310,27 @@ function gsReplayMagnitudeA({ crossingSec, sampleSec, estimateSec, direction, ma
 
   if (style === "ticks") {
     gsPlaySampleBeep(t0);
-    gsPlaySampleBeep(t0 + crossingSec);
+    gsPlaySampleBeep(t0 + sampleSec);
   } else {
-    playCompositeTone(gsSamplePartials(), crossingSec, t0, gsSampleLevel() * 0.6, "steady");
+    playCompositeTone(gsSamplePartials(), sampleSec, t0, gsSampleLevel() * 0.6, "steady");
   }
-  playFeedbackTone(feedbackType, t0 + sampleSec);
+  playUserMarkerTone(t0 + crossingSec);
   playUserMarkerTone(t0 + estimateAt);
+  playFeedbackTone(feedbackType, t0 + sampleSec);
 
   gsHapticAt(t0, "start");
-  gsHapticAt(t0 + crossingSec, "start");
-  gsHapticAt(t0 + sampleSec, within ? "reference_ok" : "reference_bad");
+  gsHapticAt(t0 + sampleSec, "start");
+  gsHapticAt(t0 + crossingSec, "marker");
   gsHapticAt(t0 + estimateAt, "marker");
+  gsHapticAt(t0 + sampleSec, within ? "reference_ok" : "reference_bad");
 
   const end = Math.max(crossingSec, sampleSec, estimateAt);
   if (typeof startSynchronizedVisualReplay === "function") {
     startSynchronizedVisualReplay([
-      { timeSec: t0, type: "sample", holdSec: Math.max(0.2, crossingSec) },
-      { timeSec: t0 + sampleSec, type: "reference", feedbackType },
-      { timeSec: t0 + estimateAt, type: "user" }
+      { timeSec: t0, type: "sample", holdSec: Math.max(0.2, sampleSec) },
+      { timeSec: t0 + crossingSec, type: "user" },
+      { timeSec: t0 + estimateAt, type: "user" },
+      { timeSec: t0 + sampleSec, type: "reference", feedbackType }
     ], t0 + end + 0.6);
   }
   return t0 + end + 0.9;
@@ -953,7 +962,7 @@ function gsCompareHowMuchDone(produced) {
     return;
   }
 
-  gsCompareStatus("Your crossing time, then the right or wrong sound where the sample ended, then your sound at your estimate.");
+  gsCompareStatus("The sample again, your sound at your crossing time and again at your estimate, and the right or wrong sound where the sample ended.");
   gsBeginQuiet();
   const doneAt = gsReplayMagnitudeA({
     crossingSec: gsCompareState.crossingSec,
