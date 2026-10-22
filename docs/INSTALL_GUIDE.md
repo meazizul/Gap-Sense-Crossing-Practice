@@ -64,7 +64,7 @@ Gap Sense now appears on your home screen. Open it like any other app.
 
 The app comes as a file called **GapSense-android-debug.apk**. Download it from:
 
-**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build13/GapSense-android-debug.apk>**
+**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build14/GapSense-android-debug.apk>**
 
 1. Open the link on your phone. The file downloads.
 2. Open the downloaded file. Your phone may say
@@ -83,8 +83,30 @@ fix in person.
 
 ## If you have no smartphone, or you cannot install
 
-You can still try the app in a web browser on any phone or computer. Your
-instructor has the address. Everything works except vibration.
+You can still try the app in a web browser on any phone or computer. The
+address is:
+
+**<https://azizulhaque.me/Gap-Sense-Crossing-Practice/>**
+
+Everything works except vibration. On an iPhone, Safari can add it to the home
+screen: press **Share**, then **Add to Home Screen**.
+
+---
+
+## Which version do I have, and how do I report a problem?
+
+Open the app, press **Help**, and read **About**. The current version is
+**build 14**. If it says an older build, update: on iPhone open TestFlight and
+press **Update**; on Android download the file above again and install it over
+the old one (your practice history stays); in a browser, reload the page.
+
+If something goes wrong or is confusing, tell us. Either tell your instructor,
+or write it here (a free GitHub account is needed):
+<https://github.com/meazizul/Gap-Sense-Crossing-Practice/issues/new>
+
+Say which phone you have, the build from **About**, what you did, what
+happened, and what you expected. If you use VoiceOver or TalkBack, a screen
+recording helps most.
 
 ---
 

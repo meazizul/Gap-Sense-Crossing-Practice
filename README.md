@@ -8,13 +8,33 @@ The core design principle: feedback is delivered as **felt duration** — sounds
 visual flashes, and vibration — **never as a number of seconds**. The student
 learns the *feel* of the duration, not a stopwatch reading.
 
+## Origins
+
+Gap Sense began as a copy of **Cindi Lashinsky's CrossingTime (Streets)
+repository**, her original proof of concept, and has been refined and expanded
+through ongoing collaboration with her. See [`NOTICE.md`](NOTICE.md).
+
 ---
 
-## Install on a phone
+## Install the current build (build 14)
 
-- **iPhone:** open <https://testflight.apple.com/join/wYreYpF6> on the phone (TestFlight). About two minutes.
-- **Android:** download the APK from <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build13/GapSense-android-debug.apk> and open it on the phone. Steps in `docs/INSTALL_GUIDE.md`.
-- **Any browser:** open <https://azizulhaque.me/Gap-Sense-Crossing-Practice/>. Everything works except vibration.
+- **iPhone:** open <https://testflight.apple.com/join/wYreYpF6> on the phone (TestFlight). About two minutes. If Gap Sense is already installed, open TestFlight and press **Update**.
+- **Android:** download the APK from <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build14/GapSense-android-debug.apk> and open it on the phone. Installing over an older build keeps your data. Steps in `docs/INSTALL_GUIDE.md`.
+- **Any browser:** open <https://azizulhaque.me/Gap-Sense-Crossing-Practice/>. Everything works except vibration. Reload once if you have used it before.
+
+To check which build you have: open the app, **Help**, **About**. It should say build 14.
+
+## Test it and tell us what you find
+
+You do not need to ask anyone how to test. In order:
+
+1. **Install** with the steps above, or just open the browser link.
+2. **Set up:** open **Instructor setup**, enter a first-half time (for example 4), a full-street time (for example 8) and a margin (0.4), then go back. Or press **Try it now with example times** on Home.
+3. **Try the four activities** in order: Practice my timing, Comparison preparation, Comparison practice, At the street. The answer screens take a swipe or a tap anywhere; **Back**, top left, cancels a try.
+4. **With VoiceOver or TalkBack on,** follow [`docs/TESTING.md`](docs/TESTING.md), section H4b: it lists exactly what should happen on each answer screen.
+5. **Report** anything wrong or unclear as a GitHub issue: <https://github.com/meazizul/Gap-Sense-Crossing-Practice/issues/new>. Say the phone, the build (Help, About), what you did, what happened and what you expected. Screen recordings with VoiceOver on are the most useful thing you can send.
+
+The step-by-step checklists for everything else are in [`docs/TESTING.md`](docs/TESTING.md); what each part of the app does and why is in [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md).
 
 ## For reviewers: the 60-second version
 
@@ -103,7 +123,8 @@ The history of the project, from the first prototype to today, is in
 ├── ios-app/                  ← THE CURRENT APP. Work here.
 │   ├── www/index.html          Markup. No build step, no framework
 │   ├── www/css/app.css         Styles, themes, large-text reflow
-│   ├── www/js/                 engine.js, history.js, features.js, comparison.js, signal.js, app.js
+│   ├── www/js/                 store.js, engine.js, history.js, features.js, comparison.js, signal.js, app.js
+│   ├── www/js/vendor/          qrcode.js (MIT, Kazuhiko Arase) for "Show to my instructor"
 │   ├── www/manifest.webmanifest, www/sw.js, www/icons/
 │   ├── tests/                  Playwright browser tests (`npm test`)
 │   ├── ios/                    Native iOS project (Capacitor)
@@ -124,7 +145,9 @@ The history of the project, from the first prototype to today, is in
 - **No build step, no framework, no bundler.** The application is one HTML file,
   one stylesheet and a few plain JavaScript files. Open it and it runs.
 - **No backend, no accounts, no network calls.** All state lives in the browser's
-  `localStorage` under `om-*` keys. Nothing is collected or transmitted.
+  `localStorage` under `om-*` keys, with a durable copy in the phone's own
+  storage (or IndexedDB on the web) that is restored if the web storage is
+  lost. Nothing is collected or transmitted.
 - **Audio** is synthesized live — no sound files. In the iPhone app the app
   itself plays it, so the silent switch cannot mute it; in the browser and on
   Android it is the Web Audio API, scheduled on the `AudioContext` clock, which
@@ -165,7 +188,7 @@ constrained accordingly:
 
 - **Not on the App Store or Play Store.** Distribution is TestFlight and a
   direct APK. Store assets and listings are separate work.
-- **No device automation.** Browser tests exist (`cd ios-app && npm test`, 74
+- **No device automation.** Browser tests exist (`cd ios-app && npm test`, 206
   Playwright tests in the installed Chrome) and cover the logic and the
   accessibility wiring; audio quality, haptics, VoiceOver and TalkBack still need
   a real phone. See `docs/TESTING.md`.
@@ -176,6 +199,7 @@ constrained accordingly:
 
 ---
 
-## License
+## License and credits
 
-ISC.
+ISC. Origins and collaborators: [`NOTICE.md`](NOTICE.md). The QR code library
+in `ios-app/www/js/vendor/qrcode.js` is MIT-licensed (Kazuhiko Arase).
