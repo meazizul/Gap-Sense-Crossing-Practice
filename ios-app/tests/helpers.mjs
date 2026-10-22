@@ -21,11 +21,14 @@ export async function openApp(page, { query = "", tutorialSeen = true, disclaime
     const keys = await caches.keys();
     await Promise.all(keys.map((k) => caches.delete(k)));
   });
-  await page.evaluate(({ tutorialSeen, disclaimerSeen, storage }) => {
+  await page.evaluate(async ({ tutorialSeen, disclaimerSeen, storage }) => {
     localStorage.clear();
     if (tutorialSeen) localStorage.setItem("om-tutorial-seen", "true");
     if (disclaimerSeen) localStorage.setItem("om-disclaimer-ack", "true");
     Object.entries(storage).forEach(([k, v]) => localStorage.setItem(k, v));
+    // Build 14: the durable copy (store.js) follows; written now so the next
+    // load starts from exactly this state.
+    if (window.gsStore?.syncNow) await window.gsStore.syncNow();
   }, { tutorialSeen, disclaimerSeen, storage });
   await page.goto(`/index.html${query}`);
   await page.waitForFunction(() => typeof gsBoot === "function" && document.getElementById("screen-home"));

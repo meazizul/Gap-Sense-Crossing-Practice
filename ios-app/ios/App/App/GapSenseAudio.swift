@@ -22,6 +22,12 @@ import UIKit
 /// 5 dB, peaks held just under full scale, and the added overtones carry
 /// better on a phone's small speaker. Louder at the same phone volume,
 /// without crackling.
+///
+/// Build 14 (tracker 12.34): steady voices are lowered to 30% while any
+/// short cue (the student's own sound, the right or wrong cue) plays, with a
+/// few milliseconds of smoothing, so the cue stays clean over the sample
+/// instead of merging with it, and the two together no longer drive the
+/// clipper. The web version does the same with gain automation.
 final class GSAudio {
     static let shared = GSAudio()
 
@@ -42,6 +48,11 @@ final class GSAudio {
 
     private static let maxVoices = 32
     private static let drive: Float = 3
+    private static let duckLevel: Float = 0.3
+    private var duckSmooth: Float = 0        // 0 = no cue playing, 1 = fully ducked
+    private var pulseScratch = [Float](repeating: 0, count: 4096)
+    private var steadyScratch = [Float](repeating: 0, count: 4096)
+    private var envScratch = [Float](repeating: 0, count: 4096)
 
     private let engine = AVAudioEngine()
     private var source: AVAudioSourceNode?
@@ -213,6 +224,12 @@ final class GSAudio {
         for i in 0..<frameCount { out[i] = 0 }
 
         os_unfair_lock_lock(lock)
+        if pulseScratch.count < frameCount {
+            pulseScratch = [Float](repeating: 0, count: frameCount)
+            steadyScratch = [Float](repeating: 0, count: frameCount)
+            envScratch = [Float](repeating: 0, count: frameCount)
+        }
+        for i in 0..<frameCount { pulseScratch[i] = 0; steadyScratch[i] = 0; envScratch[i] = 0 }
         let first = frame
         let twoPi = 2.0 * Double.pi
         for v in voices.indices where voices[v].active {
@@ -245,7 +262,14 @@ final class GSAudio {
                 if voice.count > 1 { s += voice.gains.1 * Float(sin(voice.phases.1)); voice.phases.1 += steps.1 }
                 if voice.count > 2 { s += voice.gains.2 * Float(sin(voice.phases.2)); voice.phases.2 += steps.2 }
                 if voice.count > 3 { s += voice.gains.3 * Float(sin(voice.phases.3)); voice.phases.3 += steps.3 }
-                out[i] += s * env * voice.level
+                // Steady voices (the sample) and short cues are summed apart,
+                // so the cues can lower the sample underneath them.
+                if voice.steady {
+                    steadyScratch[i] += s * env * voice.level
+                } else {
+                    pulseScratch[i] += s * env * voice.level
+                    envScratch[i] = max(envScratch[i], min(1, env * voice.level * 2))
+                }
             }
             // Keep phases small so long tones stay accurate.
             voice.phases = (voice.phases.0.truncatingRemainder(dividingBy: twoPi), voice.phases.1.truncatingRemainder(dividingBy: twoPi),
@@ -253,6 +277,17 @@ final class GSAudio {
             voices[v] = voice
         }
         frame = first + Int64(frameCount)
+
+        // Duck: follow the cue envelope with ~3 ms attack and ~25 ms release.
+        let attack: Float = 1 - expf(-1 / (0.003 * Float(sampleRate)))
+        let release: Float = 1 - expf(-1 / (0.025 * Float(sampleRate)))
+        var duck = duckSmooth
+        for i in 0..<frameCount {
+            let target = envScratch[i] > 0.02 ? Float(1) : Float(0)
+            duck += (target - duck) * (target > duck ? attack : release)
+            out[i] = steadyScratch[i] * (1 - duck * (1 - GSAudio.duckLevel)) + pulseScratch[i]
+        }
+        duckSmooth = duck
 
         let norm = tanhf(GSAudio.drive)
         var loudest = peak

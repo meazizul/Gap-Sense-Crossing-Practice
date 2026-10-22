@@ -2100,3 +2100,7 @@ h2.safety-note-title { font-size: 1rem; margin: 0; }
 .qr-code svg { width: min(100%, 360px); height: auto; display: block; }
 .report-actions { display: flex; flex-direction: column; gap: 8px; }
 .report-actions .settings-action { width: 100%; }
+
+/* Play it again (F1): the same size and style as the page's other main controls, right after the main button. */
+.play-again-btn { width: 100%; min-height: 3.6rem; font-size: 1.05rem; margin-top: 10px; }
+.gesture-overlay .play-again-btn { flex: 0 0 auto; margin-top: 0; }

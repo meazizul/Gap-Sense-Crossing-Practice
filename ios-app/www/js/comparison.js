@@ -825,7 +825,7 @@ function gsHowMuchTap() {
   const btn = document.getElementById("compareFollowUpBtn");
   if (!gsHowMuchPad.start) {
     gsHowMuchPad.start = performance.now();
-    playConfirmTone();
+    playStudentTone();
     hapticCue("start");
     if (btn) {
       btn.textContent = "TAP TO END";
@@ -834,7 +834,7 @@ function gsHowMuchTap() {
     return;
   }
   const produced = (performance.now() - gsHowMuchPad.start) / 1000;
-  playConfirmTone();
+  playStudentTone();
   const done = gsHowMuchPad.onDone;
   gsCloseHowMuchPad();
   done(produced);
@@ -843,6 +843,54 @@ function gsHowMuchTap() {
 /* Kept for older callers and tests: Skip became Back (tracker 13.7). */
 function gsAnswerPadSkip() { gsAnswerPadBack(); }
 function gsHowMuchPadSkip() { gsHowMuchPadBack(); }
+
+/* ============================================================
+ * Play it again (Cindi, Oct 18 2026; tracker F1)
+ * ------------------------------------------------------------
+ * After the replay in Comparison preparation, Comparison practice and At the
+ * street, the student can hear that same replay again, as many times as they
+ * like, until they start a new sample or vehicle. It replays the last try
+ * exactly, is never recorded or scored, and sits right after the page's main
+ * button (one swipe from Play for VoiceOver users). Not in Practice my
+ * timing: there what plays back is clearly the student's own taps.
+ * ============================================================ */
+
+const gsPlayAgain = { compare: null, signal: null, live: null };
+
+function gsPlayAgainButton(activity) {
+  return document.getElementById({ compare: "comparePlayAgainBtn", signal: "signalPlayAgainBtn", live: "livePlayAgainBtn" }[activity]);
+}
+
+/* Remember the replay of the try just finished. */
+function gsPlayAgainSet(activity, fn) {
+  gsPlayAgain[activity] = typeof fn === "function" ? fn : null;
+}
+
+/* Show the button when there is something to play again and the option allows it. */
+function gsPlayAgainShow(activity, show) {
+  const btn = gsPlayAgainButton(activity);
+  if (!btn) return;
+  const enabled = typeof gsPlayAgainEnabled === "function" ? gsPlayAgainEnabled() : true;
+  btn.hidden = !(show && enabled && gsPlayAgain[activity]);
+  gsSetBusy(btn, false);
+}
+
+function gsPlayAgainClear(activity) {
+  gsPlayAgain[activity] = null;
+  gsPlayAgainShow(activity, false);
+}
+
+/* The student's own switch, one setting shared by the three activities. */
+function gsPlayAgainToggleInit() {
+  const toggles = [...document.querySelectorAll(".play-again-toggle")];
+  const sync = () => { const on = localStorage.getItem("om-playAgain") !== "false"; toggles.forEach((t) => { t.checked = on; }); };
+  sync();
+  toggles.forEach((t) => t.addEventListener("change", () => {
+    localStorage.setItem("om-playAgain", String(t.checked));
+    sync();
+    ["compare", "signal", "live"].forEach((a) => { if (gsPlayAgain[a]) gsPlayAgainShow(a, true); });
+  }));
+}
 
 /* ============================================================
  * COMPARISON PRACTICE
@@ -956,6 +1004,7 @@ function gsCompareBegin() {
   gsCompareState.marginSec = margin;
   gsCompareState.expected = trial.category;
   gsCompareState.phase = "waiting";
+  gsPlayAgainClear("compare");
 
   gsCompareSetStartEnabled(false, "Listen…");
   const randomPause = gsCompareRandomDelayEnabled();
@@ -1037,13 +1086,23 @@ function gsCompareAnswer(answer) {
 function gsCompareReplay(afterSec = 0.1) {
   gsCompareState.phase = "replaying";
   gsBeginQuiet();
-  const doneAt = gsReplayJudgment({
-    sampleSec: gsCompareState.intervalSec,
-    crossingSec: gsCompareState.crossingSec,
-    style: gsCompareStyle(),
-    startDelaySec: afterSec + 0.4
-  });
+  const params = { sampleSec: gsCompareState.intervalSec, crossingSec: gsCompareState.crossingSec, style: gsCompareStyle() };
+  const doneAt = gsReplayJudgment({ ...params, startDelaySec: afterSec + 0.4 });
+  gsPlayAgainSet("compare", () => gsReplayJudgment({ ...params, startDelaySec: 0.5 }));
   gsLater(gsCompareTimers, () => gsCompareFinish("Press Play for another."), doneAt + 0.2);
+}
+
+/* Play it again: the same replay, not recorded, then back to idle. */
+function gsComparePlayAgain() {
+  const fn = gsPlayAgain.compare;
+  if (gsCompareState.phase !== "idle" || typeof fn !== "function") return;
+  gsCompareState.phase = "replaying";
+  gsCompareSetStartEnabled(false, "Listen…");
+  gsSetBusy(gsPlayAgainButton("compare"), true);
+  gsCompareStatus("", "neutral", { announce: false });
+  gsBeginQuiet();
+  const doneAt = fn();
+  gsLater(gsCompareTimers, () => gsCompareFinish("Press Play for another.", "neutral", { focus: "playAgain" }), doneAt + 0.2);
 }
 
 function gsCompareFinish(message, tone = "neutral", { focus = "play" } = {}) {
@@ -1051,9 +1110,13 @@ function gsCompareFinish(message, tone = "neutral", { focus = "play" } = {}) {
   gsCompareState.phase = "idle";
   gsCompareSetStartEnabled(true);
   gsCompareStatus(message, tone);
-  // After Back, focus goes to the screen's title (tracker 13.7); otherwise
-  // Play, where the student already is.
-  (focus === "title" ? document.getElementById("screenTitle") : document.getElementById("compareStartBtn"))?.focus({ preventScroll: true });
+  gsPlayAgainShow("compare", focus !== "title");
+  // After Back, focus goes to the screen's title (tracker 13.7); after Play it
+  // again, the button itself; otherwise Play, where the student already is.
+  const target = focus === "title" ? document.getElementById("screenTitle")
+    : focus === "playAgain" ? gsPlayAgainButton("compare")
+      : document.getElementById("compareStartBtn");
+  target?.focus({ preventScroll: true });
 }
 
 function gsCompareStartHowMuch() {
@@ -1140,27 +1203,29 @@ function gsCompareHowMuchDone(produced) {
 
   if (gsFeature("magnitudeReplay") === "b") {
     gsBeginQuiet();
-    const firstDone = gsReplayJudgment({
-      sampleSec: gsCompareState.intervalSec,
-      crossingSec: gsCompareState.crossingSec,
-      style: gsCompareStyle(),
-      startDelaySec: 0.8
-    });
-    const secondDone = gsReplayMagnitudeB({ estimateSec: produced, trueDiffSec: trueDiff, marginSec: margin, startDelaySec: firstDone + 0.5, append: true });
+    const judgment = { sampleSec: gsCompareState.intervalSec, crossingSec: gsCompareState.crossingSec, style: gsCompareStyle() };
+    const estimate = { estimateSec: produced, trueDiffSec: trueDiff, marginSec: margin, append: true };
+    const replayB = (startDelaySec) => {
+      const first = gsReplayJudgment({ ...judgment, startDelaySec });
+      return gsReplayMagnitudeB({ ...estimate, startDelaySec: first + 0.5 });
+    };
+    const secondDone = replayB(0.8);
+    gsPlayAgainSet("compare", () => replayB(0.5));
     gsLater(gsCompareTimers, () => gsCompareFinish(closing, tone), secondDone + 0.2);
     return;
   }
 
   gsBeginQuiet();
-  const doneAt = gsReplayMagnitudeA({
+  const params = {
     crossingSec: gsCompareState.crossingSec,
     sampleSec: gsCompareState.intervalSec,
     estimateSec: produced,
     direction: gsCompareState.expected,
     marginSec: margin,
-    style: gsCompareStyle(),
-    startDelaySec: 0.8
-  });
+    style: gsCompareStyle()
+  };
+  const doneAt = gsReplayMagnitudeA({ ...params, startDelaySec: 0.8 });
+  gsPlayAgainSet("compare", () => gsReplayMagnitudeA({ ...params, startDelaySec: 0.5 }));
   gsLater(gsCompareTimers, () => gsCompareFinish(closing, tone), doneAt + 0.2);
 }
 
@@ -1186,6 +1251,7 @@ function gsCompareRenderScore() {
 
 function gsCompareSetStreet(street) {
   gsCompareCancel();
+  gsPlayAgainClear("compare");
   gsCompareState.street = street;
   gsCompareRenderScore();
   gsCompareStatus(`${street === "half" ? "First half of the street" : "Full street"} selected. Press Play when ready.`);
@@ -1313,6 +1379,7 @@ function gsLiveOpen() {
  * Oct 22 2026, on tracker 13.7's open point).
  */
 function gsLiveClose() {
+  gsPlayAgainClear("live");
   if (gsLiveState.phase === "arriving") {
     const street = gsLiveStreetFor(gsLiveState.direction);
     gsLogAttempt({
@@ -1378,6 +1445,7 @@ document.addEventListener("visibilitychange", () => {
 
 /* Called by the shell when leaving the screen. */
 function gsLiveLeave() {
+  gsPlayAgainClear("live");
   gsLiveCancelFlow();
   gsLiveState.phase = "closed";
   gsHidePad(document.getElementById("liveOverlay"));
@@ -1389,6 +1457,7 @@ function gsLiveEnter() {
 
 function gsLiveDetect(direction, atMs) {
   if (gsLiveState.phase !== "detect") return;
+  gsPlayAgainClear("live");
   gsLiveState.direction = direction === "right" ? "right" : "left";
   gsLiveState.detectedAt = Number.isFinite(atMs) ? atMs : performance.now();
   gsLiveState.phase = "arriving";
@@ -1603,28 +1672,35 @@ function gsLiveAfterVehicle({ judged, correct, magnitude = null }) {
 
   gsLater(gsLiveTimers, () => {
     gsBeginQuiet();
-    let doneAt;
     const style = "continuous";
-    if (magnitude) {
-      if (gsFeature("magnitudeReplay") === "b") {
-        const first = gsReplayJudgment({ sampleSec: gsLiveState.warningSec, crossingSec: gsLiveState.crossingSec, style, startDelaySec: 0.3 });
-        doneAt = gsReplayMagnitudeB({ estimateSec: magnitude.produced, trueDiffSec: magnitude.trueDiff, marginSec: magnitude.marginSec, startDelaySec: first + 0.5, append: true });
-      } else {
-        doneAt = gsReplayMagnitudeA({
-          crossingSec: gsLiveState.crossingSec,
-          sampleSec: gsLiveState.warningSec,
-          estimateSec: magnitude.produced,
-          direction: gsLiveState.category,
-          marginSec: magnitude.marginSec,
-          style,
-          startDelaySec: 0.3
-        });
+    const warningSec = gsLiveState.warningSec;
+    const crossingSec = gsLiveState.crossingSec;
+    const category = gsLiveState.category;
+    const replay = (startDelaySec) => {
+      if (magnitude && gsFeature("magnitudeReplay") === "b") {
+        const first = gsReplayJudgment({ sampleSec: warningSec, crossingSec, style, startDelaySec });
+        return gsReplayMagnitudeB({ estimateSec: magnitude.produced, trueDiffSec: magnitude.trueDiff, marginSec: magnitude.marginSec, startDelaySec: first + 0.5, append: true });
       }
-    } else {
-      doneAt = gsReplayJudgment({ sampleSec: gsLiveState.warningSec, crossingSec: gsLiveState.crossingSec, style, startDelaySec: 0.3 });
-    }
+      if (magnitude) {
+        return gsReplayMagnitudeA({ crossingSec, sampleSec: warningSec, estimateSec: magnitude.produced, direction: category, marginSec: magnitude.marginSec, style, startDelaySec });
+      }
+      return gsReplayJudgment({ sampleSec: warningSec, crossingSec, style, startDelaySec });
+    };
+    const doneAt = replay(0.3);
+    gsPlayAgainSet("live", () => replay(0.5));
     gsLater(gsLiveTimers, gsLiveReady, doneAt + 0.2);
   }, magnitude ? 1.6 : 1.4);
+}
+
+/* Play it again at the street: the last vehicle's replay, then ready again. */
+function gsLivePlayAgain() {
+  const fn = gsPlayAgain.live;
+  if (gsLiveState.phase !== "detect" || typeof fn !== "function") return;
+  gsLiveState.phase = "feedback";
+  gsSetBusy(gsPlayAgainButton("live"), true);
+  gsBeginQuiet();
+  const doneAt = fn();
+  gsLater(gsLiveTimers, gsLiveReady, doneAt + 0.2);
 }
 
 function gsLiveReady() {
@@ -1633,7 +1709,11 @@ function gsLiveReady() {
   gsLiveState.phase = "detect";
   gsLiveRenderPad();
   gsLiveStatus("Ready for the next vehicle.");
-  gsLivePadFocus();
+  const playAgain = gsPlayAgainButton("live");
+  const wasPlayingAgain = playAgain && !playAgain.hidden && gsIsBusy(playAgain);
+  gsPlayAgainShow("live", true);
+  if (wasPlayingAgain) playAgain.focus({ preventScroll: true });
+  else gsLivePadFocus();
 }
 
 function gsLiveRenderTally() {
@@ -1797,6 +1877,11 @@ function gsComparisonInit() {
       if (input.checked) localStorage.setItem("om-live-sense", input.value);
     });
   });
+
+  // Play it again (F1).
+  gsPlayAgainToggleInit();
+  document.getElementById("comparePlayAgainBtn")?.addEventListener("click", gsComparePlayAgain);
+  document.getElementById("livePlayAgainBtn")?.addEventListener("click", gsLivePlayAgain);
 
   // At the street.
   document.getElementById("liveStartBtn")?.addEventListener("click", gsLiveOpen);

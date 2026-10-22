@@ -159,7 +159,9 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func audioStatus(_ call: CAPPluginCall) {
-        call.resolve(GSAudio.shared.status())
+        var status = GSAudio.shared.status()
+        haptics.status().forEach { status[$0.key] = $0.value }
+        call.resolve(status)
     }
 
     @objc func speak(_ call: CAPPluginCall) {
@@ -292,32 +294,72 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
 ///   ready          two lighter knocks    "get ready"
 final class GSHaptics {
     private var engine: CHHapticEngine?
+    private var engineRunning = false
     private let supportsCoreHaptics = CHHapticEngine.capabilitiesForHardware().supportsHaptics
+    private let heavy = UIImpactFeedbackGenerator(style: .heavy)
+    private let medium = UIImpactFeedbackGenerator(style: .medium)
+    private let light = UIImpactFeedbackGenerator(style: .light)
+    /// Counts for the phone checks (tracker 12.30): how many cues reached
+    /// Core Haptics, how many fell back to UIKit, how many failed outright.
+    private(set) var played = 0
+    private(set) var fellBack = 0
+    private(set) var failed = 0
+    private(set) var lastError = ""
 
+    /*
+     * Build 14 (tracker 12.30: nothing vibrated during tries on an iPhone
+     * while the test pulse worked): the engine is kept running instead of
+     * auto-shutting down between cues and being restarted under a playing
+     * audio engine; a stopped or reset engine is rebuilt on the next cue; a
+     * cue that Core Haptics refuses is played through UIKit at once; and the
+     * UIKit generators are kept prepared. audioStatus() reports the counts
+     * so a phone test can see whether the cues arrive and which path they
+     * took.
+     */
     private func readyEngine() -> CHHapticEngine? {
         guard supportsCoreHaptics else { return nil }
         if engine == nil {
             do {
                 let created = try CHHapticEngine()
                 created.playsHapticsOnly = true
-                created.isAutoShutdownEnabled = true
+                created.isAutoShutdownEnabled = false
                 created.resetHandler = { [weak self] in
-                    try? self?.engine?.start()
+                    self?.engineRunning = false
+                    do { try self?.engine?.start(); self?.engineRunning = true } catch { self?.engine = nil }
+                }
+                created.stoppedHandler = { [weak self] _ in
+                    self?.engineRunning = false
                 }
                 engine = created
+                engineRunning = false
             } catch {
+                lastError = "create: \(error.localizedDescription)"
                 return nil
             }
         }
-        do {
-            // Cheap when already running; restarts it after an auto shutdown
-            // or an interruption.
-            try engine?.start()
-        } catch {
-            engine = nil
-            return nil
+        if !engineRunning {
+            do {
+                try engine?.start()
+                engineRunning = true
+            } catch {
+                lastError = "start: \(error.localizedDescription)"
+                engine = nil
+                engineRunning = false
+                return nil
+            }
         }
         return engine
+    }
+
+    func status() -> [String: Any] {
+        [
+            "hapticsSupported": supportsCoreHaptics,
+            "hapticsEngineRunning": engineRunning,
+            "hapticsPlayed": played,
+            "hapticsFellBack": fellBack,
+            "hapticsFailed": failed,
+            "hapticsLastError": lastError
+        ]
     }
 
     private func tap(_ time: TimeInterval, intensity: Float, sharpness: Float) -> CHHapticEvent {
@@ -376,7 +418,11 @@ final class GSHaptics {
             let pattern = try CHHapticPattern(events: events(for: type), parameters: [])
             let player = try engine.makePlayer(with: pattern)
             try player.start(atTime: CHHapticTimeImmediate)
+            played += 1
+            heavy.prepare()
         } catch {
+            lastError = "play: \(error.localizedDescription)"
+            engineRunning = false
             fallback(type)
         }
     }
@@ -384,23 +430,23 @@ final class GSHaptics {
     /// Devices without Core Haptics (or if it fails): UIKit feedback, and the
     /// system vibration for the long "wrong" buzz.
     private func fallback(_ type: String) {
+        fellBack += 1
         switch type {
         case "reference_bad":
             AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
         case "reference_ok":
-            let generator = UIImpactFeedbackGenerator(style: .heavy)
-            generator.impactOccurred()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.11) { generator.impactOccurred() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { generator.impactOccurred() }
+            heavy.impactOccurred()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.11) { [heavy] in heavy.impactOccurred() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { [heavy] in heavy.impactOccurred() }
         case "ready":
-            let generator = UIImpactFeedbackGenerator(style: .light)
-            generator.impactOccurred()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.095) { generator.impactOccurred() }
+            light.impactOccurred()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.095) { [light] in light.impactOccurred() }
         case "start":
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            medium.impactOccurred()
         default:
-            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            heavy.impactOccurred()
         }
+        heavy.prepare()
     }
 }
 

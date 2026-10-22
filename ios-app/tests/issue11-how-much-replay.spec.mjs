@@ -36,7 +36,8 @@ async function replaySounds(page) {
   const steady = sounds.filter((s) => s.kind === "sample");
   expect(steady, "exactly one steady sound in the replay").toHaveLength(1);
   const base = steady[0];
-  const users = sounds.filter((s) => s.kind === "user").map((s) => s.at - base.at).sort((a, b) => a - b);
+  // The How much taps play the student's sound too (build 14, 12.35); only the replay's count here.
+  const users = sounds.filter((s) => s.kind === "user" && s.at >= base.at).map((s) => s.at - base.at).sort((a, b) => a - b);
   // At the street gives the right/wrong sound at once, before the replay; only the cue inside the replay counts here.
   const cues = sounds.filter((s) => (s.kind === "acceptable" || s.kind === "outside") && s.at >= base.at);
   expect(cues, "exactly one right/wrong cue inside the replay").toHaveLength(1);

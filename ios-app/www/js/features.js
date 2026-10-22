@@ -37,7 +37,8 @@ const GS_FEATURE_DEFAULTS = Object.freeze({
     liveJudge: "on",              // on | off | choose
     liveHowMuch: "choose",        // on | off | choose
     liveReplay: "always",         // always | errors | never | choose
-    liveConfirm: "sound"          // sound | vibration  (confirmation of a street gesture)
+    liveConfirm: "sound",         // sound | vibration  (confirmation of a street gesture)
+    playAgain: "choose"           // on | off | choose  ("Play it again" after a replay, F1)
   }
 });
 
@@ -53,7 +54,8 @@ const GS_FEATURE_VALUES = {
   liveJudge: ["on", "off", "choose"],
   liveHowMuch: ["on", "off", "choose"],
   liveReplay: ["always", "errors", "never", "choose"],
-  liveConfirm: ["sound", "vibration"]
+  liveConfirm: ["sound", "vibration"],
+  playAgain: ["on", "off", "choose"]
 };
 
 const GS_ACTIVITY_IDS = ["practice", "signal", "compare", "live"];
@@ -145,8 +147,23 @@ const GS_FEATURE_FIXED_TEXT = {
     always: "",
     errors: "Your instructor set replays to play only after a wrong answer.",
     never: "Your instructor turned replays off."
-  }
+  },
+  playAgain: { on: "", off: "" }
 };
+
+/*
+ * "Play it again" (Cindi, Oct 18 2026; tracker F1): after a replay in the
+ * three comparison activities the student can hear that same replay again,
+ * as often as they like, before moving on. An instructor option (on, off, or
+ * the student chooses); with "choose", the student's own switch decides. Never
+ * recorded or scored.
+ */
+function gsPlayAgainEnabled() {
+  const value = gsFeature("playAgain");
+  if (value === "on") return true;
+  if (value === "off") return false;
+  return localStorage.getItem("om-playAgain") !== "false";
+}
 
 /**
  * Show or hide every student-side control to match the instructor's choices.

@@ -52,6 +52,8 @@ async function gsRenderAbout() {
     /* fall back to the constants */
   }
   el.textContent = `${GS_APP_NAME} version ${version}, build ${build} (${channel}), ${GS_APP_DATE}.`;
+  const storage = document.getElementById("aboutStorage");
+  if (storage && window.gsStore) storage.textContent = window.gsStore.describe();
 }
 
 /*

@@ -229,6 +229,7 @@
         <span class="action-btn-label" id="signalBtnLabel">READY</span>
         <span class="action-btn-hint" id="signalBtnHint">Press, then wait for the sound</span>
       </button>
+      <button class="settings-action primary play-again-btn" id="signalPlayAgainBtn" type="button" hidden>Play it again</button>
 
       <div class="cue-banner" id="signalStatus" data-tone="neutral" data-visible="true" aria-live="off">
         <span class="cue-dot" aria-hidden="true"></span>
@@ -245,6 +246,7 @@
         </fieldset>
         <p class="field-help" data-feature-fixed="prepSound"></p>
         <div class="sample-sound-controls"></div>
+        <label data-feature-choice="playAgain"><input type="checkbox" class="play-again-toggle" id="prepPlayAgainToggle" checked /> Offer "Play it again" after each replay</label>
       </details>
     </section>
 
@@ -266,6 +268,7 @@
         <span class="action-btn-label">Play a sample warning time</span>
         <span class="action-btn-hint" aria-hidden="true">Then answer: longer, shorter, or about the same</span>
       </button>
+      <button class="settings-action primary play-again-btn" id="comparePlayAgainBtn" type="button" hidden>Play it again</button>
 
       <div class="cue-banner" id="compareStatus" data-tone="neutral" data-visible="true" aria-live="off">
         <span class="cue-dot" aria-hidden="true"></span>
@@ -291,6 +294,7 @@
         <div class="sample-sound-controls"></div>
         <label data-feature-choice="compareRandomPause"><input type="checkbox" id="compareRandomDelay" /> Start the sample after a random pause</label>
         <label data-feature-choice="compareHowMuch"><input type="checkbox" id="compareFollowUp" /> After a correct longer or shorter answer, tap out how much longer or shorter it was</label>
+        <label data-feature-choice="playAgain"><input type="checkbox" class="play-again-toggle" id="comparePlayAgainToggle" checked /> Offer "Play it again" after each replay</label>
       </details>
     </section>
 
@@ -338,6 +342,7 @@
         </div>
         <p class="field-help" data-feature-fixed="liveJudge"></p>
         <p class="field-help" data-feature-fixed="liveReplay"></p>
+        <label data-feature-choice="playAgain"><input type="checkbox" class="play-again-toggle" id="livePlayAgainToggle" checked /> Offer "Play it again" after each replay</label>
       </details>
     </section>
 
@@ -416,6 +421,7 @@
       <section class="card">
         <h2 class="card-label">About</h2>
         <p class="field-help" id="aboutVersion">Gap Sense</p>
+        <p class="field-help" id="aboutStorage"></p>
         <p class="field-help">Free, open source, and private. Nothing leaves this device unless you send it.</p>
       </section>
     </section>
@@ -537,6 +543,17 @@
             <option value="errors">Only after a wrong answer</option>
             <option value="never">Never</option>
             <option value="choose">Student chooses</option>
+          </select>
+        </div>
+
+        <div class="setup-group">
+          <h2 class="setup-heading">Play it again</h2>
+          <p class="setup-note">After a replay in Comparison preparation, Comparison practice and At the street, the student can hear that same replay again before moving on. Never recorded or scored.</p>
+          <label for="ftPlayAgain">Play it again</label>
+          <select id="ftPlayAgain" data-feature="playAgain">
+            <option value="choose">Student chooses</option>
+            <option value="on">On</option>
+            <option value="off">Off</option>
           </select>
         </div>
 
@@ -688,6 +705,7 @@
       <p class="gesture-title" id="liveOverlayTitle" tabindex="-1">At the street</p>
     </div>
     <p class="gesture-status" id="liveOverlayStatus">Swipe left or right when you think you detect a vehicle.</p>
+    <button class="settings-action primary play-again-btn" id="livePlayAgainBtn" type="button" hidden>Play it again</button>
     <div class="gesture-surface" id="liveSurface" role="group" tabindex="-1" aria-label="Street. Swipe left or right the moment you detect a vehicle, toward the side it is coming from.">
       <p class="pad-question" id="liveSurfaceText">Swipe left: from the left. Swipe right: from the right.</p>
     </div>
@@ -757,10 +775,10 @@
               </div>
             </div>
           </fieldset>
-          <button type="button" class="settings-action" id="previewUserSound">Hear my marker sound</button>
+          <button type="button" class="settings-action" id="previewUserSound">Hear my own sound</button>
           <label>
             <input type="checkbox" id="replayUsesConfirm" />
-            Use button chime instead of marker tone during replay
+            Use the button chime as my own sound, for my taps and in every replay
           </label>
         </div>
 
@@ -999,6 +1017,8 @@
     </div>
   </dialog>
   <!-- Engine (practice/replay logic), then feature modules, then the shell. -->
+  <!-- store.js first: it mirrors every localStorage write and restores lost data. -->
+  <script src="js/store.js"></script>
   <script src="js/vendor/qrcode.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/history.js"></script>

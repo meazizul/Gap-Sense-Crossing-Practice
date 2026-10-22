@@ -400,9 +400,17 @@
     }
 
     /* ---------------- Audio ---------------- */
+    /*
+     * The student's own sound ("this is me") was a 410 Hz beep, which sat
+     * between the default sample's two layers (392 and 466 Hz) and merged
+     * with it into one chord (Cindi, tracker 12.34). It is now a short, bright
+     * two-partial tone at 1047 Hz (C6), well above every sample pitch and its
+     * upper layer (165 to 622 Hz) and above the chimes (523 to 823 Hz), and
+     * the steady sound dips for the moment it plays (gsDuckSteadyAround).
+     */
     const tones = {
       confirm: { base: 350, harmonic: 700 },
-      user: { base: 410 }
+      user: { base: 1047, harmonic: 1570 }
     };
 
     /*
@@ -500,7 +508,7 @@
       },
       marker_tone: {
         duration: 0.14,
-        partials: [{ freq: tones.user.base, gain: 0.75 }]
+        partials: [{ freq: tones.user.base, gain: 0.6 }, { freq: tones.user.harmonic, gain: 0.22 }]
       },
       // Neutral reference tick: marks "this is the real crossing time" in the
       // comparison replays. Played as two very short blips so it is told apart
@@ -735,6 +743,35 @@
      */
     const scheduledSounds = [];
     const activeSustains = new Set();
+    /* Steady sounds now playing or scheduled: { gain, level, startAt, endAt }. */
+    const steadySounds = [];
+
+    /*
+     * Lower every steady sound under a short cue for as long as the cue lasts
+     * (to 30%, with 15 ms ramps), so the student's own sound and the right or
+     * wrong cue stay clean over the sample instead of melting into it
+     * (tracker 12.34). The iPhone app does the same in its mixer.
+     */
+    const GS_DUCK_LEVEL = 0.3;
+    function gsDuckSteadyAround(atSec, durationSec) {
+      if (nativeSound || !audioContext) return;
+      const from = atSec - 0.015;
+      const until = atSec + durationSec + 0.05;
+      for (let i = steadySounds.length - 1; i >= 0; i -= 1) {
+        const s = steadySounds[i];
+        if (s.endAt <= audioContext.currentTime) { steadySounds.splice(i, 1); continue; }
+        if (until <= s.startAt + 0.02 || from >= s.endAt - 0.02) continue;
+        const start = Math.max(from, s.startAt + 0.01);
+        const end = Math.min(until, s.endAt - 0.02);
+        if (end <= start) continue;
+        try {
+          s.gain.gain.setValueAtTime(s.level, start);
+          s.gain.gain.linearRampToValueAtTime(s.level * GS_DUCK_LEVEL, start + 0.015);
+          s.gain.gain.setValueAtTime(s.level * GS_DUCK_LEVEL, end);
+          s.gain.gain.linearRampToValueAtTime(s.level, end + 0.07);
+        } catch (error) { /* the sound ended */ }
+      }
+    }
 
     function rememberScheduledSound(entry) {
       const now = audioContext ? audioContext.currentTime : 0;
@@ -746,6 +783,7 @@
 
     /** Silence every tone now: scheduled cues, replays and the steady sample. */
     function stopAllSound() {
+      steadySounds.length = 0;
       if (nativeSound) nativeCall("stopSound", {});
       activeSustains.forEach((stop) => { try { stop(); } catch (error) { /* already stopped */ } });
       activeSustains.clear();
@@ -818,6 +856,11 @@
       });
       gain.connect(masterLimiter);
       rememberScheduledSound({ gain, oscillators, endAt: now + duration + release + 0.02 });
+      if (envelope === "steady") {
+        steadySounds.push({ gain, level: outputLevel, startAt: now, endAt: now + duration });
+      } else {
+        gsDuckSteadyAround(now, duration + release);
+      }
     }
 
     /*
@@ -896,6 +939,17 @@
 
     function playUserMarkerTone(startTime = 0) {
       playSoundOption(userSoundOptions.marker, startTime, TEST_TUNING.userVolume);
+    }
+
+    /*
+     * The student's own sound, the same when they tap and when that tap is
+     * replayed (design: the student's sound marks the student's taps, and the
+     * same sound marks them again in the replay; tracker 12.35). The marker
+     * tone by default; the button chime if the student chose it in Settings.
+     */
+    function playStudentTone(startTime = 0) {
+      if (replayUsesConfirmTone) playConfirmTone(startTime);
+      else playUserMarkerTone(startTime);
     }
 
     /** Two quick blips: "this is the real crossing time". Never a feedback cue. */
@@ -1132,7 +1186,8 @@
         ["liveJudge", ["on", "off", "choose"]],
         ["liveHowMuch", ["on", "off", "choose"]],
         ["liveReplay", ["always", "errors", "never", "choose"]],
-        ["liveConfirm", ["sound", "vibration"]]
+        ["liveConfirm", ["sound", "vibration"]],
+        ["playAgain", ["on", "off", "choose"]]
       ]
     });
 
@@ -2272,7 +2327,7 @@
         stage = 1;
         setActionButtonLabel("Mark");
         setActionButtonHint("Tap at each point");
-        playConfirmTone();
+        playStudentTone();
         actionBtn.classList.remove("idle");
         actionBtn.classList.add("running");
         emitCue("start", { mode: currentMode });
@@ -2283,7 +2338,7 @@
 
       const elapsed = (performance.now() - startTimestamp) / 1000;
       markerTimes.push(elapsed);
-      playConfirmTone();
+      playStudentTone();
       stage += 1;
       const markedLabel = modes[currentMode].labels[stage - 1];
       // skipBanner: the banner text is owned by updateNextPrompt / the replay
@@ -2319,11 +2374,7 @@
       }
 
       markerTimes.forEach((time) => {
-        if (replayUsesConfirmTone) {
-          playConfirmTone(baseDelay + time);
-        } else {
-          playUserMarkerTone(baseDelay + time);
-        }
+        playStudentTone(baseDelay + time);
         // Vibrate at the user's own tap too. Without this a DeafBlind user
         // feels only the reference pulse, with nothing to compare it against —
         // and the gap between the two IS the feedback.
@@ -2670,11 +2721,7 @@
 
     previewUserSoundBtn.addEventListener("click", () => {
       ensureAudioContext();
-      if (replayUsesConfirmTone) {
-        playConfirmTone(0);
-        return;
-      }
-      playUserMarkerTone(0);
+      playStudentTone(0);
     });
 
     visualPreviewButtons.forEach((button) => {

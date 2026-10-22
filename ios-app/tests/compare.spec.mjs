@@ -279,7 +279,8 @@ test("'how much' with replay (a): steady sound for the WARNING time, student's s
   expect(base.len).toBeCloseTo(sampleSec, 3);           // the WARNING time, never the crossing time (issue 11)
   const cue = sounds.find((s) => s.kind === "outside");
   expect(cue.at - base.at).toBeCloseTo(sampleSec, 2);   // where the sample ended
-  const users = sounds.filter((s) => s.kind === "user").map((s) => s.at - base.at).sort((a, b) => a - b);
+  // The two How much taps are the student's sound too (12.35); only the replay's count here.
+  const users = sounds.filter((s) => s.kind === "user" && s.at >= base.at).map((s) => s.at - base.at).sort((a, b) => a - b);
   expect(users).toHaveLength(2);
   expect(users[0]).toBeCloseTo(8, 2);                   // the crossing time
   // The replay plays the estimate the student actually produced (the log has

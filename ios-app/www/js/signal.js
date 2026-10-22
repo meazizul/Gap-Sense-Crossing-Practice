@@ -129,6 +129,7 @@ function gsSignalStopTone() {
 
 /** Cancel the flow. Safe to call at any time. */
 function gsSignalCancel() {
+  gsPlayAgainShow("signal", false);
   gsClearTimers(gsSignalTimers);
   gsClearHaptics();
   gsSignalStopTone();
@@ -154,6 +155,7 @@ function gsSignalPress() {
       return;
     }
     gsSignalState.style = gsSignalStyle();
+    gsPlayAgainClear("signal");
     // The headphones may have changed since the last attempt.
     if (typeof gsRefreshOutputLatency === "function") gsRefreshOutputLatency();
     gsSignalState.phase = "ready";
@@ -262,19 +264,35 @@ function gsSignalResolve(producedSec) {
   gsSignalStatus("", "neutral", { announce: false });
   gsBeginQuiet();
 
-  const doneAt = gsReplayProduction({
-    producedSec: measuredSec,
-    crossingSec,
-    style: gsSignalState.style,
-    marginSec,
-    within, // the verdict already given, latency allowance included
-    startDelaySec: 1.0
-  });
+  const params = { producedSec: measuredSec, crossingSec, style: gsSignalState.style, marginSec, within }; // the verdict already given, latency allowance included
+  const doneAt = gsReplayProduction({ ...params, startDelaySec: 1.0 });
+  gsPlayAgainSet("signal", () => gsReplayProduction({ ...params, startDelaySec: 0.5 }));
   gsLater(gsSignalTimers, () => {
     suppressSrAnnouncements = false;
     gsSignalState.phase = "idle";
     gsSignalUpdateButton();
     gsSignalStatus("Ready for another.");
+    gsPlayAgainShow("signal", true);
+  }, doneAt + 0.2);
+}
+
+/* Play it again (F1): the last try's replay once more, not recorded. */
+function gsSignalPlayAgain() {
+  const fn = gsPlayAgain.signal;
+  if (gsSignalState.phase !== "idle" || typeof fn !== "function") return;
+  gsSignalState.phase = "replaying";
+  gsSignalUpdateButton();
+  gsSetBusy(gsPlayAgainButton("signal"), true);
+  gsSignalStatus("", "neutral", { announce: false });
+  gsBeginQuiet();
+  const doneAt = fn();
+  gsLater(gsSignalTimers, () => {
+    suppressSrAnnouncements = false;
+    gsSignalState.phase = "idle";
+    gsSignalUpdateButton();
+    gsSignalStatus("Ready for another.");
+    gsPlayAgainShow("signal", true);
+    gsPlayAgainButton("signal")?.focus({ preventScroll: true });
   }, doneAt + 0.2);
 }
 
@@ -322,6 +340,7 @@ function gsSignalInit() {
   });
   const btn = document.getElementById("signalBtn");
   if (btn) btn.addEventListener("click", gsSignalPress);
+  document.getElementById("signalPlayAgainBtn")?.addEventListener("click", gsSignalPlayAgain);
   gsSignalUpdateButton();
   gsSignalRenderScore();
 }

@@ -19,6 +19,7 @@ const PRECACHE = [
   "./js/comparison.js",
   "./js/app.js",
   "./js/vendor/qrcode.js",
+  "./js/store.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
