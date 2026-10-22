@@ -12,7 +12,13 @@
  * ============================================================ */
 
 const GS_HISTORY_KEY = "om-attempt-log";
-const GS_HISTORY_LIMIT = 800; // ~ a year of heavy practice; old entries roll off
+/* Raised from 800 in build 14 (tracker 12.40): one morning of practice was
+ * over 20 entries, and nothing may be dropped without the student knowing.
+ * Progress warns as the cap approaches, and says so if entries were removed. */
+const GS_HISTORY_LIMIT = 5000;
+const GS_HISTORY_WARN_AT = 4500;
+const GS_HISTORY_TRIMMED_KEY = "om-history-trimmed";
+let gsHistorySaveFailed = false;
 
 /**
  * One attempt.
@@ -35,9 +41,18 @@ const GS_HISTORY_LIMIT = 800; // ~ a year of heavy practice; old entries roll of
  * @property {string} [sense]     live task: "hearing" | "vision"
  * @property {boolean} [judged]   live task: the student judged it (build 7+)
  * @property {boolean} [never]    live task: the vehicle never came
- * @property {boolean} [skipped]  the student pressed Skip (build 11+): kept
- *                                in the log and the report, never scored
- * @property {string}  [skip]     what was skipped: "judgment" | "magnitude"
+ * @property {boolean} [skipped]  the student backed out (Skip in builds 11 to
+ *                                13, Back from build 14): kept in the log and
+ *                                the report as cancelled, never scored
+ * @property {string}  [skip]     what was cancelled: "judgment" | "magnitude"
+ *                                | "vehicle" (backed out before it passed)
+ * @property {Object}  [howMuch]  build 14+: the "how much" estimate that
+ *                                followed this judgment, in the same record
+ *                                (tracker 12.37): { userSec (tapped), refSec
+ *                                (real difference), diffSec, correct,
+ *                                marginSec, skipped }. Builds 10 to 13 wrote
+ *                                the estimate as a second record with
+ *                                answer "magnitude"; those still read.
  */
 
 function gsLoadHistory() {
@@ -53,25 +68,105 @@ function gsLoadHistory() {
 function gsSaveHistory(entries) {
   try {
     const trimmed = entries.slice(-GS_HISTORY_LIMIT);
+    if (trimmed.length < entries.length) {
+      // Never silently (tracker 12.40): Progress and the report say so.
+      const dropped = Number(localStorage.getItem(GS_HISTORY_TRIMMED_KEY) || 0) + (entries.length - trimmed.length);
+      localStorage.setItem(GS_HISTORY_TRIMMED_KEY, String(dropped));
+    }
     localStorage.setItem(GS_HISTORY_KEY, JSON.stringify(trimmed));
+    gsHistorySaveFailed = false;
+    return true;
   } catch (error) {
-    /* storage full or unavailable — practice must still work */
+    // Storage full or unavailable. Practice must still work, but the student
+    // is told (tracker 12.40); gsHistorySaveProblem() reads the flag.
+    gsHistorySaveFailed = true;
+    if (typeof gsOnHistorySaveFailed === "function") gsOnHistorySaveFailed();
+    return false;
   }
+}
+
+/** True when the last save failed or entries have ever been dropped. */
+function gsHistorySaveProblem() {
+  if (gsHistorySaveFailed) return "The last practice could not be saved on this phone. Free some space, or send a report now so nothing is lost.";
+  const dropped = Number(localStorage.getItem(GS_HISTORY_TRIMMED_KEY) || 0);
+  if (dropped > 0) return `The history is full: the oldest ${dropped} entr${dropped === 1 ? "y was" : "ies were"} removed to make room. Send or export a report to keep a copy.`;
+  if (gsLoadHistory().length >= GS_HISTORY_WARN_AT) return `The history is nearly full (${gsLoadHistory().length} of ${GS_HISTORY_LIMIT}). Send or export a report to keep a copy before the oldest entries are removed.`;
+  return "";
 }
 
 function gsLogAttempt(entry) {
   const entries = gsLoadHistory();
   entries.push({ time: Date.now(), ...entry });
   gsSaveHistory(entries);
-  // A skipped attempt is not an attempt at the skill: it moves no lane.
+  // A cancelled attempt is not an attempt at the skill: it moves no lane.
   if (!entry.skipped) gsUpdateAdaptiveMargin(entry.activity, entry.street, gsIsMagnitude(entry));
   return entries.length;
+}
+
+/*
+ * The "how much" estimate goes into the record of the judgment it followed,
+ * so one try, and one vehicle, is one record and one report line (tracker
+ * 12.37). It stays scored apart from the judgment. If no matching judgment
+ * is found (it should always be the last record), the estimate is kept as a
+ * record of its own, as builds 10 to 13 did.
+ */
+function gsLogHowMuch({ activity, street, userSec, refSec, diffSec, correct, marginSec, skipped = false, direction, sense }) {
+  const entries = gsLoadHistory();
+  const last = entries[entries.length - 1];
+  const howMuch = { userSec, refSec, diffSec, correct, marginSec, skipped: Boolean(skipped), time: Date.now() };
+  const matches = last && last.activity === activity && last.street === street && !last.howMuch && !last.skipped
+    && last.answer && last.answer !== "magnitude" && last.answer !== "same" && last.correct === true
+    && Date.now() - (last.time || 0) < 5 * 60 * 1000;
+  if (matches) {
+    last.howMuch = howMuch;
+    gsSaveHistory(entries);
+  } else {
+    entries.push({ time: Date.now(), activity, street, direction, sense, judged: true, userSec, refSec, diffSec, correct, marginSec, answer: "magnitude", expected: "magnitude", ...(skipped ? { skipped: true, skip: "magnitude" } : {}) });
+    gsSaveHistory(entries);
+  }
+  if (!skipped) gsUpdateAdaptiveMargin(activity, street, true);
+  return entries.length;
+}
+
+/*
+ * Every scored unit, one per entry: a record with a "how much" estimate
+ * inside it yields two, the judgment and the estimate, the estimate shaped
+ * like the separate records of builds 10 to 13. Scores, windows and lanes
+ * work on this list; the report and Progress list records.
+ */
+function gsExpandHistory(records = gsLoadHistory()) {
+  const out = [];
+  records.forEach((record) => {
+    out.push(record);
+    const h = record.howMuch;
+    if (!h) return;
+    out.push({
+      time: h.time || record.time,
+      activity: record.activity,
+      street: record.street,
+      direction: record.direction,
+      sense: record.sense,
+      judged: true,
+      userSec: h.userSec,
+      refSec: h.refSec,
+      diffSec: h.diffSec,
+      correct: Boolean(h.correct),
+      marginSec: h.marginSec,
+      answer: "magnitude",
+      expected: "magnitude",
+      ...(h.skipped ? { skipped: true, skip: "magnitude" } : {}),
+      virtual: true
+    });
+  });
+  return out;
 }
 
 function gsClearHistory() {
   try {
     localStorage.removeItem(GS_HISTORY_KEY);
     localStorage.removeItem(GS_ADAPTIVE_KEY);
+    localStorage.removeItem(GS_HISTORY_TRIMMED_KEY);
+    gsHistorySaveFailed = false;
   } catch (error) {
     /* ignore */
   }
@@ -99,7 +194,7 @@ function gsIsSkipped(entry) {
  * means the last ten of that skill.
  */
 function gsHistoryFor(activity, street, limit = 0, magnitude) {
-  const all = gsLoadHistory().filter(
+  const all = gsExpandHistory().filter(
     (e) => !gsIsSkipped(e)
       && (!activity || e.activity === activity)
       && (!street || e.street === street)
@@ -332,7 +427,7 @@ function gsIsScored(entry) {
  * are, so they are counted apart. */
 function gsSkippedCounts() {
   const counts = {};
-  gsLoadHistory().forEach((entry) => {
+  gsExpandHistory().forEach((entry) => {
     if (!gsIsSkipped(entry)) return;
     const c = counts[entry.activity] || (counts[entry.activity] = { judgment: 0, magnitude: 0 });
     c[entry.skip === "magnitude" ? "magnitude" : "judgment"] += 1;
@@ -347,7 +442,7 @@ function gsSkippedCounts() {
  * and never added to `total` or `correct`.
  */
 function gsSummary() {
-  const all = gsLoadHistory().filter(gsIsScored);
+  const all = gsExpandHistory().filter(gsIsScored);
   const byActivity = {};
   let encounters = 0;
   all.forEach((entry) => {
@@ -368,7 +463,7 @@ function gsSummary() {
   // The phone's own date, not UTC: an evening's practice in New York is one
   // day, not two (Cindi, 16 Oct 2026). Every entry counts as practice, scored
   // or not: a day spent timing vehicles with judging off is a day practiced.
-  const everything = gsLoadHistory();
+  const everything = gsExpandHistory();
   const days = new Set(everything.map((entry) => gsLocalDay(entry.time)));
 
   const blank = () => ({ total: 0, correct: 0, howMuchTotal: 0, howMuchCorrect: 0, last: 0 });
@@ -409,9 +504,118 @@ function gsFormatDate(ms) {
   });
 }
 
+/* "first half" / "full street", for the middle of a sentence. */
+const GS_STREET_PHRASES = { half: "first half", full: "full street" };
+
+function gsSec(value) {
+  return `${Number(value || 0).toFixed(2)} s`;
+}
+
+function gsWhen(ms) {
+  const d = new Date(ms);
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+}
+
+/* "0.58 s shorter" / "0.31 s late" / "1.21 s over": the size and the direction of a difference. */
+function gsDiffPhrase(diffSec, [positive, negative], same = "the same") {
+  const d = Number(diffSec || 0);
+  if (Math.abs(d) < 0.005) return same;
+  return `${Math.abs(d).toFixed(2)} s ${d > 0 ? positive : negative}`;
+}
+
+/*
+ * The records as the report lists them: one per try or vehicle. A "how much"
+ * estimate written as a record of its own by builds 10 to 13 is folded into
+ * the judgment just before it, when the two can be paired (same activity and
+ * street, a correct longer/shorter judgment without an estimate, within five
+ * minutes); otherwise it stays a line of its own.
+ */
+function gsReportRecords(records = gsLoadHistory()) {
+  const out = [];
+  records.forEach((record) => {
+    const prev = out[out.length - 1];
+    const isLegacyEstimate = record.answer === "magnitude" && !record.virtual;
+    const pairable = prev && isLegacyEstimate && prev.activity === record.activity && prev.street === record.street
+      && !prev.howMuch && !prev.skipped && prev.answer && prev.answer !== "magnitude" && prev.answer !== "same" && prev.correct === true
+      && (record.time || 0) - (prev.time || 0) < 5 * 60 * 1000;
+    if (pairable) {
+      out[out.length - 1] = { ...prev, howMuch: { userSec: record.userSec, refSec: record.refSec, diffSec: record.diffSec, correct: record.correct, marginSec: record.marginSec, skipped: Boolean(record.skipped), time: record.time } };
+      return;
+    }
+    out.push(record);
+  });
+  return out;
+}
+
+/* The "how much" part of a report line. */
+function gsHowMuchPhrase(h) {
+  if (!h) return "";
+  if (h.skipped) return "; how much: estimate cancelled (not scored)";
+  const off = gsDiffPhrase(h.diffSec, ["over", "under"], "exact");
+  return `; how much: tapped ${gsSec(h.userSec)}, real difference ${gsSec(h.refSec)} (${off}), margin ${gsSec(h.marginSec)} — ${h.correct ? "within margin" : "outside margin"}`;
+}
+
+/* One report line for one record (tracker 12.36, F2): the times it was judged on, labelled. */
+function gsReportLine(entry) {
+  const label = GS_ACTIVITY_LABELS[entry.activity] || entry.activity;
+  const street = GS_STREET_PHRASES[entry.street] || entry.street || "";
+  const when = gsWhen(entry.time);
+  if (entry.activity === "measure") {
+    return `${when}  ${label} (${street}): ${gsSec(entry.userSec)}`;
+  }
+  if (entry.activity === "practice") {
+    const mark = entry.street === "half" ? "halfway" : "finish";
+    const verdict = entry.correct ? "within margin" : "outside margin";
+    return `${when}  ${label} (${street}): ${mark} at ${gsSec(entry.userSec)}, real ${gsSec(entry.refSec)} (${gsDiffPhrase(entry.diffSec, ["late", "early"], "exact")}), margin ${gsSec(entry.marginSec)} — ${verdict}`;
+  }
+  if (entry.activity === "signal") {
+    const verdict = entry.correct ? "within margin" : "outside margin";
+    return `${when}  ${label} (${street}): stopped at ${gsSec(entry.userSec)}, crossing ${gsSec(entry.refSec)} (${gsDiffPhrase(entry.diffSec, ["late", "early"], "exact")}), margin ${gsSec(entry.marginSec)} — ${verdict}`;
+  }
+  // Comparison practice and At the street: the same vocabulary.
+  const context = entry.activity === "live"
+    ? [street, entry.direction ? `from the ${entry.direction}` : "", entry.sense ? `by ${entry.sense}` : ""].filter(Boolean).join(", ")
+    : street;
+  const where = `${label} (${context})`;
+  const timeWord = entry.activity === "live" ? "warning time" : "sample";
+  if (entry.answer === "magnitude" && !entry.howMuch) {
+    // An estimate on its own (builds 10 to 13, or one that could not be paired).
+    if (entry.skipped) return `${when}  ${where}, how much: estimate cancelled (not scored)`;
+    const off = gsDiffPhrase(entry.diffSec, ["over", "under"], "exact");
+    return `${when}  ${where}, how much: tapped ${gsSec(entry.userSec)}, real difference ${gsSec(entry.refSec)} (${off}), margin ${gsSec(entry.marginSec)} — ${entry.correct ? "within margin" : "outside margin"}`;
+  }
+  if (entry.never) return `${when}  ${where}: vehicle never came`;
+  if (entry.skipped && entry.skip === "vehicle") return `${when}  ${where}: cancelled before it passed (not scored)`;
+  const compared = `${timeWord} ${gsSec(entry.userSec)}, crossing ${gsSec(entry.refSec)} (${gsDiffPhrase(entry.diffSec, ["longer", "shorter"], "the same")})`;
+  if (entry.skipped) return `${when}  ${where}: ${compared} — cancelled (not scored)`;
+  if (entry.activity === "live" && entry.judged === false) return `${when}  ${where}: ${compared} (not judged)`;
+  if (entry.activity === "live" && entry.judged === undefined && !entry.howMuch) {
+    // Builds before 7 recorded the comparison without a judgment. Only the
+    // comparison is reported: the app never says whether a warning time was
+    // enough to cross on. That is the instructor's call.
+    const noisy = entry.noisy ? " [not quiet when started]" : "";
+    return `${when}  ${where}: ${compared}${noisy}`;
+  }
+  const mark = entry.correct ? "correct" : "incorrect";
+  return `${when}  ${where}: ${compared}, margin ${gsSec(entry.marginSec)}; answered "${entry.answer}", it was "${entry.expected}" — ${mark}${gsHowMuchPhrase(entry.howMuch)}`;
+}
+
+/* The crossing times and margin in force when the report is made. */
+function gsReportHeaderTimes() {
+  try {
+    const times = typeof getTimingInputs === "function" ? getTimingInputs() : null;
+    const margin = typeof getMargin === "function" ? getMargin() : NaN;
+    if (!times || !(times.fullTime > 0) || !(times.clearTime > 0)) return "";
+    return `Crossing times: full street ${gsSec(times.fullTime)}, first half ${gsSec(times.clearTime)}.${Number.isFinite(margin) && margin > 0 ? ` Margin ${gsSec(margin)}.` : ""}`;
+  } catch (error) {
+    return "";
+  }
+}
+
 /**
  * Plain-text report for the instructor. Deliberately readable in any email
- * client, with no attachment and no tracking.
+ * client, with no attachment and no tracking. It may show the numbers (Cindi,
+ * Oct 18 2026); the app still never gives feedback in numbers during practice.
  */
 function gsBuildReport(options = {}) {
   const summary = gsSummary();
@@ -421,6 +625,8 @@ function gsBuildReport(options = {}) {
   // A short code, never a name: the report travels by plain email.
   if (options.clientCode) lines.push(`Student code: ${options.clientCode}`);
   lines.push(`Generated: ${new Date().toLocaleString()}`);
+  const header = gsReportHeaderTimes();
+  if (header) lines.push(header);
   lines.push("");
 
   // Entries that are kept but not scored (a vehicle that never came, a
@@ -435,6 +641,8 @@ function gsBuildReport(options = {}) {
   lines.push(`Days practiced: ${summary.daysPracticed}`);
   lines.push(`First: ${gsFormatDate(summary.firstAt)}`);
   lines.push(`Most recent: ${gsFormatDate(summary.lastAt)}`);
+  const problem = gsHistorySaveProblem();
+  if (problem) lines.push(`Note: ${problem}`);
   lines.push("");
 
   lines.push("By activity");
@@ -458,10 +666,10 @@ function gsBuildReport(options = {}) {
     }
     if (stats.skipped) {
       // Shown, never counted as right or wrong (Cindi's decision, 16 Oct 2026).
-      lines.push(`${label}: ${stats.skipped} skipped`);
+      lines.push(`${label}: ${stats.skipped} cancelled`);
     }
     if (stats.skippedHowMuch) {
-      lines.push(`${label}, how much: ${stats.skippedHowMuch} skipped`);
+      lines.push(`${label}, how much: ${stats.skippedHowMuch} cancelled`);
     }
     if (stats.unscored) {
       lines.push(`${label}: ${stats.unscored} not scored (never came, or not judged)`);
@@ -469,80 +677,12 @@ function gsBuildReport(options = {}) {
   });
   lines.push("");
 
-  // Recent trend, most recent last — useful at a lesson.
-  const recent = gsLoadHistory().slice(-15);
+  // Recent tries, most recent last — useful at a lesson. One line per try or
+  // vehicle, with its "how much" on the same line (tracker 12.37).
+  const recent = gsReportRecords().slice(-15);
   lines.push("Most recent attempts");
   lines.push("-".repeat(34));
-  recent.forEach((entry) => {
-    const label = GS_ACTIVITY_LABELS[entry.activity] || entry.activity;
-    const street = GS_STREET_LABELS[entry.street] || entry.street || "";
-    const when = new Date(entry.time).toLocaleDateString();
-    if (entry.activity === "measure") {
-      lines.push(`${when}  ${label} (${street}): ${entry.userSec.toFixed(2)}s`);
-      return;
-    }
-    const sign = (entry.diffSec || 0) >= 0 ? "+" : "";
-    const diffText = `${sign}${Number(entry.diffSec || 0).toFixed(2)}s`;
-    if (gsIsSkipped(entry)) {
-      const what = entry.skip === "magnitude" ? "skipped the how much estimate" : "skipped the answer";
-      const context = entry.activity === "live"
-        ? [entry.direction ? `from the ${entry.direction}` : "", entry.sense ? `by ${entry.sense}` : ""].filter(Boolean).join(", ")
-        : "";
-      const where = `${label} (${street}${context ? `, ${context}` : ""})`;
-      const timing = entry.activity === "live" && entry.skip !== "magnitude" ? `: warning time ${diffText} against the crossing, ` : ": ";
-      lines.push(`${when}  ${where}${timing}${what} (not scored)`);
-      return;
-    }
-    if (entry.activity === "live" && (entry.judged !== undefined || entry.never)) {
-      const from = entry.direction ? `from the ${entry.direction}` : "";
-      const by = entry.sense ? `by ${entry.sense}` : "";
-      const context = [from, by].filter(Boolean).join(", ");
-      const where = `${label} (${street}${context ? `, ${context}` : ""})`;
-      if (entry.never) {
-        lines.push(`${when}  ${where}: vehicle never came`);
-        return;
-      }
-      if (entry.answer === "magnitude") {
-        const mark = entry.correct ? "within margin" : "outside margin";
-        lines.push(`${when}  ${where}: tapped out the difference ${diffText} — ${mark}`);
-        return;
-      }
-      if (!entry.judged) {
-        lines.push(`${when}  ${where}: warning time ${diffText} against the crossing (not judged)`);
-        return;
-      }
-      const mark = entry.correct ? "correct" : "incorrect";
-      lines.push(`${when}  ${where}: warning time ${diffText}; answered "${entry.answer}", it was "${entry.expected}" — ${mark}`);
-      return;
-    }
-    if (entry.activity === "live") {
-      // Builds before 7 recorded the comparison without a judgment. Only
-      // the comparison is reported: the app never says whether a warning
-      // time was enough to cross on. That is the instructor's call.
-      const verdict = {
-        longer: "longer than the crossing",
-        same: "about the same as the crossing",
-        shorter: "shorter than the crossing"
-      }[entry.expected] || entry.expected;
-      const noisy = entry.noisy ? " [not quiet when started]" : "";
-      lines.push(`${when}  ${label} (${street}): warning time ${diffText}, ${verdict}${noisy}`);
-      return;
-    }
-    if (entry.activity === "compare") {
-      if (entry.answer === "magnitude") {
-        const mark = entry.correct ? "within margin" : "outside margin";
-        lines.push(`${when}  ${label} (${street}): tapped out the difference ${diffText} — ${mark}`);
-        return;
-      }
-      const mark = entry.correct ? "correct" : "incorrect";
-      lines.push(
-        `${when}  ${label} (${street}): answered "${entry.answer}", it was "${entry.expected}" — ${mark}`
-      );
-      return;
-    }
-    const mark = entry.correct ? "within margin" : "outside margin";
-    lines.push(`${when}  ${label} (${street}): ${diffText} — ${mark}`);
-  });
+  recent.forEach((entry) => lines.push(gsReportLine(entry)));
 
   const adaptive = gsLoadAdaptive();
   if (adaptive.enabled) {
@@ -557,4 +697,76 @@ function gsBuildReport(options = {}) {
   lines.push("");
   lines.push("Sent by the student from Gap Sense. No data leaves the device unless sent.");
   return lines.join("\n");
+}
+
+/* ============================================================
+ * CSV for Excel, Numbers or Google Sheets (tracker F3)
+ * ------------------------------------------------------------
+ * One row per try or vehicle, one value per column, comma-separated with
+ * quoted fields, so it imports without hand editing. The columns are the
+ * ones the instructor asked for, in her order.
+ * ============================================================ */
+
+const GS_CSV_COLUMNS = [
+  "date", "time", "student code", "build", "activity", "street", "direction", "hearing or vision",
+  "sample or warning time (s)", "crossing time (s)", "difference (s)", "margin (s)",
+  "answer", "correct answer", "result",
+  "how much tapped (s)", "how much real difference (s)", "how much off by (s)", "how much result",
+  "cancelled or skipped"
+];
+
+function gsCsvCell(value) {
+  const text = value === null || value === undefined ? "" : String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function gsCsvNumber(value) {
+  return Number.isFinite(Number(value)) && value !== null && value !== undefined && value !== "" ? Number(value).toFixed(2) : "";
+}
+
+function gsCsvRow(entry, { clientCode = "", build = "" } = {}) {
+  const d = new Date(entry.time || 0);
+  const label = GS_ACTIVITY_LABELS[entry.activity] || entry.activity;
+  const street = GS_STREET_PHRASES[entry.street] || entry.street || "";
+  const timing = entry.activity === "practice" || entry.activity === "signal";
+  const legacyEstimate = entry.answer === "magnitude" && !entry.howMuch;
+  let result = "";
+  let cancelled = "";
+  if (entry.never) result = "never came";
+  else if (entry.skipped && entry.skip === "vehicle") { result = "cancelled"; cancelled = "cancelled vehicle"; }
+  else if (entry.skipped && legacyEstimate) { result = "cancelled"; cancelled = "cancelled estimate"; }
+  else if (entry.skipped) { result = "cancelled"; cancelled = "cancelled judgment"; }
+  else if (entry.activity === "live" && entry.judged === false) result = "not judged";
+  else if (timing || legacyEstimate) result = entry.correct ? "within margin" : "outside margin";
+  else if (entry.answer) result = entry.correct ? "correct" : "incorrect";
+  const h = entry.howMuch;
+  if (h?.skipped) cancelled = cancelled ? `${cancelled}; cancelled estimate` : "cancelled estimate";
+  const main = legacyEstimate
+    ? ["", "", "", gsCsvNumber(entry.marginSec), "", "", result]
+    : [
+      entry.never || (entry.skipped && entry.skip === "vehicle") ? "" : gsCsvNumber(entry.userSec),
+      gsCsvNumber(entry.refSec),
+      entry.never || (entry.skipped && entry.skip === "vehicle") ? "" : gsCsvNumber(entry.diffSec),
+      gsCsvNumber(entry.marginSec),
+      timing ? "" : (entry.answer || ""),
+      timing ? "" : (entry.expected || ""),
+      result
+    ];
+  const howMuch = legacyEstimate
+    ? [entry.skipped ? "" : gsCsvNumber(entry.userSec), entry.skipped ? "" : gsCsvNumber(entry.refSec), entry.skipped ? "" : gsCsvNumber(entry.diffSec), entry.skipped ? "cancelled" : (entry.correct ? "within margin" : "outside margin")]
+    : h
+      ? [h.skipped ? "" : gsCsvNumber(h.userSec), h.skipped ? "" : gsCsvNumber(h.refSec), h.skipped ? "" : gsCsvNumber(h.diffSec), h.skipped ? "cancelled" : (h.correct ? "within margin" : "outside margin")]
+      : ["", "", "", ""];
+  return [
+    d.toLocaleDateString(), d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }),
+    clientCode, build, label, street, entry.direction || "", entry.sense || "",
+    ...main, ...howMuch, cancelled
+  ].map(gsCsvCell).join(",");
+}
+
+/** The whole history as CSV text, newest last. */
+function gsBuildCsv(options = {}) {
+  const build = options.build || (typeof GS_APP_BUILD !== "undefined" ? GS_APP_BUILD : "");
+  const rows = gsReportRecords().map((entry) => gsCsvRow(entry, { clientCode: options.clientCode || "", build }));
+  return [GS_CSV_COLUMNS.map(gsCsvCell).join(","), ...rows].join("\r\n") + "\r\n";
 }

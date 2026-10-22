@@ -65,6 +65,7 @@
     const fullTimeInput = document.getElementById("fullTime");
     const marginInput = document.getElementById("marginInput");
     const instructorEmailInput = document.getElementById("instructorEmail");
+    const instructorPhoneInput = document.getElementById("instructorPhone");
     const clientCodeInput = document.getElementById("clientCode");
     const numberInputs = [...document.querySelectorAll("input[type='number']")];
     const acceptableInputs = [...document.querySelectorAll("input[name='acceptableSound']")];
@@ -88,6 +89,7 @@
       fullTimeInput,
       marginInput,
       instructorEmailInput,
+      instructorPhoneInput,
       clientCodeInput,
       replayUsesConfirm,
       debugToggle,
@@ -398,9 +400,17 @@
     }
 
     /* ---------------- Audio ---------------- */
+    /*
+     * The student's own sound ("this is me") was a 410 Hz beep, which sat
+     * between the default sample's two layers (392 and 466 Hz) and merged
+     * with it into one chord (Cindi, tracker 12.34). It is now a short, bright
+     * two-partial tone at 1047 Hz (C6), well above every sample pitch and its
+     * upper layer (165 to 622 Hz) and above the chimes (523 to 823 Hz), and
+     * the steady sound dips for the moment it plays (gsDuckSteadyAround).
+     */
     const tones = {
       confirm: { base: 350, harmonic: 700 },
-      user: { base: 410 }
+      user: { base: 1047, harmonic: 1570 }
     };
 
     /*
@@ -498,7 +508,7 @@
       },
       marker_tone: {
         duration: 0.14,
-        partials: [{ freq: tones.user.base, gain: 0.75 }]
+        partials: [{ freq: tones.user.base, gain: 0.6 }, { freq: tones.user.harmonic, gain: 0.22 }]
       },
       // Neutral reference tick: marks "this is the real crossing time" in the
       // comparison replays. Played as two very short blips so it is told apart
@@ -733,6 +743,35 @@
      */
     const scheduledSounds = [];
     const activeSustains = new Set();
+    /* Steady sounds now playing or scheduled: { gain, level, startAt, endAt }. */
+    const steadySounds = [];
+
+    /*
+     * Lower every steady sound under a short cue for as long as the cue lasts
+     * (to 30%, with 15 ms ramps), so the student's own sound and the right or
+     * wrong cue stay clean over the sample instead of melting into it
+     * (tracker 12.34). The iPhone app does the same in its mixer.
+     */
+    const GS_DUCK_LEVEL = 0.3;
+    function gsDuckSteadyAround(atSec, durationSec) {
+      if (nativeSound || !audioContext) return;
+      const from = atSec - 0.015;
+      const until = atSec + durationSec + 0.05;
+      for (let i = steadySounds.length - 1; i >= 0; i -= 1) {
+        const s = steadySounds[i];
+        if (s.endAt <= audioContext.currentTime) { steadySounds.splice(i, 1); continue; }
+        if (until <= s.startAt + 0.02 || from >= s.endAt - 0.02) continue;
+        const start = Math.max(from, s.startAt + 0.01);
+        const end = Math.min(until, s.endAt - 0.02);
+        if (end <= start) continue;
+        try {
+          s.gain.gain.setValueAtTime(s.level, start);
+          s.gain.gain.linearRampToValueAtTime(s.level * GS_DUCK_LEVEL, start + 0.015);
+          s.gain.gain.setValueAtTime(s.level * GS_DUCK_LEVEL, end);
+          s.gain.gain.linearRampToValueAtTime(s.level, end + 0.07);
+        } catch (error) { /* the sound ended */ }
+      }
+    }
 
     function rememberScheduledSound(entry) {
       const now = audioContext ? audioContext.currentTime : 0;
@@ -744,6 +783,7 @@
 
     /** Silence every tone now: scheduled cues, replays and the steady sample. */
     function stopAllSound() {
+      steadySounds.length = 0;
       if (nativeSound) nativeCall("stopSound", {});
       activeSustains.forEach((stop) => { try { stop(); } catch (error) { /* already stopped */ } });
       activeSustains.clear();
@@ -816,6 +856,11 @@
       });
       gain.connect(masterLimiter);
       rememberScheduledSound({ gain, oscillators, endAt: now + duration + release + 0.02 });
+      if (envelope === "steady") {
+        steadySounds.push({ gain, level: outputLevel, startAt: now, endAt: now + duration });
+      } else {
+        gsDuckSteadyAround(now, duration + release);
+      }
     }
 
     /*
@@ -896,6 +941,17 @@
       playSoundOption(userSoundOptions.marker, startTime, TEST_TUNING.userVolume);
     }
 
+    /*
+     * The student's own sound, the same when they tap and when that tap is
+     * replayed (design: the student's sound marks the student's taps, and the
+     * same sound marks them again in the replay; tracker 12.35). The marker
+     * tone by default; the button chime if the student chose it in Settings.
+     */
+    function playStudentTone(startTime = 0) {
+      if (replayUsesConfirmTone) playConfirmTone(startTime);
+      else playUserMarkerTone(startTime);
+    }
+
     /** Two quick blips: "this is the real crossing time". Never a feedback cue. */
     function playReferenceTick(startTime = 0) {
       const option = SOUND_FALLBACK_TONES["reference-tick"];
@@ -939,6 +995,23 @@
       });
       if (acceptableSelection) storeSelection("acceptable", acceptableSelection);
       if (outsideSelection) storeSelection("outside", outsideSelection);
+    }
+
+    /*
+     * Busy, not disabled (tracker 12.27). While a try or a replay plays the
+     * main button must stay focusable: a disabled control drops VoiceOver's
+     * cursor to the first item on the screen, which is Back, after every
+     * try. aria-disabled keeps the button where it is; each click handler
+     * checks gsIsBusy and ignores the press.
+     */
+    function gsSetBusy(button, busy) {
+      if (!button) return;
+      button.setAttribute("aria-disabled", String(Boolean(busy)));
+      button.classList.toggle("is-busy", Boolean(busy));
+    }
+
+    function gsIsBusy(button) {
+      return Boolean(button) && button.getAttribute("aria-disabled") === "true";
     }
 
     /* ---------------- Setup / timing ---------------- */
@@ -1007,6 +1080,18 @@
 
     function getInstructorEmail() {
       return (instructorEmailInput?.value || "").trim();
+    }
+
+    /* Digits, plus, spaces, dashes, brackets, dots; at most 24 characters. */
+    const PHONE_PATTERN = /^[+]?[0-9 ().-]{0,24}$/;
+    function sanitizePhone(value) {
+      return String(value || "").replace(/[^0-9+ ().-]/g, "").slice(0, 24).trim();
+    }
+    function isValidPhone(value) {
+      return value === "" || (PHONE_PATTERN.test(value) && value.replace(/\D/g, "").length >= 7);
+    }
+    function getInstructorPhone() {
+      return sanitizePhone(instructorPhoneInput?.value || "");
     }
 
     function getClientCode() {
@@ -1101,7 +1186,8 @@
         ["liveJudge", ["on", "off", "choose"]],
         ["liveHowMuch", ["on", "off", "choose"]],
         ["liveReplay", ["always", "errors", "never", "choose"]],
-        ["liveConfirm", ["sound", "vibration"]]
+        ["liveConfirm", ["sound", "vibration"]],
+        ["playAgain", ["on", "off", "choose"]]
       ]
     });
 
@@ -1143,8 +1229,10 @@
       }
       if (includes.contact) {
         const email = getInstructorEmail();
+        const phone = getInstructorPhone();
         const code = getClientCode();
         if (email) payload.e = email;
+        if (phone) payload.p = phone;
         if (code) payload.k = code;
       }
       if (includes.features && typeof gsLoadFeatures === "function") {
@@ -1260,10 +1348,62 @@
       return (await copyTextToClipboard(text)) ? "copied" : "failed";
     }
 
-    /* Open the Messages app with the text filled in; the instructor adds the number. */
-    function gsOpenSms(text) {
-      const separator = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? "&" : "?";
-      window.location.href = `sms:${separator}body=${encodeURIComponent(text)}`;
+    /* Hand the page to another app's link (sms:, mailto:). One place, so a test can watch it. */
+    function gsNavigateTo(url) {
+      window.location.href = url;
+    }
+
+    /* Open the Messages app with the text filled in, and the number when there is one. */
+    function gsOpenSms(text, number = "") {
+      const apple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+      const to = String(number || "").replace(/[^0-9+]/g, "");
+      const separator = apple ? "&" : "?";
+      gsNavigateTo(`sms:${to}${separator}body=${encodeURIComponent(text)}`);
+    }
+
+    /*
+     * Hand a text file to the phone's share sheet (the apps write it to their
+     * cache first), or download it in a browser. Returns "shared",
+     * "downloaded", "copied", "cancelled" or "failed" (tracker F3).
+     */
+    async function gsShareFile({ name, text, mime = "text/plain", title = name }) {
+      const SharePlugin = CapacitorGlobal?.Plugins?.Share;
+      const Filesystem = CapacitorGlobal?.Plugins?.Filesystem;
+      try {
+        if (isNativeShell && SharePlugin?.share && Filesystem?.writeFile) {
+          const written = await Filesystem.writeFile({ path: name, data: text, directory: "CACHE", encoding: "utf8", recursive: true });
+          await SharePlugin.share({ title, dialogTitle: title, files: [written.uri] });
+          return "shared";
+        }
+      } catch (error) {
+        const message = String(error?.message || error || "");
+        if (/cancel|abort/i.test(message) || error?.name === "AbortError") return "cancelled";
+        /* fall through to the browser path */
+      }
+      try {
+        // The phone's share sheet in a mobile browser; a desktop browser downloads.
+        const mobile = /Android|iPhone|iPad|iPod/.test(navigator.userAgent);
+        if (mobile && typeof navigator.share === "function" && typeof File === "function" && navigator.canShare?.({ files: [new File([text], name, { type: mime })] })) {
+          await navigator.share({ title, files: [new File([text], name, { type: mime })] });
+          return "shared";
+        }
+      } catch (error) {
+        if (error?.name === "AbortError") return "cancelled";
+      }
+      try {
+        const url = URL.createObjectURL(new Blob([text], { type: mime }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        link.rel = "noopener";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        return "downloaded";
+      } catch (error) {
+        return (await copyTextToClipboard(text)) ? "copied" : "failed";
+      }
     }
 
     function clearImportedHash() {
@@ -1294,7 +1434,7 @@
         return null;
       }
 
-      let clearValue, fullValue, marginValue, emailValue = "", codeValue = "", features = null, lock = "";
+      let clearValue, fullValue, marginValue, emailValue = "", codeValue = "", features = null, lock = "", phoneValue = "";
       let hasTimes = true;
       if (version === "v3" || version === "v4") {
         let payload;
@@ -1307,18 +1447,20 @@
         hasTimes = Array.isArray(payload.t);
         if (hasTimes) [clearValue, fullValue, marginValue] = payload.t;
         emailValue = typeof payload.e === "string" ? payload.e : "";
+        phoneValue = typeof payload.p === "string" ? payload.p : "";
         codeValue = typeof payload.k === "string" ? payload.k : "";
         if (version === "v4") features = decodeLinkFeatures(payload.f);
         else if (payload.f && typeof payload.f === "object") features = payload.f;
         if (typeof payload.l === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(payload.l)) lock = payload.l;
-        if (!hasTimes && !emailValue && !codeValue && !features && !lock) return null;
+        if (!hasTimes && !emailValue && !phoneValue && !codeValue && !features && !lock) return null;
       } else {
         [clearValue, fullValue, marginValue, emailValue = "", codeValue = ""] = decoded.split("|");
       }
 
       const email = String(emailValue).trim();
+      const phone = sanitizePhone(phoneValue);
       const code = String(codeValue).trim().toUpperCase();
-      if (!isValidEmail(email) || !CLIENT_CODE_PATTERN.test(code)) return null;
+      if (!isValidEmail(email) || !isValidPhone(phone) || !CLIENT_CODE_PATTERN.test(code)) return null;
 
       let times = null;
       if (hasTimes) {
@@ -1338,7 +1480,7 @@
         }
         times = [normalizedClear, normalizedFull, normalizedMargin];
       }
-      return { times, email, code, features, lock };
+      return { times, email, phone, code, features, lock };
     }
 
     /** Apply a token. Returns true if it was valid and applied. */
@@ -1352,6 +1494,10 @@
       if (instructorEmailInput && parsed.email) {
         instructorEmailInput.value = parsed.email;
         localStorage.setItem("om-instructor-email", parsed.email);
+      }
+      if (instructorPhoneInput && parsed.phone) {
+        instructorPhoneInput.value = parsed.phone;
+        localStorage.setItem("om-instructor-phone", parsed.phone);
       }
       if (clientCodeInput && parsed.code) {
         clientCodeInput.value = parsed.code;
@@ -1460,6 +1606,11 @@
       if (includes.contact && !isValidEmail(getInstructorEmail())) {
         setShareNote("Check the instructor email address before sharing.");
         instructorEmailInput?.focus();
+        return false;
+      }
+      if (includes.contact && !isValidPhone(getInstructorPhone())) {
+        setShareNote("Check the instructor mobile number before sharing: digits only, at least 7.");
+        instructorPhoneInput?.focus();
         return false;
       }
       return true;
@@ -1837,7 +1988,7 @@
       gsBeginQuiet();
       actionBtn.classList.remove("idle");
       actionBtn.classList.add("running");
-      actionBtn.disabled = true;
+      gsSetBusy(actionBtn, true);
       setActionButtonLabel("Exemplar");
       setActionButtonHint("Listen");
       const sequenceLabel = labels.join(" to ");
@@ -1872,7 +2023,7 @@
         suppressSrAnnouncements = false;
         actionBtn.classList.remove("running");
         actionBtn.classList.add("idle");
-        actionBtn.disabled = false;
+        gsSetBusy(actionBtn, false);
         setActionButtonLabel("Begin");
         setActionButtonHint("Tap when you step off");
         setActionButtonStageByLabel("");
@@ -1988,6 +2139,7 @@
      * identical message still counts as a change and is re-announced.
      */
     let srAnnounceToggle = false;
+    let srAnnounceClearTimer = null;
     function announceScreenReader(message) {
       if (!message) return;
       if (suppressSrAnnouncements) return;
@@ -1998,6 +2150,15 @@
       if (!a11ySettings.announceCues) return;
       srAnnounceToggle = !srAnnounceToggle;
       srAnnouncer.textContent = srAnnounceToggle ? message : `${message}​`;
+      // The live region sits after every screen in the page. While it holds
+      // text, a VoiceOver user swiping past the last control lands on it and
+      // hears the old message ("Your phone volume is low") instead of the
+      // end-of-page sound (Cindi and a coworker, Oct 20 2026). Once it has
+      // been spoken it is emptied, and an empty element is not a stop.
+      clearTimeout(srAnnounceClearTimer);
+      srAnnounceClearTimer = setTimeout(() => {
+        if (srAnnouncer.textContent.replace(/\u200b/g, "") === message) srAnnouncer.textContent = "";
+      }, 4000);
     }
 
     /* ---------------- Speech ----------------
@@ -2133,7 +2294,7 @@
       markerTimes = [];
       stage = 0;
       started = false;
-      actionBtn.disabled = false;
+      gsSetBusy(actionBtn, false);
       actionBtn.classList.remove("running");
       actionBtn.classList.add("idle");
       setActionButtonLabel("Begin");
@@ -2176,7 +2337,7 @@
         stage = 1;
         setActionButtonLabel("Mark");
         setActionButtonHint("Tap at each point");
-        playConfirmTone();
+        playStudentTone();
         actionBtn.classList.remove("idle");
         actionBtn.classList.add("running");
         emitCue("start", { mode: currentMode });
@@ -2187,7 +2348,7 @@
 
       const elapsed = (performance.now() - startTimestamp) / 1000;
       markerTimes.push(elapsed);
-      playConfirmTone();
+      playStudentTone();
       stage += 1;
       const markedLabel = modes[currentMode].labels[stage - 1];
       // skipBanner: the banner text is owned by updateNextPrompt / the replay
@@ -2195,7 +2356,7 @@
       emitCue("marker", { stageLabel: markedLabel, skipBanner: true });
 
       if (stage >= modes[currentMode].labels.length) {
-        actionBtn.disabled = true;
+        gsSetBusy(actionBtn, true);
         setActionButtonLabel("Replay");
         setActionButtonHint("Listen");
         setStatus("Replaying your markers and the reference.");
@@ -2223,11 +2384,7 @@
       }
 
       markerTimes.forEach((time) => {
-        if (replayUsesConfirmTone) {
-          playConfirmTone(baseDelay + time);
-        } else {
-          playUserMarkerTone(baseDelay + time);
-        }
+        playStudentTone(baseDelay + time);
         // Vibrate at the user's own tap too. Without this a DeafBlind user
         // feels only the reference pulse, with nothing to compare it against —
         // and the gap between the two IS the feedback.
@@ -2335,7 +2492,7 @@
      * unlocked it. This also stops a replay that is still playing.
      */
     function cancelPractice() {
-      const busy = started || actionBtn.disabled || suppressSrAnnouncements;
+      const busy = started || gsIsBusy(actionBtn) || suppressSrAnnouncements;
       clearTimeout(replayTimeout);
       if (busy) resetState("Ready.");
     }
@@ -2441,6 +2598,7 @@
       if (storedFull) fullTimeInput.value = storedFull;
       if (storedMargin) marginInput.value = storedMargin;
       if (instructorEmailInput) instructorEmailInput.value = localStorage.getItem("om-instructor-email") || "";
+      if (instructorPhoneInput) instructorPhoneInput.value = sanitizePhone(localStorage.getItem("om-instructor-phone") || "");
       if (clientCodeInput) clientCodeInput.value = sanitizeClientCode(localStorage.getItem("om-client-code") || "");
       if (storedMode && modes[storedMode]) {
         currentMode = storedMode;
@@ -2498,6 +2656,9 @@
 
     /* ---------------- Event wiring ---------------- */
     actionBtn.addEventListener("click", () => {
+      // A press during the replay or an exemplar does nothing; the button is
+      // busy, not disabled, so VoiceOver keeps its place on it.
+      if (gsIsBusy(actionBtn)) return;
       ensureAudioContext();
       if (!started) startTimestamp = performance.now();
       recordMarker();
@@ -2570,11 +2731,7 @@
 
     previewUserSoundBtn.addEventListener("click", () => {
       ensureAudioContext();
-      if (replayUsesConfirmTone) {
-        playConfirmTone(0);
-        return;
-      }
-      playUserMarkerTone(0);
+      playStudentTone(0);
     });
 
     visualPreviewButtons.forEach((button) => {
@@ -2641,6 +2798,18 @@
       }
       instructorEmailInput.setCustomValidity("");
       localStorage.setItem("om-instructor-email", email);
+    });
+
+    instructorPhoneInput?.addEventListener("change", () => {
+      const phone = getInstructorPhone();
+      instructorPhoneInput.value = phone;
+      if (!isValidPhone(phone)) {
+        instructorPhoneInput.setCustomValidity("Enter a mobile number with at least 7 digits, or leave it empty.");
+        instructorPhoneInput.reportValidity();
+        return;
+      }
+      instructorPhoneInput.setCustomValidity("");
+      localStorage.setItem("om-instructor-phone", phone);
     });
 
     clientCodeInput?.addEventListener("input", () => {
@@ -2918,7 +3087,7 @@
       // disabled while a replay or exemplar plays.
       if (document.hidden && typeof cancelPractice === "function") {
         const running = typeof started !== "undefined" && started;
-        const busy = running || (typeof actionBtn !== "undefined" && actionBtn.disabled);
+        const busy = running || (typeof actionBtn !== "undefined" && gsIsBusy(actionBtn));
         if (busy) {
           cancelPractice();
           if (typeof stopAllSound === "function") stopAllSound();

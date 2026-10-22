@@ -284,15 +284,21 @@ function gsReplayJudgment({ sampleSec, crossingSec, style = "continuous", startD
 }
 
 /**
- * MAGNITUDE replay, option (a) — Cindi's design. One replay:
- *   - the steady sound for the student's crossing time,
- *   - the right/wrong cue (and circle/triangle) where the sample warning time
+ * MAGNITUDE replay, option (a): one replay against the warning time.
+ *   - the steady sound for the sample WARNING time: this sound always stands
+ *     for the warning time, in the sample, in the longer/shorter replay and
+ *     here (Cindi, GitHub issue 11: in builds 10 to 13 it played for the
+ *     crossing time, so the same sound changed meaning within one trial),
+ *   - the student's own sound (and flash) where their crossing time ends, as
+ *     in the longer/shorter replay,
+ *   - the student's sound again at the crossing time plus their estimate (for
+ *     "longer") or minus it (for "shorter"): where they thought the warning
+ *     time ended,
+ *   - the right/wrong cue (and circle/triangle) where the warning time really
  *     ended: right if the estimate was within the margin of the true
- *     difference, wrong if not,
- *   - the student's own sound (and flash) at the crossing time plus their
- *     estimate (for "longer") or minus it (for "shorter").
- * Her example: crossing 6 s, sample 8 s, estimate 3.5 s → sound 0–6 s, wrong
- * cue at 8 s, student's sound at 9.5 s.
+ *     difference, wrong if not.
+ * Example: crossing 6 s, sample 8.5 s, estimate 3.5 s → sound 0–8.5 s,
+ * student's sound at 6 s and at 9.5 s, wrong cue at 8.5 s.
  */
 function gsReplayMagnitudeA({ crossingSec, sampleSec, estimateSec, direction, marginSec, style = "continuous", startDelaySec = 0.6 }) {
   ensureAudioContext();
@@ -304,24 +310,27 @@ function gsReplayMagnitudeA({ crossingSec, sampleSec, estimateSec, direction, ma
 
   if (style === "ticks") {
     gsPlaySampleBeep(t0);
-    gsPlaySampleBeep(t0 + crossingSec);
+    gsPlaySampleBeep(t0 + sampleSec);
   } else {
-    playCompositeTone(gsSamplePartials(), crossingSec, t0, gsSampleLevel() * 0.6, "steady");
+    playCompositeTone(gsSamplePartials(), sampleSec, t0, gsSampleLevel() * 0.6, "steady");
   }
-  playFeedbackTone(feedbackType, t0 + sampleSec);
+  playUserMarkerTone(t0 + crossingSec);
   playUserMarkerTone(t0 + estimateAt);
+  playFeedbackTone(feedbackType, t0 + sampleSec);
 
   gsHapticAt(t0, "start");
-  gsHapticAt(t0 + crossingSec, "start");
-  gsHapticAt(t0 + sampleSec, within ? "reference_ok" : "reference_bad");
+  gsHapticAt(t0 + sampleSec, "start");
+  gsHapticAt(t0 + crossingSec, "marker");
   gsHapticAt(t0 + estimateAt, "marker");
+  gsHapticAt(t0 + sampleSec, within ? "reference_ok" : "reference_bad");
 
   const end = Math.max(crossingSec, sampleSec, estimateAt);
   if (typeof startSynchronizedVisualReplay === "function") {
     startSynchronizedVisualReplay([
-      { timeSec: t0, type: "sample", holdSec: Math.max(0.2, crossingSec) },
-      { timeSec: t0 + sampleSec, type: "reference", feedbackType },
-      { timeSec: t0 + estimateAt, type: "user" }
+      { timeSec: t0, type: "sample", holdSec: Math.max(0.2, sampleSec) },
+      { timeSec: t0 + crossingSec, type: "user" },
+      { timeSec: t0 + estimateAt, type: "user" },
+      { timeSec: t0 + sampleSec, type: "reference", feedbackType }
     ], t0 + end + 0.6);
   }
   return t0 + end + 0.9;
@@ -359,40 +368,77 @@ function gsReplayMagnitudeB({ estimateSec, trueDiffSec, marginSec, startDelaySec
 /* ============================================================
  * Full-screen pads
  * ------------------------------------------------------------
- * Cindi: swiping inside a box kept scrolling the page instead. Answers now
- * open a pad that covers the whole screen and does not scroll. The three
- * buttons sit on the pad too: VoiceOver and TalkBack own swipes, so screen
- * reader users answer with the buttons (focus starts on the middle one).
+ * Design requirements (Cindi, Oct 2026; tracker 12.27, 12.28, 12.31, 13.7):
+ *   - A pad covers the whole screen and never scrolls (a drag is a gesture).
+ *   - With swipes on (the default), everything below the pad's header is the
+ *     swipe area and there are no answer buttons. With swipes off, set by
+ *     the instructor, the pad shows buttons only.
+ *   - Back, in the top-left corner of every pad and outside the swipe area,
+ *     is the one way out. It goes up one level and records the cancelled
+ *     part as cancelled, never scored. Escape, Android's Back and
+ *     VoiceOver's two-finger scrub do the same as Back. The way out is for
+ *     a try that was interrupted or started by mistake; a student who is
+ *     unsure gives their best judgment.
+ *   - Focus is never left on a control that is about to disappear: a pad
+ *     remembers what opened it and hands focus on before it hides.
+ *   - When a pad opens, the screen reader's cursor goes to the swipe area:
+ *     on iPhone the native Direct Touch area, elsewhere the page's own.
  * <main> is made inert while a pad is open.
  * ============================================================ */
 
 let gsOpenPads = 0;
 
+/* Pads answer by swipe unless the instructor set buttons only. */
+function gsPadSwipesOn() {
+  return gsFeature("compareSwipe") !== "off";
+}
+
 /* ============================================================
- * DIRECT TOUCH (iPhone app, build 12)
+ * DIRECT TOUCH (iPhone app, build 12; cursor and clean-up, build 14)
  * ------------------------------------------------------------
- * Cindi's design: swipes and taps must work the same with VoiceOver on or
- * off. A web page cannot get raw swipes under VoiceOver, so the iPhone app
- * lays a native view marked for direct interaction over the pad's gesture
- * area whenever a pad is open. The student turns Direct Touch on for Gap
- * Sense once (VoiceOver rotor); from then on a swipe in that area reaches
- * the app unchanged. The native side classifies the gesture with the same
+ * Swipes and taps must work the same with VoiceOver on or off. A web page
+ * cannot get raw swipes under VoiceOver, so the iPhone app lays a native
+ * view marked for direct interaction over the pad's swipe area whenever a
+ * pad is open. The student turns Direct Touch on for Gap Sense once
+ * (VoiceOver rotor); from then on a swipe in that area reaches the app
+ * unchanged. The native side classifies the gesture with the same
  * thresholds as the web pad and reports how long the finger was down, so
  * the vehicle is still timed from the touch, not the lift.
+ *
+ * Build 14 (tracker 12.28, 13.2, 13.3, 13.6): when a pad opens, the app
+ * asks the iPhone to move the VoiceOver cursor onto the area, so VoiceOver
+ * reads the area's label first and the first tap or swipe already counts.
+ * When a pad closes, the area is taken out of the view tree and VoiceOver
+ * is told the layout changed, so no invisible area is left over the screen.
  * ============================================================ */
 
 function gsDirectTouchSupported() {
   return typeof GSNativePlugin?.directTouchShow === "function";
 }
 
-/* Which pad is on top, where its gesture area is, and who handles gestures. */
+const GS_PAD_LABELS = {
+  answer: "Answer area. Swipe up for longer, swipe down for shorter, tap for about the same.",
+  howMuch: "How much. Tap to start, tap again to end.",
+  streetDetect: "Street. Swipe left or right the moment you detect a vehicle, toward the side it is coming from.",
+  streetArriving: "Street. Tap when the vehicle passes in front of you. Swipe down if it never comes."
+};
+
+/* The hint a screen reader adds after the label. VoiceOver needs Direct Touch
+ * on for Gap Sense; TalkBack passes a two-finger swipe through as one finger. */
+function gsPadHint() {
+  if (gsDirectTouchSupported()) return "Direct touch area. If swipes do not work, turn on Direct Touch for Gap Sense in the VoiceOver rotor.";
+  if (typeof nativePlatform !== "undefined" && nativePlatform === "android") return "With TalkBack on, swipe with two fingers, or double-tap to tap.";
+  return "";
+}
+
+/* Which pad is on top, where its swipe area is, and who handles gestures. */
 function gsDirectTouchTarget() {
   const howMuch = document.getElementById("howMuchOverlay");
   if (howMuch && !howMuch.hidden) {
     return {
       area: document.getElementById("compareFollowUpBtn"),
       handlers: () => ({ tap: gsHowMuchTap }),
-      label: "How much: tap to start, tap again to end"
+      label: GS_PAD_LABELS.howMuch
     };
   }
   const answer = document.getElementById("answerOverlay");
@@ -402,26 +448,36 @@ function gsDirectTouchTarget() {
     return {
       area: surface,
       handlers: () => (gsSwipeHandlers.get(answer) || (() => ({})))(),
-      label: "Answer: swipe up for longer, down for shorter, tap for about the same"
+      label: GS_PAD_LABELS.answer
     };
   }
   const live = document.getElementById("liveOverlay");
   if (live && !live.hidden) {
+    const surface = document.getElementById("liveSurface");
+    if (!surface || surface.hidden) return null;        // buttons only
     return {
-      area: document.getElementById("liveSurface"),
+      area: surface,
       handlers: () => (gsSwipeHandlers.get(live) || (() => ({})))(),
-      label: "Street: swipe left or right when you detect a vehicle, tap when it passes, swipe down if it never comes"
+      label: gsLiveState.phase === "arriving" ? GS_PAD_LABELS.streetArriving : GS_PAD_LABELS.streetDetect
     };
   }
   return null;
 }
 
 let gsDirectTouchTimer = null;
-function gsDirectTouchSync() {
+let gsDirectTouchFocusPending = false;
+let gsDirectTouchLast = null;   // what the native side was last told: pad, label, rectangle
+
+/* Place (or remove) the native area after layout. `focus` asks the iPhone to
+ * move the VoiceOver cursor onto it: on opening a pad, or when the pad on
+ * top changes; never for a mere resize. */
+function gsDirectTouchSync({ focus = false } = {}) {
   if (!gsDirectTouchSupported()) return;
+  if (focus) gsDirectTouchFocusPending = true;
   clearTimeout(gsDirectTouchTimer);
-  // After layout: the pad has just been shown or hidden.
   gsDirectTouchTimer = setTimeout(() => {
+    const wantFocus = gsDirectTouchFocusPending;
+    gsDirectTouchFocusPending = false;
     const target = gsDirectTouchTarget();
     const raw = target?.area?.getBoundingClientRect?.();
     // With pinch zoom the native view is in screen points: map the layout
@@ -445,18 +501,27 @@ function gsDirectTouchSync() {
     const width = rect ? rect.right - rect.left : 0;
     const height = rect ? rect.bottom - rect.top : 0;
     if (!target || !rect || width < 1 || height < 1) {
-      GSNativePlugin.directTouchHide({}).catch?.(() => {});
+      if (gsDirectTouchLast !== null) GSNativePlugin.directTouchHide({}).catch?.(() => {});
+      gsDirectTouchLast = null;
       return;
     }
+    // Nothing changed since the last call: leave the area, and VoiceOver's
+    // cursor, where they are. (Layout observers fire after every show.)
+    const key = `${target.area.id}|${target.label}|${Math.round(rect.left)},${Math.round(rect.top)},${Math.round(width)},${Math.round(height)}`;
+    if (key === gsDirectTouchLast && !wantFocus) return;
+    gsDirectTouchLast = key;
     GSNativePlugin.directTouchShow({
-      x: rect.left, y: rect.top, width, height, label: target.label
+      x: rect.left, y: rect.top, width, height, label: target.label, hint: gsPadHint(), focus: wantFocus
     }).catch?.(() => {});
   }, 60);
 }
 
 /* A gesture from the native area: same handlers as a pointer gesture, timed
- * from the touch-down (now minus how long the finger was down). */
+ * from the touch-down (now minus how long the finger was down). "escape" is
+ * VoiceOver's two-finger scrub, which does what Back does. */
 function gsDirectTouchEvent(event) {
+  gsGestureLogAdd("native", event?.kind, event?.durationMs);
+  if (event?.kind === "escape") return gsPadBack();
   const target = gsDirectTouchTarget();
   if (!target) return false;
   const handlers = target.handlers() || {};
@@ -479,10 +544,23 @@ if (typeof ResizeObserver === "function") {
   });
 }
 
+/*
+ * What the pads receive, for checking screen readers on real phones
+ * (tracker 13.4: whether TalkBack passes its gestures to the app is only
+ * answerable on a phone). The last 40 gestures, newest last; shown under
+ * Settings, Debug.
+ */
+const gsGestureLog = [];
+function gsGestureLogAdd(source, kind, extra) {
+  gsGestureLog.push({ at: new Date().toISOString().slice(11, 19), source, kind: String(kind), extra: extra === undefined ? "" : String(Math.round(Number(extra) || 0)) });
+  if (gsGestureLog.length > 40) gsGestureLog.shift();
+  if (typeof gsRenderGestureLog === "function") gsRenderGestureLog();
+}
+
 /* Only the top pad can be reached. The answer pad opens over the street pad,
- * and a screen reader or Tab could reach Done behind it (bug 28, Oct 2026 review). */
-function gsPadStackSync() {
-  const open = [...document.querySelectorAll(".gesture-overlay")].filter((p) => !p.hidden);
+ * and a screen reader or Tab could reach the pad behind it (bug 28, Oct 2026 review). */
+function gsPadStackSync(except = null) {
+  const open = [...document.querySelectorAll(".gesture-overlay")].filter((p) => !p.hidden && p !== except);
   const top = open.reduce((best, p) => (!best || Number(getComputedStyle(p).zIndex) >= Number(getComputedStyle(best).zIndex) ? p : best), null);
   open.forEach((p) => {
     const covered = p !== top;
@@ -492,36 +570,102 @@ function gsPadStackSync() {
   return top;
 }
 
-function gsShowPad(el) {
+function gsTopPad() {
+  return gsPadStackSync();
+}
+
+/* A screen reader's cursor should land on the swipe area as the pad opens.
+ * On iPhone the native area takes it (gsDirectTouchSync focus); the page
+ * focuses the title, which sits outside the area, so nothing under the area
+ * is focused. Elsewhere the page's own swipe area is the focus target. */
+function gsFocusPadStart(overlay, surface, fallback) {
+  const swipeArea = surface && !surface.hidden ? surface : null;
+  if (gsDirectTouchSupported() || !swipeArea) {
+    (gsDirectTouchSupported() ? overlay.querySelector(".gesture-title") : fallback || overlay.querySelector(".gesture-title"))?.focus({ preventScroll: true });
+    return;
+  }
+  swipeArea.focus({ preventScroll: true });
+}
+
+/* The web swipe area: hidden from the iPhone's screen reader (the native
+ * area sits on top of it), a labelled, focusable element everywhere else. */
+function gsSurfaceAccessibility(surface, label) {
+  if (!surface) return;
+  const hint = gsPadHint();
+  surface.setAttribute("aria-label", hint ? `${label} ${hint}` : label);
+  if (gsDirectTouchSupported()) {
+    surface.setAttribute("aria-hidden", "true");
+    surface.removeAttribute("tabindex");
+  } else {
+    surface.removeAttribute("aria-hidden");
+    surface.setAttribute("tabindex", "-1");
+  }
+}
+
+function gsShowPad(el, { opener = document.activeElement } = {}) {
   if (!el || !el.hidden) return;
+  el.gsOpener = opener && opener !== document.body ? opener : null;
   el.hidden = false;
   gsOpenPads += 1;
   gsPadStackSync();
   if (gsOpenPads === 1 && typeof gsKeepAwake === "function") gsKeepAwake(true);
-  gsDirectTouchSync();
+  gsDirectTouchSync({ focus: true });
   if (typeof setMainContentInert === "function") setMainContentInert(true);
   document.body.classList.add("pad-open");
 }
 
-function gsHidePad(el) {
+/*
+ * Hide a pad. Focus is handed on BEFORE the pad goes: to the pad underneath
+ * (its title; on iPhone the native area then takes the cursor), else to the
+ * control that opened the pad, else to the screen's title. Hiding first left
+ * VoiceOver with nothing to stand on, and it jumped to Back at the top of
+ * the screen (tracker 12.27, 13.2).
+ */
+function gsHidePad(el, { focusTo = null } = {}) {
   if (!el || el.hidden) return;
-  el.hidden = true;
-  el.inert = false;
-  el.removeAttribute("aria-hidden");
+  const below = gsPadStackSync(el);
+  const hadFocus = el.contains(document.activeElement) || document.activeElement === document.body;
   gsOpenPads = Math.max(0, gsOpenPads - 1);
-  // Focus returns to the pad underneath, if any.
-  const below = gsPadStackSync();
-  if (below && !below.contains(document.activeElement)) {
-    below.querySelector(".gesture-title")?.focus({ preventScroll: true });
-  }
-  gsDirectTouchSync();
   if (!gsOpenPads) {
     if (typeof gsKeepAwake === "function") gsKeepAwake(false);
     document.body.classList.remove("pad-open");
     const dialogOpen = [...document.querySelectorAll("dialog")].some((d) => d.open);
     if (!dialogOpen && typeof setMainContentInert === "function") setMainContentInert(false);
   }
+  if (hadFocus) {
+    const opener = el.gsOpener;
+    const openerUsable = opener && opener.isConnected && !opener.closest("[hidden], [inert]") && !opener.disabled;
+    const next = focusTo
+      || (below ? below.querySelector(".gesture-title") : null)
+      || (openerUsable ? opener : null)
+      || document.getElementById("screenTitle");
+    next?.focus({ preventScroll: true });
+  }
+  el.gsOpener = null;
+  el.hidden = true;
+  el.inert = false;
+  el.removeAttribute("aria-hidden");
+  gsDirectTouchSync({ focus: Boolean(below) });
 }
+
+/* ---------------- Back: the one way out of a pad ---------------- */
+
+const gsPadBackHandlers = new Map();
+
+/* Back on whichever pad is on top. Returns false when no pad is open. */
+function gsPadBack() {
+  const top = gsTopPad();
+  if (!top) return false;
+  const fn = gsPadBackHandlers.get(top.id);
+  if (typeof fn === "function") fn();
+  return true;
+}
+
+/* Escape does what Back does, for keyboard, braille display and switch users. */
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (gsPadBack()) event.preventDefault();
+});
 
 const GS_SWIPE_MIN_PX = 36;
 
@@ -536,10 +680,10 @@ const gsSwipeHandlers = new Map();
 
 function gsBindSwipeSurface(surface, getHandlers) {
   gsSwipeHandlers.set(surface, getHandlers);
-  const swipe = { active: false, x: 0, y: 0, id: null };
-  // Controls keep their own behavior; the title is excluded so that a
-  // screen-reader double tap on it can never count as an answer.
-  const isControl = (target) => Boolean(target?.closest?.("button, select, a, input, label, summary, .gesture-title"));
+  const swipe = { active: false, x: 0, y: 0, id: null, lastUpAt: 0 };
+  // Controls keep their own behavior; the title and Back are excluded so that a
+  // screen-reader double tap on them can never count as an answer.
+  const isControl = (target) => Boolean(target?.closest?.("button, select, a, input, label, summary, .gesture-title, .gesture-header"));
   surface.addEventListener("pointerdown", (event) => {
     if (isControl(event.target)) return;
     swipe.active = true;
@@ -554,6 +698,7 @@ function gsBindSwipeSurface(surface, getHandlers) {
   surface.addEventListener("pointerup", (event) => {
     if (!swipe.active || event.pointerId !== swipe.id) return;
     swipe.active = false;
+    swipe.lastUpAt = performance.now();
     const dx = event.clientX - swipe.x;
     const dy = event.clientY - swipe.y;
     const handlers = getHandlers() || {};
@@ -561,48 +706,79 @@ function gsBindSwipeSurface(surface, getHandlers) {
     if (Math.abs(dx) < GS_SWIPE_MIN_PX && Math.abs(dy) < GS_SWIPE_MIN_PX) kind = "tap";
     else if (Math.abs(dy) >= Math.abs(dx)) kind = dy < 0 ? "up" : "down";
     else kind = dx < 0 ? "left" : "right";
+    gsGestureLogAdd(event.pointerType || "pointer", kind, swipe.lastUpAt - swipe.downAt);
     if (typeof handlers[kind] === "function") {
       event.preventDefault();
       handlers[kind](swipe.downAt);
     }
   });
   surface.addEventListener("pointercancel", () => { swipe.active = false; });
+  // A screen reader's double-tap arrives as a click with no pointer sequence
+  // of its own (TalkBack; VoiceOver with Direct Touch off): it counts as a
+  // tap. A click that follows a pointer sequence is that same tap, ignored.
+  surface.addEventListener("click", (event) => {
+    if (isControl(event.target)) return;
+    if (swipe.lastUpAt > 0 && performance.now() - swipe.lastUpAt < 700) return;
+    gsGestureLogAdd("click", "tap", 0);
+    const handlers = getHandlers() || {};
+    if (typeof handlers.tap === "function") handlers.tap(performance.now());
+  });
+  // Keyboard: the arrows answer; Space or Enter is a tap.
+  surface.addEventListener("keydown", (event) => {
+    if (isControl(event.target)) return;
+    const handlers = getHandlers() || {};
+    const map = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", " ": "tap", Enter: "tap" };
+    const kind = map[event.key];
+    if (!kind || typeof handlers[kind] !== "function") return;
+    event.preventDefault();
+    gsGestureLogAdd("key", kind, 0);
+    handlers[kind](performance.now());
+  });
   // The pad never scrolls the page.
   surface.addEventListener("touchmove", (event) => { event.preventDefault(); }, { passive: false });
 }
 
 /* ---------------- Answer pad ---------------- */
 
-const gsAnswerPad = { onAnswer: null, onSkip: null };
+const gsAnswerPad = { onAnswer: null, onBack: null };
 
-function gsOpenAnswerPad({ title, onAnswer, onSkip = null }) {
+/*
+ * Open the answer pad. onBack: what Back does (cancel the judgment). With
+ * swipes on, the whole pad below the header is the swipe area and the
+ * question and the instructions are shown in it at the student's text size;
+ * with swipes off, the three buttons.
+ */
+function gsOpenAnswerPad({ title, onAnswer, onBack = null, onSkip = null }) {
   const overlay = document.getElementById("answerOverlay");
   if (!overlay) return;
   gsAnswerPad.onAnswer = onAnswer;
-  gsAnswerPad.onSkip = onSkip;
-  const titleEl = document.getElementById("answerOverlayTitle");
-  if (titleEl) titleEl.textContent = title;
+  gsAnswerPad.onBack = onBack || onSkip;
+  const question = document.getElementById("answerQuestion");
+  if (question) question.textContent = title;
   const surface = document.getElementById("answerSurface");
-  const swipeOn = gsFeature("compareSwipe") !== "off";
+  const grid = overlay.querySelector(".answer-grid");
+  const swipeOn = gsPadSwipesOn();
   if (surface) surface.hidden = !swipeOn;
+  if (grid) grid.hidden = swipeOn;
   overlay.classList.toggle("buttons-only", !swipeOn);
+  overlay.classList.toggle("swipes", swipeOn);
+  gsSurfaceAccessibility(surface, `${title} ${GS_PAD_LABELS.answer}`);
   gsShowPad(overlay);
   // One swipe either way from the middle answer reaches the other two.
-  document.querySelector("#answerOverlay .answer-btn[data-answer='same']")?.focus({ preventScroll: true });
+  gsFocusPadStart(overlay, surface, document.querySelector("#answerOverlay .answer-btn[data-answer='same']"));
 }
 
-function gsCloseAnswerPad() {
+function gsCloseAnswerPad(options) {
   gsAnswerPad.onAnswer = null;
-  gsAnswerPad.onSkip = null;
-  gsHidePad(document.getElementById("answerOverlay"));
+  gsAnswerPad.onBack = null;
+  gsHidePad(document.getElementById("answerOverlay"), options);
 }
 
-/* Skip: close the pad. A student who does not know is never made to guess
- * (Cindi, 16 Oct 2026); the skip is noted, never scored (build 11). */
-function gsAnswerPadSkip() {
-  const skip = gsAnswerPad.onSkip;
+/* Back: close the pad and let the activity record the cancelled judgment. */
+function gsAnswerPadBack() {
+  const back = gsAnswerPad.onBack;
   gsCloseAnswerPad();
-  if (typeof skip === "function") skip();
+  if (typeof back === "function") back();
 }
 
 function gsAnswerPadAnswer(answer) {
@@ -614,49 +790,42 @@ function gsAnswerPadAnswer(answer) {
 
 /* ---------------- "How much" pad ---------------- */
 
-const gsHowMuchPad = { start: 0, onDone: null, onSkip: null };
+const gsHowMuchPad = { start: 0, onDone: null, onBack: null };
 
-function gsOpenHowMuchPad({ title, onDone, onSkip = null }) {
+function gsOpenHowMuchPad({ title, onDone, onBack = null, onSkip = null }) {
   const overlay = document.getElementById("howMuchOverlay");
   const btn = document.getElementById("compareFollowUpBtn");
   if (!overlay || !btn) return;
   gsHowMuchPad.start = 0;
   gsHowMuchPad.onDone = onDone;
-  gsHowMuchPad.onSkip = onSkip;
+  gsHowMuchPad.onBack = onBack || onSkip;
   const titleEl = document.getElementById("howMuchTitle");
   if (titleEl) titleEl.textContent = title;
   btn.textContent = "TAP TO START";
   btn.setAttribute("aria-label", `${title} Tap to start, then tap again to end.`);
   gsShowPad(overlay);
-  btn.focus({ preventScroll: true });
+  gsFocusPadStart(overlay, null, btn);
 }
 
-function gsCloseHowMuchPad() {
+function gsCloseHowMuchPad(options) {
   gsHowMuchPad.start = 0;
   gsHowMuchPad.onDone = null;
-  gsHowMuchPad.onSkip = null;
-  gsHidePad(document.getElementById("howMuchOverlay"));
+  gsHowMuchPad.onBack = null;
+  gsHidePad(document.getElementById("howMuchOverlay"), options);
 }
 
-function gsHowMuchPadSkip() {
-  const skip = gsHowMuchPad.onSkip;
+function gsHowMuchPadBack() {
+  const back = gsHowMuchPad.onBack;
   gsCloseHowMuchPad();
-  if (typeof skip === "function") skip();
+  if (typeof back === "function") back();
 }
-
-/* Escape skips whichever pad is open, for keyboard and switch users. */
-document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
-  if (!document.getElementById("howMuchOverlay")?.hidden) { event.preventDefault(); gsHowMuchPadSkip(); return; }
-  if (!document.getElementById("answerOverlay")?.hidden) { event.preventDefault(); gsAnswerPadSkip(); }
-});
 
 function gsHowMuchTap() {
   if (!gsHowMuchPad.onDone) return;
   const btn = document.getElementById("compareFollowUpBtn");
   if (!gsHowMuchPad.start) {
     gsHowMuchPad.start = performance.now();
-    playConfirmTone();
+    playStudentTone();
     hapticCue("start");
     if (btn) {
       btn.textContent = "TAP TO END";
@@ -665,10 +834,62 @@ function gsHowMuchTap() {
     return;
   }
   const produced = (performance.now() - gsHowMuchPad.start) / 1000;
-  playConfirmTone();
+  playStudentTone();
   const done = gsHowMuchPad.onDone;
   gsCloseHowMuchPad();
   done(produced);
+}
+
+/* Kept for older callers and tests: Skip became Back (tracker 13.7). */
+function gsAnswerPadSkip() { gsAnswerPadBack(); }
+function gsHowMuchPadSkip() { gsHowMuchPadBack(); }
+
+/* ============================================================
+ * Play it again (Cindi, Oct 18 2026; tracker F1)
+ * ------------------------------------------------------------
+ * After the replay in Comparison preparation, Comparison practice and At the
+ * street, the student can hear that same replay again, as many times as they
+ * like, until they start a new sample or vehicle. It replays the last try
+ * exactly, is never recorded or scored, and sits right after the page's main
+ * button (one swipe from Play for VoiceOver users). Not in Practice my
+ * timing: there what plays back is clearly the student's own taps.
+ * ============================================================ */
+
+const gsPlayAgain = { compare: null, signal: null, live: null };
+
+function gsPlayAgainButton(activity) {
+  return document.getElementById({ compare: "comparePlayAgainBtn", signal: "signalPlayAgainBtn", live: "livePlayAgainBtn" }[activity]);
+}
+
+/* Remember the replay of the try just finished. */
+function gsPlayAgainSet(activity, fn) {
+  gsPlayAgain[activity] = typeof fn === "function" ? fn : null;
+}
+
+/* Show the button when there is something to play again and the option allows it. */
+function gsPlayAgainShow(activity, show) {
+  const btn = gsPlayAgainButton(activity);
+  if (!btn) return;
+  const enabled = typeof gsPlayAgainEnabled === "function" ? gsPlayAgainEnabled() : true;
+  btn.hidden = !(show && enabled && gsPlayAgain[activity]);
+  gsSetBusy(btn, false);
+}
+
+function gsPlayAgainClear(activity) {
+  gsPlayAgain[activity] = null;
+  gsPlayAgainShow(activity, false);
+}
+
+/* The student's own switch, one setting shared by the three activities. */
+function gsPlayAgainToggleInit() {
+  const toggles = [...document.querySelectorAll(".play-again-toggle")];
+  const sync = () => { const on = localStorage.getItem("om-playAgain") !== "false"; toggles.forEach((t) => { t.checked = on; }); };
+  sync();
+  toggles.forEach((t) => t.addEventListener("change", () => {
+    localStorage.setItem("om-playAgain", String(t.checked));
+    sync();
+    ["compare", "signal", "live"].forEach((a) => { if (gsPlayAgain[a]) gsPlayAgainShow(a, true); });
+  }));
 }
 
 /* ============================================================
@@ -676,7 +897,7 @@ function gsHowMuchTap() {
  * ============================================================ */
 
 const gsCompareState = {
-  street: "full",
+  street: "half", // First half first (Cindi, Oct 20 2026; tracker F6)
   intervalSec: 0,
   crossingSec: 0,
   marginSec: 0.4,
@@ -726,8 +947,11 @@ function gsCompareStatus(message, tone = "neutral", { announce = true } = {}) {
 function gsCompareSetStartEnabled(enabled, label = "Play a sample warning time") {
   const btn = document.getElementById("compareStartBtn");
   if (!btn) return;
-  btn.disabled = !enabled;
-  btn.textContent = label;
+  // Busy, not disabled: a disabled button drops VoiceOver's cursor to the
+  // top of the screen on every try (tracker 12.27).
+  gsSetBusy(btn, !enabled);
+  const text = btn.querySelector(".action-btn-label") || btn;
+  text.textContent = label;
 }
 
 function gsCompareStyle() {
@@ -763,6 +987,9 @@ function gsCompareCancel() {
 }
 
 function gsCompareBegin() {
+  // A press while a sample or replay is playing does nothing (the button is
+  // busy, not disabled, so it can still be pressed).
+  if (gsCompareState.phase !== "idle") return;
   gsCompareCancel();
   const crossingSec = gsCrossingTimeFor(gsCompareState.street);
   if (!Number.isFinite(crossingSec) || crossingSec <= 0) {
@@ -777,6 +1004,7 @@ function gsCompareBegin() {
   gsCompareState.marginSec = margin;
   gsCompareState.expected = trial.category;
   gsCompareState.phase = "waiting";
+  gsPlayAgainClear("compare");
 
   gsCompareSetStartEnabled(false, "Listen…");
   const randomPause = gsCompareRandomDelayEnabled();
@@ -801,10 +1029,22 @@ function gsCompareAskAnswer() {
   gsCompareState.phase = "answering";
   const title = "Was that longer, shorter, or about the same as your crossing?";
   gsCompareStatus(title, "neutral", { announce: false });
-  gsOpenAnswerPad({ title, onAnswer: gsCompareAnswer, onSkip: gsCompareSkip });
-  announceScreenReader(gsFeature("compareSwipe") !== "off"
-    ? `${title} Swipe up for longer, down for shorter, tap for about the same. Or use the buttons.`
-    : title);
+  gsOpenAnswerPad({ title, onAnswer: gsCompareAnswer, onBack: gsCompareBack });
+  gsAnnouncePad(title, "Swipe up for longer, down for shorter, or tap for about the same, anywhere on the screen.");
+}
+
+/*
+ * What a pad says as it opens. A screen reader reads the focused swipe area's
+ * label, so nothing else is announced at that moment (tracker 12.28). With
+ * buttons only the question is announced. Self-voicing speaks the question
+ * and the instructions either way.
+ */
+function gsAnnouncePad(title, swipeInstructions) {
+  if (a11ySettings.selfVoice) {
+    gsSpeak(gsPadSwipesOn() ? `${title} ${swipeInstructions}` : title);
+    return;
+  }
+  if (!gsPadSwipesOn()) announceScreenReader(title);
 }
 
 function gsCompareAnswer(answer) {
@@ -829,16 +1069,16 @@ function gsCompareAnswer(answer) {
   });
   gsCompareRenderScore();
 
+  // Right or wrong is the chime or the pulse, the knocks or the buzz, the
+  // circle or the triangle, and then the replay. No words, spoken or on
+  // screen: they repeated the cue and were cut off by the replay (Cindi,
+  // Oct 18 2026; tracker 12.29).
   gsShowResult(correct);
-  const truth = GS_ANSWER_SHORT[gsCompareState.expected];
+  gsCompareStatus("", "neutral", { announce: false });
 
   // "How much" only makes sense when the student got the direction right:
   // if they could not tell longer from shorter, they cannot judge how much.
   const offerHowMuch = correct && gsCompareState.expected !== "same" && gsCompareHowMuchEnabled();
-  gsCompareStatus(
-    correct ? `Correct. It was ${truth}.` : `Not quite. It was ${truth}. Feel the difference.`,
-    correct ? "ok" : "warn"
-  );
   gsLater(gsCompareTimers, offerHowMuch ? gsCompareStartHowMuch : () => gsCompareReplay(), 1.2);
 }
 
@@ -846,36 +1086,55 @@ function gsCompareAnswer(answer) {
 function gsCompareReplay(afterSec = 0.1) {
   gsCompareState.phase = "replaying";
   gsBeginQuiet();
-  const doneAt = gsReplayJudgment({
-    sampleSec: gsCompareState.intervalSec,
-    crossingSec: gsCompareState.crossingSec,
-    style: gsCompareStyle(),
-    startDelaySec: afterSec + 0.4
-  });
-  gsLater(gsCompareTimers, () => gsCompareFinish("First the sample, then your sound where your crossing time ends. Press Play for another."), doneAt + 0.2);
+  const params = { sampleSec: gsCompareState.intervalSec, crossingSec: gsCompareState.crossingSec, style: gsCompareStyle() };
+  const doneAt = gsReplayJudgment({ ...params, startDelaySec: afterSec + 0.4 });
+  gsPlayAgainSet("compare", () => gsReplayJudgment({ ...params, startDelaySec: 0.5 }));
+  gsLater(gsCompareTimers, () => gsCompareFinish("Press Play for another."), doneAt + 0.2);
 }
 
-function gsCompareFinish(message, tone = "neutral") {
+/* Play it again: the same replay, not recorded, then back to idle. */
+function gsComparePlayAgain() {
+  const fn = gsPlayAgain.compare;
+  if (gsCompareState.phase !== "idle" || typeof fn !== "function") return;
+  gsCompareState.phase = "replaying";
+  gsCompareSetStartEnabled(false, "Listen…");
+  gsSetBusy(gsPlayAgainButton("compare"), true);
+  gsCompareStatus("", "neutral", { announce: false });
+  gsBeginQuiet();
+  const doneAt = fn();
+  gsLater(gsCompareTimers, () => gsCompareFinish("Press Play for another.", "neutral", { focus: "playAgain" }), doneAt + 0.2);
+}
+
+function gsCompareFinish(message, tone = "neutral", { focus = "play" } = {}) {
   suppressSrAnnouncements = false;
   gsCompareState.phase = "idle";
   gsCompareSetStartEnabled(true);
   gsCompareStatus(message, tone);
-  document.getElementById("compareStartBtn")?.focus({ preventScroll: true });
+  gsPlayAgainShow("compare", focus !== "title");
+  // After Back, focus goes to the screen's title (tracker 13.7); after Play it
+  // again, the button itself; otherwise Play, where the student already is.
+  const target = focus === "title" ? document.getElementById("screenTitle")
+    : focus === "playAgain" ? gsPlayAgainButton("compare")
+      : document.getElementById("compareStartBtn");
+  target?.focus({ preventScroll: true });
 }
 
 function gsCompareStartHowMuch() {
   gsCompareState.phase = "howmuch";
   const direction = gsCompareState.expected;
   const title = `How much ${direction}? Tap to start, tap again to end.`;
-  gsCompareStatus(title);
-  gsOpenHowMuchPad({ title: `How much ${direction}?`, onDone: gsCompareHowMuchDone, onSkip: gsCompareHowMuchSkip });
+  gsCompareStatus(title, "neutral", { announce: false });
+  gsOpenHowMuchPad({ title: `How much ${direction}?`, onDone: gsCompareHowMuchDone, onBack: gsCompareHowMuchBack });
+  gsAnnouncePad(title, "Tap anywhere on the screen to start, and tap again to end.");
 }
 
 /*
- * Skipped the judgment. Recorded as skipped so the instructor sees it in the
- * report, never scored (Cindi's decision, 16 Oct 2026; build 11).
+ * Back on the answer pad: the try is cancelled. It is recorded as cancelled
+ * so the instructor sees it, and never scored (design: Cindi, Oct 16 and
+ * Oct 20 2026; tracker 13.7). The stored flag is still `skipped`, so records
+ * from builds 11 to 13 read the same way.
  */
-function gsCompareSkip() {
+function gsCompareBack() {
   if (gsCompareState.phase !== "answering") return;
   gsLogAttempt({
     activity: "compare",
@@ -891,14 +1150,14 @@ function gsCompareSkip() {
   });
   gsCompareCancel();
   gsCompareRenderScore();
-  gsCompareFinish("Skipped. Noted as skipped, not scored. Press Play for another.");
+  gsCompareFinish("Cancelled. Not scored. Press Play for another.", "neutral", { focus: "title" });
 }
 
-/* Skipped the estimate: the judgment already recorded stands; the skip is noted. */
-function gsCompareHowMuchSkip() {
+/* Back on the How much pad: the judgment stands; the estimate is recorded as cancelled. */
+function gsCompareHowMuchBack() {
   if (gsCompareState.phase !== "howmuch") return;
   const trueDiff = Math.abs(gsCompareState.intervalSec - gsCompareState.crossingSec);
-  gsLogAttempt({
+  gsLogHowMuch({
     activity: "compare",
     street: gsCompareState.street,
     userSec: 0,
@@ -906,13 +1165,14 @@ function gsCompareHowMuchSkip() {
     diffSec: 0,
     correct: false,
     marginSec: gsEffectiveMargin("compare", gsCompareState.street, true),
-    answer: "magnitude",
-    expected: "magnitude",
-    skipped: true,
-    skip: "magnitude"
+    skipped: true
   });
-  gsCompareFinish("Skipped the estimate. Noted as skipped, not scored. Press Play for another.");
+  gsCompareFinish("Estimate cancelled. Not scored. Press Play for another.", "neutral", { focus: "title" });
 }
+
+/* Kept for older callers. */
+function gsCompareSkip() { gsCompareBack(); }
+function gsCompareHowMuchSkip() { gsCompareHowMuchBack(); }
 
 function gsCompareHowMuchDone(produced) {
   if (gsCompareState.phase !== "howmuch") return;
@@ -922,48 +1182,50 @@ function gsCompareHowMuchDone(produced) {
   const margin = gsEffectiveMargin("compare", gsCompareState.street, true);
   const correct = Math.abs(produced - trueDiff) <= margin;
 
-  gsLogAttempt({
+  // One try is one record: the estimate joins the judgment (tracker 12.37).
+  gsLogHowMuch({
     activity: "compare",
     street: gsCompareState.street,
     userSec: produced,
     refSec: trueDiff,
     diffSec: produced - trueDiff,
     correct,
-    marginSec: margin,
-    answer: "magnitude",
-    expected: "magnitude"
+    marginSec: margin
   });
   gsCompareRenderScore();
 
   gsCompareState.phase = "replaying";
-  const closing = correct ? "Your estimate was close. Press Play for another." : "Your estimate was off. Press Play for another.";
-  const tone = correct ? "ok" : "warn";
+  // The right or wrong cue inside the replay says how the estimate went; no
+  // words before or after (tracker 12.29).
+  const closing = "Press Play for another.";
+  const tone = "neutral";
+  gsCompareStatus("", "neutral", { announce: false });
 
   if (gsFeature("magnitudeReplay") === "b") {
-    gsCompareStatus("First the sample against your crossing time, then your estimate against the real difference.");
     gsBeginQuiet();
-    const firstDone = gsReplayJudgment({
-      sampleSec: gsCompareState.intervalSec,
-      crossingSec: gsCompareState.crossingSec,
-      style: gsCompareStyle(),
-      startDelaySec: 0.8
-    });
-    const secondDone = gsReplayMagnitudeB({ estimateSec: produced, trueDiffSec: trueDiff, marginSec: margin, startDelaySec: firstDone + 0.5, append: true });
+    const judgment = { sampleSec: gsCompareState.intervalSec, crossingSec: gsCompareState.crossingSec, style: gsCompareStyle() };
+    const estimate = { estimateSec: produced, trueDiffSec: trueDiff, marginSec: margin, append: true };
+    const replayB = (startDelaySec) => {
+      const first = gsReplayJudgment({ ...judgment, startDelaySec });
+      return gsReplayMagnitudeB({ ...estimate, startDelaySec: first + 0.5 });
+    };
+    const secondDone = replayB(0.8);
+    gsPlayAgainSet("compare", () => replayB(0.5));
     gsLater(gsCompareTimers, () => gsCompareFinish(closing, tone), secondDone + 0.2);
     return;
   }
 
-  gsCompareStatus("Your crossing time, then the right or wrong sound where the sample ended, then your sound at your estimate.");
   gsBeginQuiet();
-  const doneAt = gsReplayMagnitudeA({
+  const params = {
     crossingSec: gsCompareState.crossingSec,
     sampleSec: gsCompareState.intervalSec,
     estimateSec: produced,
     direction: gsCompareState.expected,
     marginSec: margin,
-    style: gsCompareStyle(),
-    startDelaySec: 0.8
-  });
+    style: gsCompareStyle()
+  };
+  const doneAt = gsReplayMagnitudeA({ ...params, startDelaySec: 0.8 });
+  gsPlayAgainSet("compare", () => gsReplayMagnitudeA({ ...params, startDelaySec: 0.5 }));
   gsLater(gsCompareTimers, () => gsCompareFinish(closing, tone), doneAt + 0.2);
 }
 
@@ -989,6 +1251,7 @@ function gsCompareRenderScore() {
 
 function gsCompareSetStreet(street) {
   gsCompareCancel();
+  gsPlayAgainClear("compare");
   gsCompareState.street = street;
   gsCompareRenderScore();
   gsCompareStatus(`${street === "half" ? "First half of the street" : "Full street"} selected. Press Play when ready.`);
@@ -1017,7 +1280,8 @@ const gsLiveState = {
   warningSec: 0,
   crossingSec: 0,
   marginSec: 0.4,
-  category: "same"
+  category: "same",
+  renderedPhase: ""
 };
 
 function gsLiveStreetFor(direction) {
@@ -1056,19 +1320,40 @@ function gsLiveStatus(message, tone = "neutral", { announce = true } = {}) {
 }
 
 function gsLiveRenderPad() {
+  const overlay = document.getElementById("liveOverlay");
   const detect = document.getElementById("liveDetectButtons");
   const arrive = document.getElementById("liveArriveButtons");
+  const surface = document.getElementById("liveSurface");
   const surfaceText = document.getElementById("liveSurfaceText");
   const phase = gsLiveState.phase;
-  if (detect) detect.hidden = phase !== "detect";
-  if (arrive) arrive.hidden = phase !== "arriving";
+  const swipeOn = gsPadSwipesOn();
+  if (detect) detect.hidden = !swipeOn ? phase !== "detect" : true;
+  if (arrive) arrive.hidden = !swipeOn ? phase !== "arriving" : true;
+  if (surface) surface.hidden = !swipeOn;
+  overlay?.classList.toggle("buttons-only", !swipeOn);
+  overlay?.classList.toggle("swipes", swipeOn);
   if (surfaceText) {
     surfaceText.textContent = phase === "arriving"
-      ? "Tap when it passes in front of you · Swipe down if it never comes"
+      ? "Tap when it passes in front of you. Swipe down if it never comes."
       : phase === "detect"
-        ? "◀ Swipe left: from the left · Swipe right: from the right ▶"
+        ? "Swipe left: from the left. Swipe right: from the right."
         : "Listen";
   }
+  gsSurfaceAccessibility(surface, phase === "arriving" ? GS_PAD_LABELS.streetArriving : GS_PAD_LABELS.streetDetect);
+  // A new step means a new label: VoiceOver's cursor stays on the area and
+  // reads it again.
+  if (gsLiveState.renderedPhase !== phase && gsOpenPads > 0) gsDirectTouchSync({ focus: true });
+  gsLiveState.renderedPhase = phase;
+}
+
+/* Where focus belongs on the street pad between steps: the swipe area (the
+ * page's own, or on iPhone the title while the native area takes the
+ * cursor), or the first button with swipes off. */
+function gsLivePadFocus() {
+  const overlay = document.getElementById("liveOverlay");
+  if (!overlay || overlay.hidden) return;
+  const buttons = gsLiveState.phase === "arriving" ? "#liveArrivedBtn" : "[data-live-detect='left']";
+  gsFocusPadStart(overlay, document.getElementById("liveSurface"), document.querySelector(buttons));
 }
 
 function gsLiveOpen() {
@@ -1079,19 +1364,44 @@ function gsLiveOpen() {
     return;
   }
   gsLiveState.phase = "detect";
+  gsLiveState.renderedPhase = "";
   gsShowPad(document.getElementById("liveOverlay"));
   gsLiveRenderPad();
-  document.getElementById("liveOverlayTitle")?.focus({ preventScroll: true });
-  gsLiveStatus("Swipe left or right the moment you think you detect a vehicle, toward the side it is coming from.");
+  gsLivePadFocus();
+  const message = "Swipe left or right the moment you think you detect a vehicle, toward the side it is coming from.";
+  gsLiveStatus(message, "neutral", { announce: false });
+  gsAnnouncePad("At the street.", message);
 }
 
+/*
+ * Back on the street pad ends the street session (what Done did before).
+ * A vehicle in progress is recorded as cancelled, not dropped (Azizul,
+ * Oct 22 2026, on tracker 13.7's open point).
+ */
 function gsLiveClose() {
+  gsPlayAgainClear("live");
+  if (gsLiveState.phase === "arriving") {
+    const street = gsLiveStreetFor(gsLiveState.direction);
+    gsLogAttempt({
+      activity: "live",
+      street,
+      direction: gsLiveState.direction,
+      sense: gsLiveSense(),
+      judged: false,
+      skipped: true,
+      skip: "vehicle",
+      userSec: 0,
+      refSec: gsCrossingTimeFor(street),
+      diffSec: 0,
+      correct: false,
+      marginSec: gsEffectiveMargin("live", street)
+    });
+  }
   gsLiveCancelFlow();
   gsLiveState.phase = "closed";
-  gsHidePad(document.getElementById("liveOverlay"));
+  gsHidePad(document.getElementById("liveOverlay"), { focusTo: document.getElementById("screenTitle") });
   gsLiveRenderTally();
   gsLiveStatus("Press Start when you are in position.", "neutral", { announce: false });
-  document.getElementById("liveStartBtn")?.focus({ preventScroll: true });
 }
 
 /** Cancel any vehicle in progress. Safe to call at any time. */
@@ -1135,6 +1445,7 @@ document.addEventListener("visibilitychange", () => {
 
 /* Called by the shell when leaving the screen. */
 function gsLiveLeave() {
+  gsPlayAgainClear("live");
   gsLiveCancelFlow();
   gsLiveState.phase = "closed";
   gsHidePad(document.getElementById("liveOverlay"));
@@ -1146,13 +1457,14 @@ function gsLiveEnter() {
 
 function gsLiveDetect(direction, atMs) {
   if (gsLiveState.phase !== "detect") return;
+  gsPlayAgainClear("live");
   gsLiveState.direction = direction === "right" ? "right" : "left";
   gsLiveState.detectedAt = Number.isFinite(atMs) ? atMs : performance.now();
   gsLiveState.phase = "arriving";
   gsLiveConfirm("start");
   gsLiveRenderPad();
-  gsLiveStatus(`From the ${gsLiveState.direction}. Tap when it passes in front of you, or swipe down if it never comes.`);
-  document.getElementById("liveArrivedBtn")?.focus({ preventScroll: true });
+  gsLiveStatus(`From the ${gsLiveState.direction}. Tap when it passes in front of you, or swipe down if it never comes.`, "neutral", { announce: !gsPadSwipesOn() });
+  gsLivePadFocus();
 }
 
 /*
@@ -1185,7 +1497,7 @@ function gsLiveNeverCame() {
   gsLiveRenderPad();
   gsLiveRenderTally();
   gsLiveStatus("Noted: that vehicle never came. Ready for the next one.");
-  document.querySelector("[data-live-detect='left']")?.focus({ preventScroll: true });
+  gsLivePadFocus();
 }
 
 function gsLiveArrived(atMs) {
@@ -1210,8 +1522,8 @@ function gsLiveArrived(atMs) {
   gsLiveRenderPad();
   const title = "Was that warning time longer, shorter, or about the same as your crossing?";
   gsLiveStatus(title, "neutral", { announce: false });
-  gsOpenAnswerPad({ title, onAnswer: gsLiveAnswer, onSkip: gsLiveSkipJudgment });
-  announceScreenReader(title);
+  gsOpenAnswerPad({ title, onAnswer: gsLiveAnswer, onBack: gsLiveJudgmentBack });
+  gsAnnouncePad(title, "Swipe up for longer, down for shorter, or tap for about the same, anywhere on the screen.");
 }
 
 function gsLiveLog({ judged, answer, correct }) {
@@ -1236,16 +1548,17 @@ function gsLiveAnswer(answer) {
   if (gsLiveState.phase !== "judging") return;
   const correct = answer === gsLiveState.category;
   gsLiveLog({ judged: true, answer, correct });
+  // The cue and the replay carry the result; no words (tracker 12.29).
   gsShowResult(correct);
-  const truth = GS_ANSWER_SHORT[gsLiveState.category];
-  gsLiveStatus(correct ? `Correct. It was ${truth}.` : `Not quite. It was ${truth}.`, correct ? "ok" : "warn");
+  gsLiveStatus("", "neutral", { announce: false });
 
   const offerHowMuch = correct && gsLiveState.category !== "same" && gsLiveHowMuchEnabled();
   if (offerHowMuch) {
     gsLiveState.phase = "howmuch";
     gsLater(gsLiveTimers, () => {
-      gsOpenHowMuchPad({ title: `How much ${gsLiveState.category}?`, onDone: gsLiveHowMuchDone, onSkip: gsLiveHowMuchSkip });
-      announceScreenReader(`How much ${gsLiveState.category}? Tap to start, tap again to end.`);
+      const title = `How much ${gsLiveState.category}?`;
+      gsOpenHowMuchPad({ title, onDone: gsLiveHowMuchDone, onBack: gsLiveHowMuchBack });
+      gsAnnouncePad(`${title} Tap to start, tap again to end.`, "Tap anywhere on the screen to start, and tap again to end.");
     }, 1.2);
     return;
   }
@@ -1253,10 +1566,11 @@ function gsLiveAnswer(answer) {
 }
 
 /*
- * Skipped the judgment. The vehicle is kept in the log as skipped, with its
- * warning time, so the instructor sees it; it is never scored (build 11).
+ * Back on the answer pad at the street: back to the street pad, ready for the
+ * next vehicle. The vehicle stays in the record with its warning time; the
+ * judgment is recorded as cancelled, never scored (tracker 13.7).
  */
-function gsLiveSkipJudgment() {
+function gsLiveJudgmentBack() {
   if (gsLiveState.phase !== "judging") return;
   const street = gsLiveStreetFor(gsLiveState.direction);
   gsLogAttempt({
@@ -1277,33 +1591,38 @@ function gsLiveSkipJudgment() {
   gsLiveState.phase = "detect";
   gsLiveRenderPad();
   gsLiveRenderTally();
-  gsLiveStatus("Skipped. Noted as skipped, not scored. Ready for the next vehicle.");
-  document.querySelector("[data-live-detect='left']")?.focus({ preventScroll: true });
+  gsLiveStatus("Cancelled. Not scored. Ready for the next vehicle.");
+  gsLivePadFocus();
 }
 
-/* Skipped the estimate: the judgment stands, the skip is noted. */
-function gsLiveHowMuchSkip() {
+/* Back on the How much pad at the street: the judgment stands, the estimate
+ * is recorded as cancelled, and the street pad is ready for the next vehicle. */
+function gsLiveHowMuchBack() {
   if (gsLiveState.phase !== "howmuch") return;
   const street = gsLiveStreetFor(gsLiveState.direction);
   const trueDiff = Math.abs(gsLiveState.warningSec - gsLiveState.crossingSec);
-  gsLogAttempt({
+  gsLogHowMuch({
     activity: "live",
     street,
     direction: gsLiveState.direction,
     sense: gsLiveSense(),
-    judged: true,
-    skipped: true,
-    skip: "magnitude",
     userSec: 0,
     refSec: trueDiff,
     diffSec: 0,
     correct: false,
     marginSec: gsEffectiveMargin("live", street, true),
-    answer: "magnitude",
-    expected: "magnitude"
+    skipped: true
   });
-  gsLiveAfterVehicle({ judged: true, correct: true });
+  gsLiveState.phase = "detect";
+  gsLiveRenderPad();
+  gsLiveRenderTally();
+  gsLiveStatus("Estimate cancelled. Not scored. Ready for the next vehicle.");
+  gsLivePadFocus();
 }
+
+/* Kept for older callers. */
+function gsLiveSkipJudgment() { gsLiveJudgmentBack(); }
+function gsLiveHowMuchSkip() { gsLiveHowMuchBack(); }
 
 function gsLiveHowMuchDone(produced) {
   if (gsLiveState.phase !== "howmuch") return;
@@ -1311,19 +1630,17 @@ function gsLiveHowMuchDone(produced) {
   const street = gsLiveStreetFor(gsLiveState.direction);
   const howMuchMargin = gsEffectiveMargin("live", street, true);
   const correct = Math.abs(produced - trueDiff) <= howMuchMargin;
-  gsLogAttempt({
+  // One vehicle is one record: the estimate joins the judgment (tracker 12.37).
+  gsLogHowMuch({
     activity: "live",
     street,
     direction: gsLiveState.direction,
     sense: gsLiveSense(),
-    judged: true,
     userSec: produced,
     refSec: trueDiff,
     diffSec: produced - trueDiff,
     correct,
-    marginSec: howMuchMargin,
-    answer: "magnitude",
-    expected: "magnitude"
+    marginSec: howMuchMargin
   });
   gsLiveAfterVehicle({ judged: true, correct: true, magnitude: { produced, trueDiff, correct, marginSec: howMuchMargin } });
 }
@@ -1355,28 +1672,35 @@ function gsLiveAfterVehicle({ judged, correct, magnitude = null }) {
 
   gsLater(gsLiveTimers, () => {
     gsBeginQuiet();
-    let doneAt;
     const style = "continuous";
-    if (magnitude) {
-      if (gsFeature("magnitudeReplay") === "b") {
-        const first = gsReplayJudgment({ sampleSec: gsLiveState.warningSec, crossingSec: gsLiveState.crossingSec, style, startDelaySec: 0.3 });
-        doneAt = gsReplayMagnitudeB({ estimateSec: magnitude.produced, trueDiffSec: magnitude.trueDiff, marginSec: magnitude.marginSec, startDelaySec: first + 0.5, append: true });
-      } else {
-        doneAt = gsReplayMagnitudeA({
-          crossingSec: gsLiveState.crossingSec,
-          sampleSec: gsLiveState.warningSec,
-          estimateSec: magnitude.produced,
-          direction: gsLiveState.category,
-          marginSec: magnitude.marginSec,
-          style,
-          startDelaySec: 0.3
-        });
+    const warningSec = gsLiveState.warningSec;
+    const crossingSec = gsLiveState.crossingSec;
+    const category = gsLiveState.category;
+    const replay = (startDelaySec) => {
+      if (magnitude && gsFeature("magnitudeReplay") === "b") {
+        const first = gsReplayJudgment({ sampleSec: warningSec, crossingSec, style, startDelaySec });
+        return gsReplayMagnitudeB({ estimateSec: magnitude.produced, trueDiffSec: magnitude.trueDiff, marginSec: magnitude.marginSec, startDelaySec: first + 0.5, append: true });
       }
-    } else {
-      doneAt = gsReplayJudgment({ sampleSec: gsLiveState.warningSec, crossingSec: gsLiveState.crossingSec, style, startDelaySec: 0.3 });
-    }
+      if (magnitude) {
+        return gsReplayMagnitudeA({ crossingSec, sampleSec: warningSec, estimateSec: magnitude.produced, direction: category, marginSec: magnitude.marginSec, style, startDelaySec });
+      }
+      return gsReplayJudgment({ sampleSec: warningSec, crossingSec, style, startDelaySec });
+    };
+    const doneAt = replay(0.3);
+    gsPlayAgainSet("live", () => replay(0.5));
     gsLater(gsLiveTimers, gsLiveReady, doneAt + 0.2);
   }, magnitude ? 1.6 : 1.4);
+}
+
+/* Play it again at the street: the last vehicle's replay, then ready again. */
+function gsLivePlayAgain() {
+  const fn = gsPlayAgain.live;
+  if (gsLiveState.phase !== "detect" || typeof fn !== "function") return;
+  gsLiveState.phase = "feedback";
+  gsSetBusy(gsPlayAgainButton("live"), true);
+  gsBeginQuiet();
+  const doneAt = fn();
+  gsLater(gsLiveTimers, gsLiveReady, doneAt + 0.2);
 }
 
 function gsLiveReady() {
@@ -1385,7 +1709,11 @@ function gsLiveReady() {
   gsLiveState.phase = "detect";
   gsLiveRenderPad();
   gsLiveStatus("Ready for the next vehicle.");
-  document.querySelector("[data-live-detect='left']")?.focus({ preventScroll: true });
+  const playAgain = gsPlayAgainButton("live");
+  const wasPlayingAgain = playAgain && !playAgain.hidden && gsIsBusy(playAgain);
+  gsPlayAgainShow("live", true);
+  if (wasPlayingAgain) playAgain.focus({ preventScroll: true });
+  else gsLivePadFocus();
 }
 
 function gsLiveRenderTally() {
@@ -1497,16 +1825,23 @@ function gsComparisonInit() {
   document.querySelectorAll("#answerOverlay .answer-btn").forEach((btn) => {
     btn.addEventListener("click", () => gsAnswerPadAnswer(btn.dataset.answer));
   });
-  document.getElementById("answerSkipBtn")?.addEventListener("click", gsAnswerPadSkip);
-  document.getElementById("howMuchSkipBtn")?.addEventListener("click", gsHowMuchPadSkip);
+  // Back, top-left on every pad (tracker 13.7).
+  document.getElementById("answerBackBtn")?.addEventListener("click", gsAnswerPadBack);
+  document.getElementById("howMuchBackBtn")?.addEventListener("click", gsHowMuchPadBack);
+  document.getElementById("liveBackBtn")?.addEventListener("click", gsLiveClose);
+  gsPadBackHandlers.set("answerOverlay", gsAnswerPadBack);
+  gsPadBackHandlers.set("howMuchOverlay", gsHowMuchPadBack);
+  gsPadBackHandlers.set("liveOverlay", gsLiveClose);
   const answerOverlay = document.getElementById("answerOverlay");
   if (answerOverlay) {
-    gsBindSwipeSurface(answerOverlay, () => (gsFeature("compareSwipe") === "off" ? {} : {
+    gsBindSwipeSurface(answerOverlay, () => (gsPadSwipesOn() ? {
       up: () => gsAnswerPadAnswer("longer"),
       down: () => gsAnswerPadAnswer("shorter"),
       tap: () => gsAnswerPadAnswer("same")
-    }));
+    } : {}));
+    // With buttons only the arrows still answer from any button.
     answerOverlay.addEventListener("keydown", (event) => {
+      if (event.defaultPrevented || gsPadSwipesOn()) return;
       if (event.key === "ArrowUp") { event.preventDefault(); gsAnswerPadAnswer("longer"); }
       if (event.key === "ArrowDown") { event.preventDefault(); gsAnswerPadAnswer("shorter"); }
     });
@@ -1543,9 +1878,13 @@ function gsComparisonInit() {
     });
   });
 
+  // Play it again (F1).
+  gsPlayAgainToggleInit();
+  document.getElementById("comparePlayAgainBtn")?.addEventListener("click", gsComparePlayAgain);
+  document.getElementById("livePlayAgainBtn")?.addEventListener("click", gsLivePlayAgain);
+
   // At the street.
   document.getElementById("liveStartBtn")?.addEventListener("click", gsLiveOpen);
-  document.getElementById("liveDoneBtn")?.addEventListener("click", gsLiveClose);
   document.querySelectorAll("[data-live-detect]").forEach((btn) => {
     btn.addEventListener("click", () => gsLiveDetect(btn.dataset.liveDetect));
   });
@@ -1554,6 +1893,7 @@ function gsComparisonInit() {
   const liveOverlay = document.getElementById("liveOverlay");
   if (liveOverlay) {
     gsBindSwipeSurface(liveOverlay, () => {
+      if (!gsPadSwipesOn()) return {};
       if (gsLiveState.phase === "detect") {
         return { left: (at) => gsLiveDetect("left", at), right: (at) => gsLiveDetect("right", at) };
       }
