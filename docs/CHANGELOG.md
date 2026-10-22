@@ -8,7 +8,104 @@ than commit history. They are accurate to the day.
 
 ---
 
-## Unreleased (next build) — The "how much" Combined replay plays the warning time (GitHub issue 11)
+## 2026-10-22 (build 14, built and tested; not yet released) — Cindi's VoiceOver tests of builds 12 and 13, and her feature requests
+
+Cindi Lashinsky tested builds 12 and 13 on her iPhone with VoiceOver and kept a
+tracker of what she found (numbered by the build the bug was found in). Build
+14 answers every open item in it: 21 bugs and 5 feature requests, plus the
+GitHub issue below. The design decisions in this entry are hers unless noted;
+two open points were decided by Azizul Haque on 22 October (what Back does
+mid-vehicle; the student's sound).
+
+**Answer screens (12.27, 12.28, 12.31, 13.2, 13.3, 13.6, 13.7)**
+
+- **Back, top left on every pad, replaces Skip and Done.** It is outside the
+  swipe area, goes up one level and records the cancelled part as cancelled,
+  never scored: the try on the answer screen; only the estimate on How much;
+  at the street, back to the street pad; on the street pad, the end of the
+  session (a vehicle in progress is recorded as cancelled). Escape, Android's
+  Back and VoiceOver's two-finger scrub do the same. The way out is for a try
+  that was interrupted or started by mistake; a student who is unsure gives
+  their best judgment. "Skipped" reads "cancelled" everywhere, old records
+  included.
+- **The whole pad is the swipe area.** With swipes on (the default) there are
+  no answer buttons; the question and the instructions are shown in the area
+  at the student's text size, up to the height of the screen. The instructor
+  can set buttons only, on every pad.
+- **iPhone with VoiceOver:** the cursor is moved onto the Direct Touch area as
+  a pad opens, so VoiceOver reads the area's label first and the first tap or
+  swipe already counts (the first How much tap used to be lost). The area is
+  taken out of the view tree when a pad closes, so no invisible area stays
+  over the next screen. VoiceOver is told of every change.
+- **Focus never drops to Back in the header.** The main buttons are busy
+  (aria-disabled), never disabled, while a try plays, and a pad hands focus on
+  before it hides. After every try the cursor is where it was.
+- **TalkBack (Android):** the swipe area is a labelled element; a two-finger
+  swipe passes through as a swipe and a double-tap is a tap. A gesture log
+  under Settings, Debug shows what arrived, for checks on real phones (13.4).
+
+**Replays and sounds (12.29, 12.34, 12.35, GitHub issue 11)**
+
+- Each of the three comparison pages explains its replay up front; after an
+  answer nothing is said or shown except the right or wrong cue and the
+  replay, then only what to do next.
+- The student's own sound is a bright tone at 1047 Hz, above every sample
+  pitch and the chimes, and the steady sound dips to 30% under any short cue,
+  in the web mix and in the iPhone's mixer, so the two never merge.
+- The student's taps (Practice my timing, How much) play the student's sound,
+  the same sound that replays them. The chime is the student's choice in
+  Settings.
+- The Combined replay after How much plays the steady sound for the warning
+  time, with the student's sound at the crossing time and at the estimate
+  (issue 11; placement proposed to Cindi on the issue).
+
+**Pages (12.32, 12.33, 12.41, 13.5, F6)**
+
+- Headings and named sections on the activity pages; the Options arrow is
+  drawn, not a character. Comparison practice's Play is the same big button
+  as Practice my timing, on screen when the page opens.
+- Progress: one heading per activity that reads as one sentence.
+- First half is listed first and selected by default on both comparison
+  screens.
+- The statement that a student is "never made to guess" is removed from the
+  code and the guides; it was never the design (13.5).
+
+**Reports and sending (12.36, 12.37, 12.38, 12.39, F2, F3, F4)**
+
+- One try, one record: the How much estimate is stored with its judgment and
+  reported on the same line; two-record tries from builds 10 to 13 are paired
+  on reading. Scores are unchanged.
+- Every report line gives the times in seconds with the time of day; a header
+  gives the crossing times and margin.
+- Show my report to send opens the report with the cursor at its start and
+  hides itself. Text to my instructor opens Messages with the report and the
+  instructor's number from the setup; Show to my instructor renders the
+  report as QR codes to scan; Email appears only when a mail app can open;
+  Export for Excel gives a CSV file; the share menu stays.
+- Instructor mobile number in Instructor setup and the setup link.
+
+**Durability and haptics (12.40, 12.30)**
+
+- A durable copy of settings and history: the phone's native preferences and
+  a file in the apps, IndexedDB with persistent storage on the web; restored
+  when the web view's storage is lost. History cap 5000 with warnings; a
+  failed save is reported. Help, About shows where the copy is.
+- The Core Haptics engine is kept running and rebuilt when stopped, with the
+  UIKit fallback at once; counts of cues played, fallen back and failed are
+  reported with the sound status for phone checks. Whether this cures the
+  missing vibration during tries needs a real iPhone.
+
+**Play it again (F1)**
+
+- After a replay in the three comparison activities the student can hear it
+  again, as often as they like; an instructor option (on, off, student
+  chooses), never recorded or scored.
+
+Tests: 205 browser tests (tests/build14-*.spec.mjs are new), the simulator
+self-test, and the Android emulator. Needs a real phone: the VoiceOver cursor
+behaviour, vibration during tries, the sound mix by ear, TalkBack.
+
+## Earlier in build 14 — The "how much" Combined replay plays the warning time (GitHub issue 11)
 
 Cindi Lashinsky reported (GitHub issue 11) that in build 13 the Combined replay
 after a "how much longer or shorter" estimate played the steady sound for the

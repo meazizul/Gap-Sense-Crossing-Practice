@@ -150,9 +150,20 @@ Press **START**. A full-screen pad opens.
 4. If switched on, "how much longer or shorter" follows a correct
    longer/shorter answer.
 
-Buttons on the pad do the same for screen reader users: **Vehicle from the
-left**, **Vehicle from the right**, then **It passed in front of me** and **It
-never came**. **Done** closes the pad.
+With swipes on (the default) the whole pad below its header is the swipe
+area, and there are no buttons. If the instructor sets **Buttons only**, the
+pad shows **Vehicle from the left**, **Vehicle from the right**, then **It
+passed in front of me** and **It never came** instead. **Back**, top left,
+ends the street session; a vehicle in progress is recorded as cancelled.
+After a replay, **Play it again** (when the instructor allows it) replays the
+last vehicle; it is never recorded.
+
+**VoiceOver (iPhone app):** the pad's swipe area is a Direct Touch area and
+the VoiceOver cursor lands on it as the pad opens, so the first swipe or tap
+already counts. Turn Direct Touch on for Gap Sense once, from the rotor. Back
+is outside the area: touch it, hear "Back", double-tap. VoiceOver's two-finger
+scrub does the same as Back. **TalkBack (Android):** swipe with two fingers on
+the pad, or double-tap to tap.
 
 **Replay** is set to one of: after every vehicle, only after a wrong answer, or
 never (then only the right or wrong sound plays, keeping the street quiet).
@@ -355,7 +366,8 @@ stays locked.
 
 After a short lead-in, the app plays back:
 
-- **Your taps** — a plain marker tone at the moment you tapped.
+- **Your taps** — your own sound (a short, bright tone) at the moment you
+  tapped, the same sound you heard when you tapped.
 - **The reference** — at each correct time, either:
   - a **short, bright, high chime** → you were within the margin, or
   - a **longer, low, buzzing pulse** → you were outside it.
@@ -408,9 +420,10 @@ than in a browser, and the note under the button always states which is active.
 - **Theme** — System / Light / Dark / Inverted (yellow on black, for some
   low-vision conditions).
 - **Text size** — up to **300%**, at which point the layout reflows to single
-  columns so nothing is clipped. The swipe pads cap their own text at about
-  twice the normal size, so the swipe area, Skip and every answer stay on one
-  screen; in landscape the swipe area sits beside the answers.
+  columns so nothing is clipped. On the answer screens the question and the
+  instructions are shown at your size, limited only by the height of the
+  screen so the pad never scrolls; with buttons only, the buttons fit one
+  screen.
 - **High contrast** — all gradients flattened. With the Light theme it is black
   on white; with Dark or Inverted it stays white (or yellow) on black.
 - **Pinch zoom** works in the web app and, since build 13, in the iPhone and

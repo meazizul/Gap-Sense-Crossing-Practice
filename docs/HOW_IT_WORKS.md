@@ -194,10 +194,13 @@ this, because you cannot schedule cars to arrive at useful intervals.
    needs to hear the whole thing to judge it. Loudness starts at 100% and the
    pitch can be lowered for people who hear low sounds better. Two beeps with
    silence between is the alternative.
-2. A full-screen pad opens. **Swipe up** for longer, **swipe down** for shorter,
-   **tap** for about the same. It never scrolls the page. Three large buttons
-   on the pad do the same, for screen reader users; focus lands on the middle
-   one so one flick reaches either of the others.
+2. A full-screen pad opens: the whole screen below its header is the swipe
+   area, with the question and the instructions at the person's text size.
+   **Swipe up** for longer, **swipe down** for shorter,
+   **tap** for about the same, anywhere on it. It never scrolls the page. The
+   instructor can set buttons only instead; then three large buttons answer,
+   and focus lands on the middle one so one flick reaches either of the
+   others.
 3. Right or wrong comes at once: the chime or the pulse, the matching
    vibration, and with visual feedback on, the green circle or orange triangle.
 4. **The replay.** The sample and the person's crossing time start together.
@@ -265,7 +268,14 @@ direction the vehicle comes from, and that the sound is a real vehicle.
    answer, or never. "Never" plays just the right or wrong sound, which keeps
    the street quiet when replays are not needed.
 
-Buttons on the pad do the same as the gestures for screen reader users.
+With swipes on there are no buttons; the instructor can set buttons only. On
+the iPhone app the swipe area is a VoiceOver Direct Touch area and the cursor
+lands on it as the pad opens; the web area is a labelled element for TalkBack
+and other screen readers. **Back**, top left of every pad and outside the
+swipe area, is the way out of a try that was interrupted or started by
+mistake: it goes up one level and records the cancelled part as cancelled,
+never scored. After a replay in the three comparison activities, **Play it
+again** replays the last try, as often as the person likes, unrecorded.
 
 An earlier version listened to background noise through the microphone. It
 was removed: its accuracy depended on how the phone was held, and judging the

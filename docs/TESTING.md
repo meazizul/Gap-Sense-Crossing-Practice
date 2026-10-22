@@ -375,7 +375,21 @@ Home → **At the street** → choose Hearing or Vision → **START**.
 - [ ] After it passes, the app asks you to judge; it does not say the answer first
 - [ ] Left compares with the first-half time, right with the full-street time
 - [ ] Replay set to "Only after a wrong answer" replays only after a wrong answer; "Never" plays only the right or wrong sound
-- [ ] **Done** closes the pad; the tally under the button counts vehicles, correct judgments and vehicles that never came
+- [ ] **Back** (top left) closes the pad and puts focus on the screen's title; a vehicle in progress is recorded as cancelled, not scored; the tally under the button counts vehicles, correct judgments and vehicles that never came
+- [ ] After a replay, **Play it again** appears under the status and replays the last vehicle without recording it; it goes when the next vehicle is detected
+
+### H4b — Answer screens with VoiceOver and TalkBack ⭐ (build 14; needs a real phone)
+Comparison practice and At the street, with VoiceOver on (iPhone) or TalkBack on (Android).
+
+**Pass:**
+- [ ] As an answer screen opens, VoiceOver reads the swipe area's label first ("Answer area. Swipe up for longer…"); the first swipe or tap already answers (no swallowed first tap)
+- [ ] On the How much screen the first tap starts the timing
+- [ ] After How much closes, swiping on the Home screen reaches every item down to the end-of-page sound; VoiceOver never reads "How much" on the Home or answer screens
+- [ ] Back, top left of every pad, is outside the area: touch it, hear "Back", double-tap; the two-finger scrub does the same
+- [ ] After every try in all four activities the cursor stays on the main button; it never jumps to Back in the header
+- [ ] With "Vibrate on cue" on, every cue vibrates during tries, with sound on and off (Settings, Debug does not show it; Accessibility, Play a test sound lists how many haptics played, fell back or failed)
+- [ ] The student's own sound is clean over the steady sound in every replay, at the loudest app volume and every sample pitch
+- [ ] Android with TalkBack: a two-finger swipe on the pad answers; a double-tap is a tap; Settings, Debug, "Gestures the answer screens received" lists what arrived
 
 ### H5 — Instructor setup
 **Pass:**
@@ -385,15 +399,18 @@ Home → **At the street** → choose Hearing or Vision → **START**.
 - [ ] Setting an instructor code locks the screen; a wrong code is refused; the right one unlocks; leaving locks it again; saving an empty code removes it
 
 ### H6 — Report
-Progress → **Send my progress to my instructor**.
+Progress → **Show my report to send**.
 
 **Pass:**
-- [ ] The report is shown first and nothing is sent until **Send it**
-- [ ] **Send it** opens the phone's share menu (Messages, Mail, …)
-- [ ] The report starts with "Student code: …" and contains no name
-- [ ] Street vehicles show direction, hearing or vision, the answer and the truth; vehicles that never came are listed but not scored
-- [ ] **Email it instead** appears only when an instructor email is set
-- [ ] **Delete all my practice history** empties everything
+- [ ] Each Progress box reads to VoiceOver as one sentence ("Comparison practice: 56 percent, 9 of 16 correct. How much longer or shorter: 0 of 5 estimates within margin."); nothing reads "em dash" or "dot"
+- [ ] The report opens with the cursor at its start; the Show button disappears; only **Send with another app** says Send; **Hide report** closes it
+- [ ] The report starts with "Student code: …", gives the crossing times and margin, and contains no name
+- [ ] Every line gives the times in seconds with the time of day; a try with "how much" is one line; cancelled tries say "cancelled (not scored)"
+- [ ] **Text to my instructor** opens Messages with the report, addressed to the number from Instructor setup when one is set
+- [ ] **Show to my instructor** shows one or more QR codes that another phone's camera reads; Next and Previous move between codes
+- [ ] **Email to my instructor** appears only when an instructor email is set and a mail app can open; with no mail app the note says so
+- [ ] **Export for Excel (CSV file)** shares (phone) or downloads (browser) a file that opens one try per row
+- [ ] **Delete all my practice history** empties everything, and Help, About shows where the backup copy is kept
 
 ### H7 — Adaptive margin (experimental)
 Instructor setup → tick **Adaptive margin of error**. Do ten practice attempts on one crossing.
