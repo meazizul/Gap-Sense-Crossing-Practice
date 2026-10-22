@@ -72,10 +72,11 @@ async function compareReplay(page, roll, answer, estimateMs) {
   await tick(page, estimateMs);
   await page.click("#compareFollowUpBtn");
   const log = await history(page);
-  expect(log[1]).toMatchObject({ answer: "magnitude" });
+  expect(log).toHaveLength(1);                            // one try, one record (12.37)
+  expect(log[0].howMuch).toBeTruthy();
   const replay = await replaySounds(page);
   await waitUntil(page, () => gsCompareState.phase === "idle", { ms: 45000, step: 250 });
-  return { crossingSec, sampleSec, estimateSec: log[1].userSec, correct: log[1].correct, ...replay };
+  return { crossingSec, sampleSec, estimateSec: log[0].howMuch.userSec, correct: log[0].howMuch.correct, ...replay };
 }
 
 test.beforeEach(async ({ page }) => {
@@ -135,11 +136,13 @@ test("issue 11, At the street: the combined replay after a real vehicle plays th
   await page.click("#compareFollowUpBtn");
   await tick(page, 2500);                                  // the replay is scheduled ~1.6 s after the estimate
   const log = await history(page);
-  expect(log[1]).toMatchObject({ activity: "live", answer: "magnitude" });
+  expect(log).toHaveLength(1);
+  expect(log[0]).toMatchObject({ activity: "live" });
+  expect(log[0].howMuch).toBeTruthy();
   const r = await replaySounds(page);
   expect(r.steadyLen).toBeCloseTo(warningSec, 3);
   expect(r.steadyLen).not.toBeCloseTo(crossingSec, 1);
-  const estimateAt = Math.max(0, category === "shorter" ? crossingSec - log[1].userSec : crossingSec + log[1].userSec);
+  const estimateAt = Math.max(0, category === "shorter" ? crossingSec - log[0].howMuch.userSec : crossingSec + log[0].howMuch.userSec);
   expect(r.users.sort((a, b) => a - b)).toEqual([Math.min(crossingSec, estimateAt), Math.max(crossingSec, estimateAt)].map((v) => expect.closeTo(v, 2)));
   expect(r.cueAt).toBeCloseTo(warningSec, 2);
   await waitUntil(page, () => gsLiveState.phase === "detect", { ms: 40000, step: 250 });

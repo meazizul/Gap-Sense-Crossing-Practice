@@ -272,8 +272,8 @@ test("'how much' with replay (a): steady sound for the WARNING time, student's s
   await tick(page, Math.round((trueDiff + 1.5) * 1000));   // estimate 1.5 s too long
   await page.click("#compareFollowUpBtn");
   const log = await history(page);
-  expect(log).toHaveLength(2);
-  expect(log[1]).toMatchObject({ answer: "magnitude", correct: false });
+  expect(log).toHaveLength(1);                            // one try, one record (12.37)
+  expect(log[0].howMuch).toMatchObject({ correct: false });
   const sounds = await page.evaluate(() => window.__sounds.filter((s) => s.kind !== "tone"));
   const base = sounds.find((s) => s.kind === "sample");
   expect(base.len).toBeCloseTo(sampleSec, 3);           // the WARNING time, never the crossing time (issue 11)
@@ -284,7 +284,7 @@ test("'how much' with replay (a): steady sound for the WARNING time, student's s
   expect(users[0]).toBeCloseTo(8, 2);                   // the crossing time
   // The replay plays the estimate the student actually produced (the log has
   // it), not the nominal one: real time passes between the two taps.
-  expect(users[1]).toBeCloseTo(8 + log[1].userSec, 1);
+  expect(users[1]).toBeCloseTo(8 + log[0].howMuch.userSec, 1);
   await untilIdle(page);
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
   expect(await statusText(page, "compareStatusText")).toBe("Press Play for another.");
@@ -306,7 +306,7 @@ test("'how much' with replay (b): practice-style, student's sounds against the r
   await tick(page, Math.round(trueDiff * 1000));
   await recordSounds(page);
   await page.click("#compareFollowUpBtn");
-  expect((await history(page))[1]).toMatchObject({ answer: "magnitude", correct: true });
+  expect((await history(page))[0].howMuch).toMatchObject({ correct: true });
   const kinds = await page.evaluate(() => window.__sounds.map((s) => s.kind));
   expect(kinds.filter((k) => k === "user").length).toBeGreaterThanOrEqual(3);  // judgment replay + two estimate marks
   expect(kinds).toContain("acceptable");

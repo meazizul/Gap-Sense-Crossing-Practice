@@ -87,9 +87,9 @@ test("13.7: Back on How much keeps the judgment and cancels only the estimate; E
   await page.keyboard.press("Escape");
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
   const log = await history(page);
-  expect(log).toHaveLength(2);
+  expect(log).toHaveLength(1);                            // one try, one record (12.37)
   expect(log[0]).toMatchObject({ answer: "longer", correct: true });
-  expect(log[1]).toMatchObject({ answer: "magnitude", skipped: true, skip: "magnitude" });
+  expect(log[0].howMuch).toMatchObject({ skipped: true });
   expect(await page.evaluate(() => gsSummary().byActivity.compare)).toMatchObject({ total: 1, correct: 1, skippedHowMuch: 1 });
   expect(await statusText(page, "compareStatusText")).toContain("Estimate cancelled");
   await expect(page.locator("#screenTitle")).toBeFocused();
@@ -283,7 +283,7 @@ test("iPhone (12.28, 13.2, 13.6): the cursor is sent to the native area as a pad
   await page.waitForTimeout(150);
   // The pad is gone: the area is taken down (13.2).
   expect(await page.evaluate(() => window.__native.hides)).toBeGreaterThan(hidesBefore);
-  expect((await history(page))[1]).toMatchObject({ answer: "magnitude" });
+  expect((await history(page))[0].howMuch).toBeTruthy();
 });
 
 test("iPhone: VoiceOver's two-finger scrub on the area does what Back does", async ({ page }) => {

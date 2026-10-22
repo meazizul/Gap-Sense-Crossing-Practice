@@ -65,6 +65,7 @@
     const fullTimeInput = document.getElementById("fullTime");
     const marginInput = document.getElementById("marginInput");
     const instructorEmailInput = document.getElementById("instructorEmail");
+    const instructorPhoneInput = document.getElementById("instructorPhone");
     const clientCodeInput = document.getElementById("clientCode");
     const numberInputs = [...document.querySelectorAll("input[type='number']")];
     const acceptableInputs = [...document.querySelectorAll("input[name='acceptableSound']")];
@@ -88,6 +89,7 @@
       fullTimeInput,
       marginInput,
       instructorEmailInput,
+      instructorPhoneInput,
       clientCodeInput,
       replayUsesConfirm,
       debugToggle,
@@ -1026,6 +1028,18 @@
       return (instructorEmailInput?.value || "").trim();
     }
 
+    /* Digits, plus, spaces, dashes, brackets, dots; at most 24 characters. */
+    const PHONE_PATTERN = /^[+]?[0-9 ().-]{0,24}$/;
+    function sanitizePhone(value) {
+      return String(value || "").replace(/[^0-9+ ().-]/g, "").slice(0, 24).trim();
+    }
+    function isValidPhone(value) {
+      return value === "" || (PHONE_PATTERN.test(value) && value.replace(/\D/g, "").length >= 7);
+    }
+    function getInstructorPhone() {
+      return sanitizePhone(instructorPhoneInput?.value || "");
+    }
+
     function getClientCode() {
       return sanitizeClientCode(clientCodeInput?.value || "");
     }
@@ -1160,8 +1174,10 @@
       }
       if (includes.contact) {
         const email = getInstructorEmail();
+        const phone = getInstructorPhone();
         const code = getClientCode();
         if (email) payload.e = email;
+        if (phone) payload.p = phone;
         if (code) payload.k = code;
       }
       if (includes.features && typeof gsLoadFeatures === "function") {
@@ -1277,10 +1293,62 @@
       return (await copyTextToClipboard(text)) ? "copied" : "failed";
     }
 
-    /* Open the Messages app with the text filled in; the instructor adds the number. */
-    function gsOpenSms(text) {
-      const separator = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? "&" : "?";
-      window.location.href = `sms:${separator}body=${encodeURIComponent(text)}`;
+    /* Hand the page to another app's link (sms:, mailto:). One place, so a test can watch it. */
+    function gsNavigateTo(url) {
+      window.location.href = url;
+    }
+
+    /* Open the Messages app with the text filled in, and the number when there is one. */
+    function gsOpenSms(text, number = "") {
+      const apple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent);
+      const to = String(number || "").replace(/[^0-9+]/g, "");
+      const separator = apple ? "&" : "?";
+      gsNavigateTo(`sms:${to}${separator}body=${encodeURIComponent(text)}`);
+    }
+
+    /*
+     * Hand a text file to the phone's share sheet (the apps write it to their
+     * cache first), or download it in a browser. Returns "shared",
+     * "downloaded", "copied", "cancelled" or "failed" (tracker F3).
+     */
+    async function gsShareFile({ name, text, mime = "text/plain", title = name }) {
+      const SharePlugin = CapacitorGlobal?.Plugins?.Share;
+      const Filesystem = CapacitorGlobal?.Plugins?.Filesystem;
+      try {
+        if (isNativeShell && SharePlugin?.share && Filesystem?.writeFile) {
+          const written = await Filesystem.writeFile({ path: name, data: text, directory: "CACHE", encoding: "utf8", recursive: true });
+          await SharePlugin.share({ title, dialogTitle: title, files: [written.uri] });
+          return "shared";
+        }
+      } catch (error) {
+        const message = String(error?.message || error || "");
+        if (/cancel|abort/i.test(message) || error?.name === "AbortError") return "cancelled";
+        /* fall through to the browser path */
+      }
+      try {
+        // The phone's share sheet in a mobile browser; a desktop browser downloads.
+        const mobile = /Android|iPhone|iPad|iPod/.test(navigator.userAgent);
+        if (mobile && typeof navigator.share === "function" && typeof File === "function" && navigator.canShare?.({ files: [new File([text], name, { type: mime })] })) {
+          await navigator.share({ title, files: [new File([text], name, { type: mime })] });
+          return "shared";
+        }
+      } catch (error) {
+        if (error?.name === "AbortError") return "cancelled";
+      }
+      try {
+        const url = URL.createObjectURL(new Blob([text], { type: mime }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        link.rel = "noopener";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        return "downloaded";
+      } catch (error) {
+        return (await copyTextToClipboard(text)) ? "copied" : "failed";
+      }
     }
 
     function clearImportedHash() {
@@ -1311,7 +1379,7 @@
         return null;
       }
 
-      let clearValue, fullValue, marginValue, emailValue = "", codeValue = "", features = null, lock = "";
+      let clearValue, fullValue, marginValue, emailValue = "", codeValue = "", features = null, lock = "", phoneValue = "";
       let hasTimes = true;
       if (version === "v3" || version === "v4") {
         let payload;
@@ -1324,18 +1392,20 @@
         hasTimes = Array.isArray(payload.t);
         if (hasTimes) [clearValue, fullValue, marginValue] = payload.t;
         emailValue = typeof payload.e === "string" ? payload.e : "";
+        phoneValue = typeof payload.p === "string" ? payload.p : "";
         codeValue = typeof payload.k === "string" ? payload.k : "";
         if (version === "v4") features = decodeLinkFeatures(payload.f);
         else if (payload.f && typeof payload.f === "object") features = payload.f;
         if (typeof payload.l === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(payload.l)) lock = payload.l;
-        if (!hasTimes && !emailValue && !codeValue && !features && !lock) return null;
+        if (!hasTimes && !emailValue && !phoneValue && !codeValue && !features && !lock) return null;
       } else {
         [clearValue, fullValue, marginValue, emailValue = "", codeValue = ""] = decoded.split("|");
       }
 
       const email = String(emailValue).trim();
+      const phone = sanitizePhone(phoneValue);
       const code = String(codeValue).trim().toUpperCase();
-      if (!isValidEmail(email) || !CLIENT_CODE_PATTERN.test(code)) return null;
+      if (!isValidEmail(email) || !isValidPhone(phone) || !CLIENT_CODE_PATTERN.test(code)) return null;
 
       let times = null;
       if (hasTimes) {
@@ -1355,7 +1425,7 @@
         }
         times = [normalizedClear, normalizedFull, normalizedMargin];
       }
-      return { times, email, code, features, lock };
+      return { times, email, phone, code, features, lock };
     }
 
     /** Apply a token. Returns true if it was valid and applied. */
@@ -1369,6 +1439,10 @@
       if (instructorEmailInput && parsed.email) {
         instructorEmailInput.value = parsed.email;
         localStorage.setItem("om-instructor-email", parsed.email);
+      }
+      if (instructorPhoneInput && parsed.phone) {
+        instructorPhoneInput.value = parsed.phone;
+        localStorage.setItem("om-instructor-phone", parsed.phone);
       }
       if (clientCodeInput && parsed.code) {
         clientCodeInput.value = parsed.code;
@@ -1477,6 +1551,11 @@
       if (includes.contact && !isValidEmail(getInstructorEmail())) {
         setShareNote("Check the instructor email address before sharing.");
         instructorEmailInput?.focus();
+        return false;
+      }
+      if (includes.contact && !isValidPhone(getInstructorPhone())) {
+        setShareNote("Check the instructor mobile number before sharing: digits only, at least 7.");
+        instructorPhoneInput?.focus();
         return false;
       }
       return true;
@@ -2458,6 +2537,7 @@
       if (storedFull) fullTimeInput.value = storedFull;
       if (storedMargin) marginInput.value = storedMargin;
       if (instructorEmailInput) instructorEmailInput.value = localStorage.getItem("om-instructor-email") || "";
+      if (instructorPhoneInput) instructorPhoneInput.value = sanitizePhone(localStorage.getItem("om-instructor-phone") || "");
       if (clientCodeInput) clientCodeInput.value = sanitizeClientCode(localStorage.getItem("om-client-code") || "");
       if (storedMode && modes[storedMode]) {
         currentMode = storedMode;
@@ -2661,6 +2741,18 @@
       }
       instructorEmailInput.setCustomValidity("");
       localStorage.setItem("om-instructor-email", email);
+    });
+
+    instructorPhoneInput?.addEventListener("change", () => {
+      const phone = getInstructorPhone();
+      instructorPhoneInput.value = phone;
+      if (!isValidPhone(phone)) {
+        instructorPhoneInput.setCustomValidity("Enter a mobile number with at least 7 digits, or leave it empty.");
+        instructorPhoneInput.reportValidity();
+        return;
+      }
+      instructorPhoneInput.setCustomValidity("");
+      localStorage.setItem("om-instructor-phone", phone);
     });
 
     clientCodeInput?.addEventListener("input", () => {

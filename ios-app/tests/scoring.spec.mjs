@@ -121,9 +121,10 @@ test("old street records (before build 7) are reported as a comparison, never as
   await openApp(page, { storage: { "om-attempt-log": JSON.stringify(log) } });
   await setTimes(page, "4", "8", "0.4");
   const report = await page.evaluate(() => gsBuildReport());
-  expect(report).toContain("warning time +2.00s, longer than the crossing");
-  expect(report).toContain("warning time +0.10s, about the same as the crossing");
-  expect(report).toContain("warning time -2.00s, shorter than the crossing [not quiet when started]");
+  expect(report).toContain("warning time 6.00 s, crossing 4.00 s (2.00 s longer)");
+  expect(report).toContain("warning time 4.10 s, crossing 4.00 s (0.10 s longer)");
+  expect(report).toContain("warning time 6.00 s, crossing 8.00 s (2.00 s shorter) [not quiet when started]");
+  expect(report).not.toMatch(/answered/);                 // never a judgment: builds before 7 did not ask one
   expect(report).not.toMatch(/enough warning|too close to rely|long enough/i);
   // Those records are kept but not scored.
   expect(await page.evaluate(() => gsSummary().total)).toBe(0);

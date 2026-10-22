@@ -1,6 +1,6 @@
 # Gap Sense — Privacy Policy
 
-_Last updated: 16 October 2026_
+_Last updated: 22 October 2026_
 
 Gap Sense is a research tool from Stevens Institute of Technology that helps
 blind, low-vision and DeafBlind travelers build an intuitive sense of how long
@@ -19,15 +19,20 @@ device.
   phone. Deleting the app deletes them.
 - **No microphone.** The app does not use the microphone at all, and does not
   ask for access to it.
-- **Instructor email and student code.** Instructor setup can hold an
-  instructor's email address and a short student code (letters and digits).
-  They appear in the setup link an instructor shares and at the top of the
-  practice report, so that neither needs a name. The app never stores or sends
-  a name.
+- **Instructor mobile number, email and student code.** Instructor setup can
+  hold an instructor's mobile number, an instructor's email address and a
+  short student code (letters and digits). They are stored only on the phone.
+  They appear in the setup link an instructor shares, and the code appears at
+  the top of the practice report, so that nothing needs a name. The app never
+  stores or sends a name.
 - **Sending a report or a setup link.** Nothing is sent automatically. When you
-  choose to send, the app shows you the text first, then hands it to your
-  phone's share menu (Messages, Mail, or any app you pick). It goes only where
-  you send it. It does not pass through any Gap Sense server; there is none.
+  choose to send, the app shows you the report first, then does only what you
+  pick: opens Messages with the report (addressed to the instructor's number
+  when one is set), opens your mail app, hands the report or a spreadsheet
+  file to your phone's share menu, or shows the report on your screen as a
+  code for the instructor to scan in person. In every case it goes only where
+  you send it, and the code is read only by the camera that scans it. Nothing
+  passes through any Gap Sense server; there is none.
 
 ## Third parties
 

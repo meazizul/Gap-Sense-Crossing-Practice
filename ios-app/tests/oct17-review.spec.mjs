@@ -99,7 +99,7 @@ test("bug 15: Progress shows skipped and unjudged practice, not 'Nothing recorde
   });
   const text = await page.locator("#progressBody").innerText();
   expect(text).not.toContain("Nothing recorded");
-  expect(text).toMatch(/skipped/i);
+  expect(text).toMatch(/cancelled/i);
   expect(await page.evaluate(() => gsSummary().total)).toBe(0); // still never scored
 });
 

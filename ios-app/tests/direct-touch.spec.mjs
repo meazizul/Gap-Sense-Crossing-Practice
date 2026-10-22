@@ -118,10 +118,11 @@ test("'how much' pad: taps in the area start and end the estimate", async ({ pag
   await tick(page, 2000);
   await gesture(page, "tap", 40);                      // end
   const log = await history(page);
-  expect(log).toHaveLength(2);
-  expect(log[1]).toMatchObject({ activity: "live", answer: "magnitude", correct: true });
-  expect(log[1].userSec).toBeGreaterThan(1.8);
-  expect(log[1].userSec).toBeLessThan(2.3);
+  expect(log).toHaveLength(1);                            // one vehicle, one record (12.37)
+  expect(log[0]).toMatchObject({ activity: "live", answer: "longer" });
+  expect(log[0].howMuch).toMatchObject({ correct: true });
+  expect(log[0].howMuch.userSec).toBeGreaterThan(1.8);
+  expect(log[0].howMuch.userSec).toBeLessThan(2.3);
 });
 
 test("comparison practice: the area covers the answer surface, and is hidden in buttons-only mode", async ({ page }) => {

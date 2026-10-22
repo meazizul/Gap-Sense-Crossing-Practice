@@ -273,8 +273,8 @@ test("street: 'how much' after a correct longer/shorter answer, with the combine
   await tick(page, 2000);
   await page.click("#compareFollowUpBtn");
   const log = await history(page);
-  expect(log).toHaveLength(2);
-  expect(log[1]).toMatchObject({ activity: "live", answer: "magnitude", correct: true });
+  expect(log).toHaveLength(1);                            // one vehicle, one record (12.37)
+  expect(log[0].howMuch).toMatchObject({ correct: true });
   await untilReady(page);
 });
 

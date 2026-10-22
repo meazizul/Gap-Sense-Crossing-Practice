@@ -1094,7 +1094,7 @@ function gsCompareBack() {
 function gsCompareHowMuchBack() {
   if (gsCompareState.phase !== "howmuch") return;
   const trueDiff = Math.abs(gsCompareState.intervalSec - gsCompareState.crossingSec);
-  gsLogAttempt({
+  gsLogHowMuch({
     activity: "compare",
     street: gsCompareState.street,
     userSec: 0,
@@ -1102,10 +1102,7 @@ function gsCompareHowMuchBack() {
     diffSec: 0,
     correct: false,
     marginSec: gsEffectiveMargin("compare", gsCompareState.street, true),
-    answer: "magnitude",
-    expected: "magnitude",
-    skipped: true,
-    skip: "magnitude"
+    skipped: true
   });
   gsCompareFinish("Estimate cancelled. Not scored. Press Play for another.", "neutral", { focus: "title" });
 }
@@ -1122,16 +1119,15 @@ function gsCompareHowMuchDone(produced) {
   const margin = gsEffectiveMargin("compare", gsCompareState.street, true);
   const correct = Math.abs(produced - trueDiff) <= margin;
 
-  gsLogAttempt({
+  // One try is one record: the estimate joins the judgment (tracker 12.37).
+  gsLogHowMuch({
     activity: "compare",
     street: gsCompareState.street,
     userSec: produced,
     refSec: trueDiff,
     diffSec: produced - trueDiff,
     correct,
-    marginSec: margin,
-    answer: "magnitude",
-    expected: "magnitude"
+    marginSec: margin
   });
   gsCompareRenderScore();
 
@@ -1536,21 +1532,17 @@ function gsLiveHowMuchBack() {
   if (gsLiveState.phase !== "howmuch") return;
   const street = gsLiveStreetFor(gsLiveState.direction);
   const trueDiff = Math.abs(gsLiveState.warningSec - gsLiveState.crossingSec);
-  gsLogAttempt({
+  gsLogHowMuch({
     activity: "live",
     street,
     direction: gsLiveState.direction,
     sense: gsLiveSense(),
-    judged: true,
-    skipped: true,
-    skip: "magnitude",
     userSec: 0,
     refSec: trueDiff,
     diffSec: 0,
     correct: false,
     marginSec: gsEffectiveMargin("live", street, true),
-    answer: "magnitude",
-    expected: "magnitude"
+    skipped: true
   });
   gsLiveState.phase = "detect";
   gsLiveRenderPad();
@@ -1569,19 +1561,17 @@ function gsLiveHowMuchDone(produced) {
   const street = gsLiveStreetFor(gsLiveState.direction);
   const howMuchMargin = gsEffectiveMargin("live", street, true);
   const correct = Math.abs(produced - trueDiff) <= howMuchMargin;
-  gsLogAttempt({
+  // One vehicle is one record: the estimate joins the judgment (tracker 12.37).
+  gsLogHowMuch({
     activity: "live",
     street,
     direction: gsLiveState.direction,
     sense: gsLiveSense(),
-    judged: true,
     userSec: produced,
     refSec: trueDiff,
     diffSec: produced - trueDiff,
     correct,
-    marginSec: howMuchMargin,
-    answer: "magnitude",
-    expected: "magnitude"
+    marginSec: howMuchMargin
   });
   gsLiveAfterVehicle({ judged: true, correct: true, magnitude: { produced, trueDiff, correct, marginSec: howMuchMargin } });
 }

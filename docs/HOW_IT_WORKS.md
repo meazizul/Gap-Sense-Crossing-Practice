@@ -295,10 +295,16 @@ attempt: a "how much" estimate that follows a correct answer is shown on its
 own ("how much: 4 of 7 within margin") and never added to the count, because
 telling longer from shorter and tapping out the difference are two skills.
 
-**Send my progress to my instructor** shows the report in full first. **Send
-it** opens the phone's share menu (Messages, Mail, any app). No copy and paste,
-no Mail setup needed, no server. The report names the person by a short
-student code, never a name.
+**Show my report to send** shows the report in full first; nothing is sent
+until the person chooses how. Many students, especially older adults, have no
+email, so the first two ways need none: **Text to my instructor** opens
+Messages with the report (and the instructor's number from the setup), and
+**Show to my instructor** puts the report on the screen as a code the
+instructor scans in person, so it goes from one phone to the other with no
+account and no server. Email is offered only when a mail app can open. The
+share menu and a CSV file for Excel are there too. The report lists the actual
+times of every try, in seconds, which the app never shows during practice. It
+names the person by a short student code, never a name.
 
 The experimental **adaptive margin** lives in Instructor setup. When on, each
 activity, skill and street type keeps its own margin, which tightens slowly while the

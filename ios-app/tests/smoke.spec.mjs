@@ -346,7 +346,7 @@ test("service worker: fetches fresh files online and still works offline", async
   await page.waitForFunction(async () => (await navigator.serviceWorker.ready).active?.state === "activated", null, { timeout: 15000 });
   await page.reload();
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), null, { timeout: 15000 });
-  expect(await page.evaluate(async () => (await caches.keys()))).toContain("gapsense-v14");
+  expect(await page.evaluate(async () => (await caches.keys()))).toContain("gapsense-v15");
   await context.setOffline(true);
   await page.reload();
   await expect(page.locator("#screen-home")).toBeVisible();

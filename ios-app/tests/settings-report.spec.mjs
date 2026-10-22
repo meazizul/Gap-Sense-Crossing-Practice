@@ -237,18 +237,23 @@ test("sending a report: confirm first, then the share sheet; never a name; stree
   await expect(page.locator(".progress-card").nth(3)).toContainText("1 of 1 correct");
   await expect(page.locator("#reportRecipient")).toContainText("oms@example.org");
   await page.click("#sendReportBtn");
-  await expect(page.locator("#confirmSendReportBtn")).toBeFocused();
+  // Build 14 (12.39): the report itself takes focus, the Show button goes, and only send controls say Send.
+  await expect(page.locator("#reportPreview")).toBeFocused();
+  await expect(page.locator("#sendReportBtn")).toBeHidden();
   expect(await page.evaluate(() => window.__shared)).toBeNull();     // nothing sent yet
   const report = await page.inputValue("#reportPreview");
   expect(report).toContain("Student code: K7");
+  expect(report).toContain("Crossing times: full street 8.00 s, first half 4.00 s. Margin 0.40 s.");
   expect(report).not.toMatch(/Name:|Client code/);
-  expect(report).toContain("At the street (First half, from the left, by hearing): warning time +2.00s; answered \"longer\", it was \"longer\" — correct");
-  expect(report).toContain("At the street (Full street, from the right, by vision): vehicle never came");
-  expect(report).toContain("warning time -1.00s, shorter than the crossing [not quiet when started]");
+  // Numbers on every line (F2), the time of day, one line per vehicle (12.37).
+  expect(report).toMatch(/\d+:\d\d [AP]M  At the street \(first half, from the left, by hearing\): warning time 6\.00 s, crossing 4\.00 s \(2\.00 s longer\), margin 0\.40 s; answered "longer", it was "longer" — correct/);
+  expect(report).toContain("At the street (full street, from the right, by vision): vehicle never came");
+  expect(report).toContain("warning time 3.00 s, crossing 4.00 s (1.00 s shorter) [not quiet when started]");
   expect(report).not.toMatch(/enough warning/);
-  expect(report).toContain('answered "same", it was "longer" — incorrect');
-  expect(report).toContain("tapped out the difference +0.10s — within margin");
-  expect(report).toContain("Comparison preparation");
+  expect(report).toContain('sample 9.00 s, crossing 8.00 s (1.00 s longer), margin 0.40 s; answered "same", it was "longer" — incorrect');
+  expect(report).toContain("Comparison practice (full street), how much: tapped 1.10 s, real difference 1.00 s (0.10 s over), margin 0.40 s — within margin");
+  expect(report).toContain("Practice my timing (first half): halfway at 4.10 s, real 4.00 s (0.10 s late), margin 0.40 s — within margin");
+  expect(report).toContain("Comparison preparation (full street): stopped at 7.00 s, crossing 8.00 s (1.00 s early), margin 0.40 s — outside margin");
   expect(report).toContain("Days practiced");
   await page.click("#confirmSendReportBtn");
   const shared = await page.evaluate(() => window.__shared);

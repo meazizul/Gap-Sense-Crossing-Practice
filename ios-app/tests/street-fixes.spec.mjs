@@ -89,8 +89,8 @@ test("street: Back on the answer pad is recorded as cancelled and never scored; 
   expect(await page.evaluate(() => gsSummary().byActivity.live.skipped)).toBe(2);
   await expect(page.locator("#liveTally")).toContainText("No vehicles timed yet");
   const report = await page.evaluate(() => gsBuildReport());
-  expect(report).toContain("At the street: 2 skipped");
-  expect(report).toMatch(/At the street \(First half, from the left, by hearing\): warning time [+-]\d+\.\d\ds against the crossing, skipped the answer \(not scored\)/);
+  expect(report).toContain("At the street: 2 cancelled");
+  expect(report).toMatch(/At the street \(first half, from the left, by hearing\): warning time \d+\.\d\d s, crossing 4\.00 s \(\d+\.\d\d s (longer|shorter)\) — cancelled \(not scored\)/);
   expect(report).not.toContain("correct (");
 });
 
@@ -105,16 +105,16 @@ test("street: Back on 'how much' keeps the judgment and cancels the estimate", a
   await page.click("#howMuchBackBtn");
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
   const log = await history(page);
-  expect(log).toHaveLength(2);
+  expect(log).toHaveLength(1);                            // one vehicle, one record (12.37)
   expect(log[0]).toMatchObject({ activity: "live", answer: "longer", correct: true });
-  expect(log[1]).toMatchObject({ activity: "live", skipped: true, skip: "magnitude", correct: false });
-  // The judgment counts; the skipped estimate does not.
+  expect(log[0].howMuch).toMatchObject({ skipped: true, correct: false });
+  // The judgment counts; the cancelled estimate does not.
   const live = await page.evaluate(() => gsSummary().byActivity.live);
-  // A skipped estimate is counted apart from skipped answers.
+  // A cancelled estimate is counted apart from cancelled answers.
   expect(live).toMatchObject({ total: 1, correct: 1, howMuchTotal: 0, skippedHowMuch: 1 });
   expect(await page.evaluate(() => gsHistoryFor("live", "half", 10, true).length)).toBe(0);
   const report = await page.evaluate(() => gsBuildReport());
-  expect(report).toContain("skipped the how much estimate (not scored)");
+  expect(report).toContain("how much: estimate cancelled (not scored)");
   await tick(page, 1500);
   expect(await page.evaluate(() => gsLiveState.phase)).toBe("detect");
 });
@@ -181,8 +181,8 @@ test("comparison practice: Back records the trial as cancelled; a hidden app can
   expect(await page.evaluate(() => gsSummary().byActivity.compare.skipped)).toBe(1);
   expect(await page.evaluate(() => { gsSetAdaptiveEnabled(true); for (let i = 0; i < 10; i += 1) gsLogAttempt({ activity: "compare", street: "full", userSec: 9, refSec: 8, diffSec: 1, correct: false, marginSec: 0.4, skipped: true, skip: "judgment" }); return gsLoadAdaptive().lanes["compare:full"]?.attemptsSinceStep || 0; })).toBe(0);
   const report = await page.evaluate(() => gsBuildReport());
-  expect(report).toContain("Comparison practice: 11 skipped");
-  expect(report).toContain("skipped the answer (not scored)");
+  expect(report).toContain("Comparison practice: 11 cancelled");
+  expect(report).toContain("— cancelled (not scored)");
   // A real replay with sounds scheduled, then the app is hidden.
   await page.evaluate(() => { Object.assign(gsCompareState, { intervalSec: 9, crossingSec: 8, expected: "longer" }); gsCompareReplay(); });
   expect(await page.evaluate(() => gsCompareState.phase)).not.toBe("idle");

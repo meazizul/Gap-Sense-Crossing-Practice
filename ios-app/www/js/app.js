@@ -398,7 +398,7 @@ function gsRenderProgress() {
   const wrap = document.getElementById("progressBody");
   if (!wrap) return;
 
-  // Only an empty log means nothing to show: skipped answers, vehicles that
+  // Only an empty log means nothing to show: cancelled answers, vehicles that
   // never came and street practice with judging off are kept but not scored,
   // and they belong here as they do in the report.
   if (!gsLoadHistory().length) {
@@ -406,27 +406,43 @@ function gsRenderProgress() {
     return;
   }
 
+  /*
+   * Each activity is ONE sentence inside ONE heading, so a screen reader reads
+   * it in one stop ("Comparison practice: 56 percent, 9 of 16 correct. How
+   * much longer or shorter: 0 of 5 estimates within margin.") and the Headings
+   * rotor jumps box to box. The large number and the small note are the same
+   * sentence laid out for the eye; the dash and the dots are never read
+   * (tracker 12.41, 12.32).
+   */
+  const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const cards = GS_STEP_ORDER.map((activity) => {
     const stats = summary.byActivity[activity];
     const label = GS_ACTIVITY_LABELS[activity] || activity;
     if (!stats) {
-      return `<div class="progress-card"><span class="progress-label">${label}</span>
-        <span class="progress-value">—</span><span class="progress-note">not started</span></div>`;
+      return `<li class="progress-card"><h2 class="progress-sentence">
+        <span class="progress-label" aria-hidden="true">${esc(label)}</span>
+        <span class="progress-value" aria-hidden="true">—</span>
+        <span class="progress-note" aria-hidden="true">not started</span>
+        <span class="sr-only">${esc(label)}: not started.</span></h2></li>`;
     }
     const pct = stats.total ? Math.round((stats.correct / stats.total) * 100) : null;
     const noun = activity === "practice" || activity === "signal" ? "within margin" : "correct";
-    // "How much" estimates are the same vehicles or samples judged a second
-    // way, so they get their own note and are never added to the count.
-    const howMuch = stats.howMuchTotal
-      ? ` · how much: ${stats.howMuchCorrect} of ${stats.howMuchTotal} within margin`
-      : "";
-    const unscored = stats.unscored ? ` · ${stats.unscored} not scored` : "";
     const main = stats.total ? `${stats.correct} of ${stats.total} ${noun}` : "no judgments yet";
-    const skippedTotal = (stats.skipped || 0) + (stats.skippedHowMuch || 0);
-    const skipped = skippedTotal ? ` · ${skippedTotal} skipped` : "";
-    return `<div class="progress-card"><span class="progress-label">${label}</span>
-      <span class="progress-value">${pct === null ? "—" : `${pct}%`}</span>
-      <span class="progress-note">${main}${howMuch}${skipped}${unscored}</span></div>`;
+    // "How much" estimates are the same vehicles or samples judged a second
+    // way, so they get their own clause and are never added to the count.
+    const howMuchVisual = stats.howMuchTotal ? ` · how much: ${stats.howMuchCorrect} of ${stats.howMuchTotal} within margin` : "";
+    const howMuchSpoken = stats.howMuchTotal ? ` How much longer or shorter: ${stats.howMuchCorrect} of ${stats.howMuchTotal} estimates within margin.` : "";
+    const cancelledTotal = (stats.skipped || 0) + (stats.skippedHowMuch || 0);
+    const cancelled = cancelledTotal ? ` · ${cancelledTotal} cancelled` : "";
+    const cancelledSpoken = cancelledTotal ? ` ${cancelledTotal} cancelled, not scored.` : "";
+    const unscored = stats.unscored ? ` · ${stats.unscored} not scored` : "";
+    const unscoredSpoken = stats.unscored ? ` ${stats.unscored} not scored.` : "";
+    const spoken = `${label}: ${pct === null ? "" : `${pct} percent, `}${main}.${howMuchSpoken}${cancelledSpoken}${unscoredSpoken}`;
+    return `<li class="progress-card"><h2 class="progress-sentence">
+      <span class="progress-label" aria-hidden="true">${esc(label)}</span>
+      <span class="progress-value" aria-hidden="true">${pct === null ? "—" : `${pct}%`}</span>
+      <span class="progress-note" aria-hidden="true">${esc(main + howMuchVisual + cancelled + unscored)}</span>
+      <span class="sr-only">${esc(spoken)}</span></h2></li>`;
   }).join("");
 
   // A small run of the last 20 timing attempts (practice and preparation).
@@ -455,7 +471,11 @@ function gsRenderProgress() {
       : "";
   }
 
-  wrap.innerHTML = `<div class="progress-grid">${cards}</div>${runLabel}${adaptiveNote}`;
+  // Storage trouble is said here, never hidden (tracker 12.40).
+  const problem = typeof gsHistorySaveProblem === "function" ? gsHistorySaveProblem() : "";
+  const problemNote = problem ? `<p class="setup-required-prompt" role="status">${esc(problem)}</p>` : "";
+
+  wrap.innerHTML = `${problemNote}<ul class="progress-grid" aria-label="Progress by activity">${cards}</ul>${runLabel}${adaptiveNote}`;
 }
 
 /* ============================================================
@@ -478,74 +498,215 @@ function gsReportSubject() {
   return `${GS_APP_NAME} practice report${code ? ` — ${code}` : ""}`;
 }
 
-function gsRenderReportControls() {
-  const email = typeof getInstructorEmail === "function" ? getInstructorEmail() : "";
-  const emailBtn = document.getElementById("emailReportBtn");
-  if (emailBtn) emailBtn.hidden = !email;
-  const whom = document.getElementById("reportRecipient");
-  if (whom) {
-    whom.textContent = email ? `Your instructor's email: ${email}` : "";
-    whom.hidden = !email;
+/*
+ * Only ways that can work are offered (Cindi, Oct 18 2026; tracker 12.38,
+ * F4): "Text to my instructor" always (Messages opens with the report, and
+ * the instructor's number when the setup has one); "Show to my instructor"
+ * always (the report as a QR code the instructor scans in person); "Email to
+ * my instructor" only when an email is set up and a mail app can open; the
+ * share menu stays for anything else.
+ */
+let gsMailAvailable = null;   // null = not checked yet (web, Android: assumed possible)
+
+async function gsCheckMailAvailable() {
+  const plugin = window.Capacitor?.Plugins?.GSNative;
+  if (!window.Capacitor?.isNativePlatform?.() || typeof plugin?.canOpen !== "function") return null;
+  try {
+    const result = await plugin.canOpen({ scheme: "mailto" });
+    return typeof result?.canOpen === "boolean" ? result.canOpen : null;
+  } catch (error) {
+    return null;
   }
 }
 
+async function gsRenderReportControls() {
+  const email = typeof getInstructorEmail === "function" ? getInstructorEmail() : "";
+  const phone = typeof getInstructorPhone === "function" ? getInstructorPhone() : "";
+  if (gsMailAvailable === null) gsMailAvailable = await gsCheckMailAvailable();
+  const emailBtn = document.getElementById("emailReportBtn");
+  if (emailBtn) emailBtn.hidden = !email || gsMailAvailable === false;
+  const whom = document.getElementById("reportRecipient");
+  if (whom) {
+    const parts = [];
+    if (phone) parts.push(`Your instructor's number: ${phone}`);
+    if (email) parts.push(`Your instructor's email: ${email}`);
+    whom.textContent = parts.join(" · ");
+    whom.hidden = !parts.length;
+  }
+  const textBtn = document.getElementById("textReportBtn");
+  if (textBtn) textBtn.textContent = phone ? "Text to my instructor" : "Text to my instructor (you choose the number)";
+}
+
+/* The report is shown first; nothing is sent until the student chooses how (tracker 12.39). */
 function gsPreviewReport() {
   const box = document.getElementById("reportPreview");
   const wrap = document.getElementById("reportPreviewWrap");
   if (!box || !wrap) return;
   box.value = gsReportText();
   wrap.hidden = false;
+  const show = document.getElementById("sendReportBtn");
+  if (show) show.hidden = true;   // once the report is open, only the send controls say Send
   gsRenderReportControls();
   const note = document.getElementById("reportNote");
   if (note) note.textContent = "";
-  announceScreenReader("Here is the report. Nothing has been sent. Press Send it to choose how to send it.");
-  document.getElementById("confirmSendReportBtn")?.focus({ preventScroll: true });
+  announceScreenReader("Your report is ready. Check it, then choose how to send it.");
+  box.focus({ preventScroll: true });
+  try { box.setSelectionRange(0, 0); } catch (error) { /* some browsers */ }
 }
 
 function gsCloseReport() {
   const wrap = document.getElementById("reportPreviewWrap");
   if (wrap) wrap.hidden = true;
-  document.getElementById("sendReportBtn")?.focus({ preventScroll: true });
+  const show = document.getElementById("sendReportBtn");
+  if (show) show.hidden = false;
+  gsCloseQr();
+  show?.focus({ preventScroll: true });
+}
+
+function gsReportNote(message) {
+  const note = document.getElementById("reportNote");
+  if (note) note.textContent = message;
+  announceScreenReader(message);
 }
 
 async function gsConfirmSendReport() {
   const box = document.getElementById("reportPreview");
   if (!box?.value) gsPreviewReport();
-  const note = document.getElementById("reportNote");
   const outcome = await gsShareText({ title: gsReportSubject(), text: document.getElementById("reportPreview").value });
   const messages = {
     shared: "Report handed to the app you chose. Check it there, then send.",
     copied: "Your device cannot open a share menu here, so the report was copied. Paste it into a message or email.",
-    cancelled: "Not sent."
+    cancelled: "Not sent.",
+    failed: "Could not share or copy. Select the report text above and copy it."
   };
-  if (note) note.textContent = messages[outcome];
-  announceScreenReader(messages[outcome]);
+  gsReportNote(messages[outcome] || messages.failed);
 }
 
 async function gsCopyReport() {
   const box = document.getElementById("reportPreview");
   if (!box || !box.value) gsPreviewReport();
   const copied = await copyTextToClipboard(document.getElementById("reportPreview").value);
-  const message = copied
+  gsReportNote(copied
     ? "Copied. Paste it into an email or message to send it."
-    : "Could not copy. Select the report text above and copy it.";
-  announceScreenReader(message);
-  const note = document.getElementById("reportNote");
-  if (note) note.textContent = message;
+    : "Could not copy. Select the report text above and copy it.");
 }
 
-function gsEmailReport() {
+/* Text: Messages opens with the report filled in, and the instructor's number when set (F4). */
+function gsTextReport() {
+  const box = document.getElementById("reportPreview");
+  if (!box || !box.value) gsPreviewReport();
+  const phone = typeof getInstructorPhone === "function" ? getInstructorPhone() : "";
+  gsOpenSms(document.getElementById("reportPreview").value, phone);
+  gsReportNote(phone
+    ? "Opening Messages with the report, addressed to your instructor. Check it, then press Send."
+    : "Opening Messages with the report. Choose your instructor, then press Send.");
+}
+
+/*
+ * Email: only when a mail app can open. On iPhone the app asks first; in a
+ * browser or on Android the page watches whether anything took over the
+ * screen, and says so when nothing did (tracker 12.38).
+ */
+async function gsEmailReport() {
   const email = typeof getInstructorEmail === "function" ? getInstructorEmail() : "";
   if (!email) return;
   const box = document.getElementById("reportPreview");
   if (!box || !box.value) gsPreviewReport();
   const body = document.getElementById("reportPreview").value;
+  const cannot = "No mail app is set up on this phone. Use Text to my instructor, or Show to my instructor.";
+  const available = await gsCheckMailAvailable();
+  if (available === false) {
+    gsMailAvailable = false;
+    gsRenderReportControls();
+    gsReportNote(cannot);
+    return;
+  }
+  let left = false;
+  const onHide = () => { left = true; };
+  document.addEventListener("visibilitychange", onHide, { once: true });
+  window.addEventListener("blur", onHide, { once: true });
   // Opens the student's own mail app with everything filled in. They still
   // press Send themselves; the app sends nothing.
-  window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(gsReportSubject())}&body=${encodeURIComponent(body)}`;
-  const note = document.getElementById("reportNote");
-  if (note) note.textContent = "Your mail app should open with the report. Check it, then send.";
-  announceScreenReader("Opening your mail app with the report. Check it, then send.");
+  gsNavigateTo(`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(gsReportSubject())}&body=${encodeURIComponent(body)}`);
+  setTimeout(() => {
+    document.removeEventListener("visibilitychange", onHide);
+    window.removeEventListener("blur", onHide);
+    gsReportNote(left || document.hidden
+      ? "Your mail app opened with the report. Check it, then send."
+      : cannot);
+  }, 1800);
+}
+
+/* CSV for Excel: a file through the share menu (phone apps) or a download (browser) (F3). */
+async function gsExportCsv() {
+  const code = typeof getClientCode === "function" ? getClientCode() : "";
+  const csv = gsBuildCsv({ clientCode: code });
+  const stamp = new Date().toISOString().slice(0, 10);
+  const name = `gap-sense-report${code ? `-${code}` : ""}-${stamp}.csv`;
+  const outcome = await gsShareFile({ name, text: csv, mime: "text/csv", title: `${gsReportSubject()} (CSV)` });
+  const messages = {
+    shared: "The CSV file was handed to the app you chose. It opens in Excel, Numbers or Google Sheets, one try per row.",
+    downloaded: `Downloaded ${name}. It opens in Excel, Numbers or Google Sheets, one try per row.`,
+    copied: "The CSV text was copied. In Excel, paste it, then use Data, Text to Columns, with commas.",
+    cancelled: "Not exported.",
+    failed: "Could not export. Use Copy report instead."
+  };
+  gsReportNote(messages[outcome] || messages.failed);
+}
+
+/* ---------------- Show to my instructor: the report as QR codes (F4) ---------------- */
+
+const gsQrState = { chunks: [], index: 0 };
+const GS_QR_CHUNK = 900;   // bytes per code: scans easily on a phone screen
+
+function gsQrChunks(text) {
+  const bytes = new TextEncoder().encode(text);
+  const chunks = [];
+  for (let i = 0; i < bytes.length; i += GS_QR_CHUNK) chunks.push(new TextDecoder().decode(bytes.slice(i, i + GS_QR_CHUNK)));
+  return chunks.length ? chunks : [""];
+}
+
+function gsRenderQr() {
+  const holder = document.getElementById("qrCode");
+  const count = document.getElementById("qrCount");
+  const prev = document.getElementById("qrPrevBtn");
+  const next = document.getElementById("qrNextBtn");
+  if (!holder || typeof qrcode !== "function") return;
+  const total = gsQrState.chunks.length;
+  const i = gsQrState.index;
+  const payload = total > 1 ? `GS ${i + 1}/${total}\n${gsQrState.chunks[i]}` : gsQrState.chunks[i];
+  const qr = qrcode(0, "M");
+  qr.addData(payload, "Byte");
+  qr.make();
+  holder.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+  holder.querySelector("svg")?.setAttribute("aria-hidden", "true");
+  if (count) count.textContent = total > 1 ? `Code ${i + 1} of ${total}. Have your instructor scan each one in turn.` : "One code holds the whole report.";
+  if (prev) prev.hidden = total <= 1;
+  if (next) next.hidden = total <= 1;
+  if (prev) gsSetBusy(prev, i === 0);
+  if (next) gsSetBusy(next, i >= total - 1);
+}
+
+function gsShowQr() {
+  const dialog = document.getElementById("qrModal");
+  if (!dialog || typeof dialog.showModal !== "function") return;
+  // The compact data (F3), not the prose: a long report will not fit one code.
+  const code = typeof getClientCode === "function" ? getClientCode() : "";
+  gsQrState.chunks = gsQrChunks(gsBuildCsv({ clientCode: code }));
+  gsQrState.index = 0;
+  gsRenderQr();
+  if (!dialog.open) {
+    lockPageScroll();
+    setMainContentInert(true);
+    dialog.showModal();
+  }
+  document.getElementById("qrTitle")?.focus();
+  announceScreenReader("Your report is on the screen as a code. Hold the phone still so your instructor can scan it with their camera. Nothing is sent.");
+}
+
+function gsCloseQr() {
+  const dialog = document.getElementById("qrModal");
+  if (dialog?.open) dialog.close();
 }
 
 function gsClearData() {
@@ -746,7 +907,22 @@ function gsBindShell() {
   document.getElementById("cancelSendReportBtn")?.addEventListener("click", gsCloseReport);
   document.getElementById("copyReportBtn")?.addEventListener("click", gsCopyReport);
   document.getElementById("emailReportBtn")?.addEventListener("click", gsEmailReport);
+  document.getElementById("textReportBtn")?.addEventListener("click", gsTextReport);
+  document.getElementById("showQrBtn")?.addEventListener("click", gsShowQr);
+  document.getElementById("csvReportBtn")?.addEventListener("click", gsExportCsv);
   document.getElementById("clearDataBtn")?.addEventListener("click", gsClearData);
+  document.getElementById("closeQr")?.addEventListener("click", gsCloseQr);
+  document.getElementById("qrPrevBtn")?.addEventListener("click", () => { if (gsQrState.index > 0) { gsQrState.index -= 1; gsRenderQr(); } });
+  document.getElementById("qrNextBtn")?.addEventListener("click", () => { if (gsQrState.index < gsQrState.chunks.length - 1) { gsQrState.index += 1; gsRenderQr(); } });
+  document.getElementById("qrModal")?.addEventListener("close", () => {
+    if (!gsAnyDialogOpen()) {
+      unlockPageScroll();
+      setMainContentInert(false);
+    }
+    document.getElementById("showQrBtn")?.focus({ preventScroll: true });
+  });
+  // A failed save is said at once, wherever the student is (tracker 12.40).
+  window.gsOnHistorySaveFailed = () => announceScreenReader("Your practice could not be saved on this phone. Free some space, or send a report now.");
 
   document.getElementById("openTutorialBtn")?.addEventListener("click", gsRunTutorial);
   document.getElementById("closeTutorial")?.addEventListener("click", () => {
@@ -777,7 +953,7 @@ function gsBindShell() {
     });
   });
   // Instructor details may have changed.
-  [instructorEmailInput, clientCodeInput, marginInput].forEach((input) => {
+  [instructorEmailInput, clientCodeInput, marginInput, document.getElementById("instructorPhone")].forEach((input) => {
     input?.addEventListener("change", () => {
       gsRenderReportControls();
       if (typeof renderPracticeScore === "function") renderPracticeScore();

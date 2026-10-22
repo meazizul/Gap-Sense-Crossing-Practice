@@ -166,11 +166,35 @@ The app does not use the microphone.
 Accuracy per activity and a strip showing your recent timing attempts. At the
 street, only vehicles you judged count towards the score.
 
-**Send my progress to my instructor** shows the full report first. **Send it**
-opens the phone's share menu: Messages, Mail, or any app. Nothing is sent
-automatically, and nothing passes through a server. **Email it instead** (when
-an instructor email is set) and **Copy report** are there too. The report
-carries the student code, never a name.
+Each activity's box reads as one sentence to a screen reader, for example
+"Comparison practice: 56 percent, 9 of 16 correct. How much longer or shorter:
+0 of 5 estimates within margin." Cancelled tries are counted apart and never
+scored.
+
+**Show my report to send** opens the full report first and puts the cursor at
+its start. Nothing is sent automatically, and nothing passes through a server.
+Under it, the ways to send:
+
+- **Text to my instructor** opens Messages with the report filled in, and the
+  instructor's number when the setup has one.
+- **Show to my instructor** puts the report on your screen as a code (one or
+  several, in turn) that the instructor scans with their own phone's camera.
+  No email, no texting, no account: the report goes straight from your screen
+  to their phone.
+- **Email to my instructor** appears only when an instructor email is set and
+  a mail app can open on this phone. If no mail app opens, the app says so and
+  points to the other ways.
+- **Send with another app** opens the phone's share menu (WhatsApp, AirDrop,
+  Mail, anything).
+- **Export for Excel (CSV file)** shares or downloads a spreadsheet file, one
+  try per row, with every time in seconds.
+- **Copy report** copies the text; **Hide report** closes it.
+
+The report shows the actual times of every try (the sample or warning time,
+the crossing time, the difference and the margin, in seconds, with the time of
+day), so the instructor can see what was judged. During practice the app
+still never shows or says a number of seconds. The report carries the student
+code, never a name.
 
 ---
 
@@ -213,7 +237,8 @@ with a short note saying the instructor set it.
 
 | Field | Purpose |
 |---|---|
-| **Instructor email** (optional) | Offered as "Email it instead" on the report; travels in the setup link |
+| **Instructor mobile number** (optional) | "Text to my instructor" on the report opens Messages addressed to it; travels in the setup link |
+| **Instructor email** (optional) | "Email to my instructor" on the report, when a mail app can open; travels in the setup link |
 | **Student code** (optional) | Letters and digits, up to 8. Identifies the student in links and reports **without a name**, because those travel by ordinary text or email. Use a code that cannot be linked to the person |
 
 ### Instructor code (optional)
