@@ -2139,6 +2139,7 @@
      * identical message still counts as a change and is re-announced.
      */
     let srAnnounceToggle = false;
+    let srAnnounceClearTimer = null;
     function announceScreenReader(message) {
       if (!message) return;
       if (suppressSrAnnouncements) return;
@@ -2149,6 +2150,15 @@
       if (!a11ySettings.announceCues) return;
       srAnnounceToggle = !srAnnounceToggle;
       srAnnouncer.textContent = srAnnounceToggle ? message : `${message}​`;
+      // The live region sits after every screen in the page. While it holds
+      // text, a VoiceOver user swiping past the last control lands on it and
+      // hears the old message ("Your phone volume is low") instead of the
+      // end-of-page sound (Cindi and a coworker, Oct 20 2026). Once it has
+      // been spoken it is emptied, and an empty element is not a stop.
+      clearTimeout(srAnnounceClearTimer);
+      srAnnounceClearTimer = setTimeout(() => {
+        if (srAnnouncer.textContent.replace(/\u200b/g, "") === message) srAnnouncer.textContent = "";
+      }, 4000);
     }
 
     /* ---------------- Speech ----------------

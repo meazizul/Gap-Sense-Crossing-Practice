@@ -311,3 +311,19 @@ test("TalkBack and the web (13.4): the swipe area is a labelled, focusable eleme
   await page.evaluate(() => gsRenderGestureLog());
   expect(await page.locator("#gestureLog").innerText()).toContain("click");
 });
+
+test("end of page (Cindi and a coworker, Oct 20): the announcer region empties after it has spoken, so a swipe past the last control is not a stop on an old message", async ({ page }) => {
+  await openCompare(page);
+  await page.evaluate(() => announceScreenReader("Your phone volume is low. Press the volume up button on the side of the phone."));
+  expect(await announcer(page)).toContain("Your phone volume is low");
+  await tick(page, 4500);
+  expect(await announcer(page)).toBe("");
+  // Nothing readable follows the last control of a screen: the pads are hidden, the announcer is empty.
+  const after = await page.evaluate(() => {
+    const main = document.getElementById("appMain");
+    let el = main.nextElementSibling; const found = [];
+    while (el) { if (!el.hidden && !el.closest("[hidden]") && el.tagName !== "SCRIPT" && el.tagName !== "DIALOG" && (el.textContent || "").trim()) found.push(el.id || el.tagName); el = el.nextElementSibling; }
+    return found;
+  });
+  expect(after).toEqual([]);
+});
