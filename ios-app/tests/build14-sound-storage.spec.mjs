@@ -181,10 +181,18 @@ test("12.40 web: every setting and the history are mirrored to IndexedDB, and co
   expect(status.lastSavedAt).toBeGreaterThan(0);
   // Safari after seven days, or a phone low on space: local storage gone.
   // (The system wipes storage behind the app's back: no "cleared on purpose" flag.)
-  await page.evaluate(() => { Storage.prototype.clear.call(localStorage); sessionStorage.removeItem("gs-cleared"); sessionStorage.removeItem("gs-restored-once"); });
+  await page.evaluate(() => gsStore.simulateLoss());
   await page.goto("/index.html");
   await page.waitForFunction(() => localStorage.getItem("om-attempt-log") && document.getElementById("screen-home"), null, { timeout: 15000 });
   expect(await page.evaluate(() => localStorage.getItem("om-full-time"))).toBe("8");
+  expect(await history(page)).toHaveLength(1);
+  // A fresh, empty app never overwrites the copy of real data (the race at start).
+  await page.evaluate(() => gsStore.simulateLoss());
+  await page.evaluate(async () => { await gsStore.syncNow(); });
+  const copy = await page.evaluate(() => new Promise((resolve) => { const r = indexedDB.open("gapsense", 1); r.onsuccess = () => { const t = r.result.transaction("kv", "readonly").objectStore("kv").get("gs-settings"); t.onsuccess = () => resolve(t.result); }; }));
+  expect(copy["om-full-time"]).toBe("8");
+  await page.goto("/index.html");
+  await page.waitForFunction(() => localStorage.getItem("om-attempt-log") && document.getElementById("screen-home"), null, { timeout: 15000 });
   expect(await history(page)).toHaveLength(1);
   await page.evaluate(() => gsShowScreen("help"));
   await expect(page.locator("#aboutStorage")).toContainText("Backup copy: the browser's database");
@@ -209,7 +217,7 @@ test("12.40 phone apps: the copy goes to native preferences and a file, and is r
   expect(copy.prefs["om-full-time"]).toBe("8");
   expect(JSON.parse(copy.file)).toHaveLength(1);
   // The web view's storage is gone; the native copy is still there (the stub survives the reload through the init script only if we carry it over).
-  await page.evaluate(() => { Storage.prototype.clear.call(localStorage); sessionStorage.removeItem("gs-cleared"); sessionStorage.removeItem("gs-restored-once"); });
+  await page.evaluate(() => gsStore.simulateLoss());
   const carried = await page.evaluate(() => JSON.stringify({ prefs: window.__prefs, files: window.__files }));
   await page.addInitScript((c) => { const o = JSON.parse(c); window.__carry = o; }, carried);
   await page.addInitScript(() => {

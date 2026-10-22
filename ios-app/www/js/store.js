@@ -134,6 +134,9 @@
   }
 
   let timer = null;
+  let clearedHere = false;          // localStorage.clear() was called by this page
+  let restorePromise = Promise.resolve(false);
+  let reloading = false;
   function scheduleSync() {
     if (state.backend === "none") return;
     state.pending = true;
@@ -144,8 +147,25 @@
   async function syncNow() {
     clearTimeout(timer);
     state.pending = false;
+    // Never before the restore check has finished (the app writes its
+    // defaults at once, and they must not overwrite the copy of real data),
+    // and never when a restore is reloading the page.
+    await restorePromise.catch(() => false);
+    if (reloading) return state;
+    const current = snapshot();
+    // A snapshot with no crossing times and no history is an empty app. It
+    // only replaces a copy when the page itself emptied the storage: a wiped
+    // web view must not wipe its own backup.
+    const empty = !current.settings["om-full-time"] && !current.settings["om-clear-time"] && (!current.history || current.history === "[]");
+    if (empty && !clearedHere) {
+      try {
+        const copy = await readCopy();
+        const copyHasData = (copy.settings && Object.keys(copy.settings).length) || (copy.history && copy.history !== "[]");
+        if (copyHasData) return state;
+      } catch (error) { /* fall through and write */ }
+    }
     try {
-      await writeCopy(snapshot());
+      await writeCopy(current);
       state.lastSavedAt = Date.now();
       state.lastError = "";
       state.writes += 1;
@@ -174,6 +194,7 @@
     if (this === window.localStorage) {
       // An intentional wipe (a test, a reset) must not come back from the copy
       // on the next load, even if the copy was not rewritten in time.
+      clearedHere = true;
       try { sessionStorage.setItem(CLEARED_FLAG, "1"); } catch (error) { /* no session storage */ }
       scheduleSync();
     }
@@ -224,6 +245,8 @@
     try {
       if (sessionStorage.getItem(RESTORED_FLAG) !== "1") {
         sessionStorage.setItem(RESTORED_FLAG, "1");
+        reloading = true;
+        clearTimeout(timer);
         window.location.reload();
       }
     } catch (error) { /* no session storage: carry on */ }
@@ -245,6 +268,12 @@
     status: () => ({ ...state }),
     syncNow,
     restoreIfNeeded,
+    /* Tests only: the web view's storage vanishes behind the app's back, as
+     * when the phone reclaims it. Not an intentional clear. */
+    simulateLoss() {
+      originalClear.call(localStorage);
+      try { sessionStorage.removeItem(CLEARED_FLAG); sessionStorage.removeItem(RESTORED_FLAG); } catch (error) { /* ignore */ }
+    },
     describe() {
       const where = state.backend === "native" ? "the phone's own storage" : state.backend === "indexeddb" ? "the browser's database" : "this page only";
       const when = state.lastSavedAt ? ` Last saved ${new Date(state.lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : "";
@@ -254,7 +283,8 @@
   };
 
   requestPersistence();
-  restoreIfNeeded().then((restored) => {
+  restorePromise = restoreIfNeeded();
+  restorePromise.then((restored) => {
     // The first copy (and the one-time migration) happens here.
     if (!restored) scheduleSync();
   }).catch(() => {});
