@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openApp, setTimes, history, tick } from "./helpers.mjs";
+import { openApp, setTimes, history, tick, answerOn, streetGesture } from "./helpers.mjs";
 
 /*
  * iPhone app, build 12: a native direct-touch area over each pad's gesture
@@ -50,7 +50,9 @@ test("street pad: the native area covers the gesture surface, and its gestures d
   const show = await lastShow(page);
   const rect = await page.evaluate(() => { const r = document.getElementById("liveSurface").getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; });
   expect(show).toMatchObject(rect);
-  expect(show.label).toContain("swipe left or right");
+  expect(show.label).toContain("Swipe left or right");
+  expect(show.focus).toBe(true);                       // the VoiceOver cursor is moved onto the area as the pad opens
+  expect(show.hint).toContain("Direct Touch");
   expect(await page.evaluate(() => typeof window.__native.listeners.directTouch)).toBe("function");
 
   // A swipe left whose finger was down for 400 ms: detected, timed from the touch.
@@ -70,7 +72,8 @@ test("street pad: the native area covers the gesture surface, and its gestures d
   const onAnswer = await lastShow(page);
   const answerRect = await page.evaluate(() => { const r = document.getElementById("answerSurface").getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; });
   expect(onAnswer).toMatchObject(answerRect);
-  expect(onAnswer.label).toContain("swipe up for longer");
+  expect(onAnswer.label).toContain("Swipe up for longer");
+  expect(onAnswer.focus).toBe(true);
 
   // Swipe up = longer, which is right for a 5.4 s warning on a 4 s crossing.
   await gesture(page, "up", 120);
@@ -80,9 +83,9 @@ test("street pad: the native area covers the gesture surface, and its gestures d
   expect(log[0].userSec).toBeGreaterThan(4.9);   // the 400 ms swipe counts; the fake clock steps coarsely
   // Back on the street pad, the area returns to the street surface.
   await page.waitForTimeout(150);
-  expect((await lastShow(page)).label).toContain("swipe left or right");
-  // Done hides it.
-  await page.click("#liveDoneBtn");
+  expect((await lastShow(page)).label).toContain("Swipe left or right");
+  // Back hides it.
+  await page.click("#liveBackBtn");
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => window.__native.hides)).toBeGreaterThan(0);
 });
@@ -128,7 +131,7 @@ test("comparison practice: the area covers the answer surface, and is hidden in 
   await page.evaluate(() => gsShowScreen("compare"));
   await page.evaluate(() => { gsCompareState.phase = "answering"; gsCompareState.expected = "shorter"; gsCompareState.intervalSec = 6; gsCompareState.crossingSec = 8; gsCompareState.marginSec = 0.4; gsOpenAnswerPad({ title: "x", onAnswer: gsCompareAnswer, onSkip: gsCompareSkip }); });
   await page.waitForTimeout(150);
-  expect((await lastShow(page)).label).toContain("swipe up for longer");
+  expect((await lastShow(page)).label).toContain("Swipe up for longer");
   await gesture(page, "down", 90);
   const log = await history(page);
   expect(log).toHaveLength(1);
@@ -150,7 +153,7 @@ test("without the native method nothing is called and the web pads work as befor
   expect(await page.evaluate(() => gsDirectTouchSupported())).toBe(false);
   await page.evaluate(() => gsShowScreen("live"));
   await page.click("#liveStartBtn");
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   expect(await page.evaluate(() => gsLiveState.phase)).toBe("arriving");
   await expect(page.locator("#screen-help")).toBeHidden();
   await page.evaluate(() => { gsLiveClose(); gsShowScreen("help"); });

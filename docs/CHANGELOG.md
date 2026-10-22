@@ -157,8 +157,12 @@ about timing, sound and the street.
   app is hidden anyway (a call, another app), the vehicle or sample being
   timed is dropped unrecorded rather than timed on in the background.
 - **Skip on the answer pads.** "Was it longer, shorter or about the same?" and
-  "How much?" have a Skip button, and Escape does the same. A student who does
-  not know is never made to guess; nothing is recorded.
+  "How much?" have a Skip button, and Escape does the same. (Corrected 22 Oct
+  2026: this entry used to say a student is "never made to guess" and that
+  nothing is recorded. Neither was the design: the way out is for an
+  interrupted try, a student who is unsure gives their best judgment, and a
+  skipped try is recorded and never scored, as build 11 itself did. In build
+  14 Skip became Back; see the build 14 entry.)
 - **Quiet confirmation at the street.** The instructor can set swipe and tap
   confirmation to vibration only, so nothing sounds while the student is
   listening for traffic. The default keeps the short sound.

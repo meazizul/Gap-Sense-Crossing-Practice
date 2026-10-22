@@ -1,10 +1,13 @@
 import { test, expect } from "@playwright/test";
-import { watchErrors, openApp, setTimes, screenVisible, history, tick, announcer, statusText, waitUntil, swipeOn } from "./helpers.mjs";
+import { watchErrors, openApp, setTimes, screenVisible, history, tick, announcer, statusText, waitUntil, swipeOn, answerOn, streetGesture } from "./helpers.mjs";
 
 async function openCompare(page, storage = {}) {
   await openApp(page, { storage });
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => gsShowScreen("compare"));
+  // Build 14: First half is the default (F6). These tests time against the
+  // full street (8 s), so they choose it, as a student would.
+  await page.click("input[name='compareStreet'][value='full']");
   await page.evaluate(() => { document.querySelector("#compareOptions").open = true; });
 }
 
@@ -15,7 +18,7 @@ async function untilIdle(page) {
 
 async function playUntilAnswering(page) {
   await page.click("#compareStartBtn");
-  await expect(page.locator("#compareStartBtn")).toBeDisabled();
+  await expect(page.locator("#compareStartBtn")).toHaveAttribute("aria-disabled", "true");
   for (let i = 0; i < 100; i += 1) {
     await page.clock.runFor(200);
     if (await page.evaluate(() => gsCompareState.phase === "answering")) break;
@@ -51,7 +54,7 @@ test.beforeEach(async ({ page }) => {
 
 test("wording: sample warning time, never 'gap'", async ({ page }) => {
   await openCompare(page);
-  await expect(page.locator("#compareStartBtn")).toHaveText("Play a sample warning time");
+  await expect(page.locator("#compareStartBtn .action-btn-label")).toHaveText("Play a sample warning time");
   const text = await page.locator("#screen-compare").innerText();
   expect(text.toLowerCase()).not.toMatch(/\bgap\b/);
 });
@@ -105,7 +108,7 @@ test("the sample is one steady sound at one loudness (no fade), default 100%", a
   expect(ratio).toBeLessThan(1.03);
 });
 
-test("answers open a full-screen pad; focus starts on 'About the same'", async ({ page }) => {
+test("answers open a full-screen pad; focus starts on the swipe area, whose label carries the question", async ({ page }) => {
   const errors = watchErrors(page);
   await openCompare(page);
   await playUntilAnswering(page);
@@ -114,9 +117,13 @@ test("answers open a full-screen pad; focus starts on 'About the same'", async (
   const box = await pad.boundingBox();
   expect(box.width).toBeGreaterThanOrEqual(389);
   expect(box.height).toBeGreaterThanOrEqual(843);
-  await expect(page.locator("#answerOverlay .answer-btn[data-answer='same']")).toBeFocused();
+  await expect(page.locator("#answerSurface")).toBeFocused();
+  expect(await page.getAttribute("#answerSurface", "aria-label")).toContain("Was that longer, shorter, or about the same");
+  expect(await page.getAttribute("#answerSurface", "aria-label")).toContain("Swipe up for longer");
   expect(await page.evaluate(() => document.getElementById("appMain").inert)).toBe(true);
-  expect(await announcer(page)).toContain("Was that longer, shorter, or about the same");
+  // The swipe area fills the pad below the header (12.31).
+  const area = await page.locator("#answerSurface").boundingBox();
+  expect(area.height).toBeGreaterThan(600);
   expect(errors).toEqual([]);
 });
 
@@ -126,7 +133,7 @@ test("a wrong answer: result sound and shape at once, then the judgment replay, 
   await playUntilAnswering(page);
   const expected = await page.evaluate(() => gsCompareState.expected);
   const wrong = expected === "longer" ? "shorter" : "longer";
-  await page.click(`#answerOverlay .answer-btn[data-answer='${wrong}']`);
+  await answerOn(page, wrong);
 
   // The triangle shows with the sound, before any replay.
   await tick(page, 200);
@@ -134,15 +141,16 @@ test("a wrong answer: result sound and shape at once, then the judgment replay, 
     const s = document.getElementById("visualReplayShape");
     return [document.getElementById("visualReplayOverlay").dataset.active, s.style.display, s.dataset.type];
   })).toEqual(["true", "block", "outside"]);
-  expect(await announcer(page)).toMatch(/^Not quite\. It was .* Feel the difference\.$/);
+  expect(await announcer(page)).not.toMatch(/Not quite|Correct/);   // no result words (12.29)
   await expect(page.locator("#answerOverlay")).toBeHidden();
   let log = await history(page);
   expect(log).toHaveLength(1);
   expect(log[0]).toMatchObject({ activity: "compare", answer: wrong, expected, correct: false, marginSec: 0.4 });
 
   await untilIdle(page);
-  await expect(page.locator("#compareStartBtn")).toBeEnabled();
+  await expect(page.locator("#compareStartBtn")).toHaveAttribute("aria-disabled", "false");
   await expect(page.locator("#compareStartBtn")).toBeFocused();
+  expect(await statusText(page, "compareStatusText")).toBe("Press Play for another.");
   expect(await page.evaluate(() => suppressSrAnnouncements)).toBe(false);
   await tick(page, 10000);
   log = await history(page);
@@ -155,10 +163,10 @@ test("a correct answer shows the circle; the replay marks the crossing with the 
   await openCompare(page, { "om-a11y-output-mode": "audio-visual" });
   await forceCategory(page, 0.9);                       // longer
   await playUntilAnswering(page);
-  await page.click("#answerOverlay .answer-btn[data-answer='longer']");
+  await answerOn(page, "longer");
   await tick(page, 200);
   expect(await page.evaluate(() => document.getElementById("visualReplayShape").dataset.type)).toBe("acceptable");
-  expect(await announcer(page)).toMatch(/^Correct\. It was longer than your crossing\.$/);
+  expect(await announcer(page)).not.toMatch(/Correct|Not quite/);
   await recordSounds(page);
   await tick(page, 1300);
   expect(await page.evaluate(() => gsCompareState.phase)).toBe("replaying");
@@ -231,14 +239,14 @@ test("'how much' is offered only after a correct longer/shorter answer", async (
   // Wrong answer: no "how much".
   await forceCategory(page, 0.9);
   await playUntilAnswering(page);
-  await page.click("#answerOverlay .answer-btn[data-answer='shorter']");
+  await answerOn(page, "shorter");
   await tick(page, 1300);
   expect(await page.evaluate(() => gsCompareState.phase)).toBe("replaying");
   await untilIdle(page);
   // Correct "about the same": no "how much".
   await forceCategory(page, 0.5);
   await playUntilAnswering(page);
-  await page.click("#answerOverlay .answer-btn[data-answer='same']");
+  await answerOn(page, "same");
   await tick(page, 1300);
   expect(await page.evaluate(() => gsCompareState.phase)).toBe("replaying");
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
@@ -252,7 +260,7 @@ test("'how much' with replay (a): steady sound for the WARNING time, student's s
     trueDiff: gsCompareState.intervalSec - gsCompareState.crossingSec,
     sampleSec: gsCompareState.intervalSec
   }));
-  await page.click("#answerOverlay .answer-btn[data-answer='longer']");
+  await answerOn(page, "longer");
   await tick(page, 1300);
   expect(await page.evaluate(() => gsCompareState.phase)).toBe("howmuch");
   await expect(page.locator("#howMuchOverlay")).toBeVisible();
@@ -279,7 +287,7 @@ test("'how much' with replay (a): steady sound for the WARNING time, student's s
   expect(users[1]).toBeCloseTo(8 + log[1].userSec, 1);
   await untilIdle(page);
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
-  expect(await statusText(page, "compareStatusText")).toContain("Your estimate was off");
+  expect(await statusText(page, "compareStatusText")).toBe("Press Play for another.");
   await expect(page.locator("#compareScore")).toContainText("Last 1:");
 });
 
@@ -291,7 +299,7 @@ test("'how much' with replay (b): practice-style, student's sounds against the r
   await forceCategory(page, 0.01);                      // clearly shorter
   await playUntilAnswering(page);
   const trueDiff = await page.evaluate(() => gsCompareState.crossingSec - gsCompareState.intervalSec);
-  await page.click("#answerOverlay .answer-btn[data-answer='shorter']");
+  await answerOn(page, "shorter");
   await tick(page, 1300);
   await expect(page.locator("#howMuchTitle")).toHaveText("How much shorter?");
   await page.click("#compareFollowUpBtn");
@@ -303,7 +311,7 @@ test("'how much' with replay (b): practice-style, student's sounds against the r
   expect(kinds.filter((k) => k === "user").length).toBeGreaterThanOrEqual(3);  // judgment replay + two estimate marks
   expect(kinds).toContain("acceptable");
   await untilIdle(page);
-  expect(await statusText(page, "compareStatusText")).toContain("Your estimate was close");
+  expect(await statusText(page, "compareStatusText")).toBe("Press Play for another.");
 });
 
 test("leaving mid-trial cancels everything", async ({ page }) => {
@@ -320,18 +328,28 @@ test("leaving mid-trial cancels everything", async ({ page }) => {
   await expect(page.locator("#answerOverlay")).toBeHidden();
   expect(await page.evaluate(() => document.getElementById("appMain").inert)).toBe(false);
   await page.evaluate(() => gsShowScreen("compare"));
-  await expect(page.locator("#compareStartBtn")).toBeEnabled();
+  await expect(page.locator("#compareStartBtn")).toHaveAttribute("aria-disabled", "false");
   expect(errors).toEqual([]);
 });
 
-test("pressing Play again restarts cleanly instead of overlapping", async ({ page }) => {
+test("pressing Play again while a trial is running does nothing: no overlap, no second sample", async ({ page }) => {
   await openCompare(page);
-  await playUntilAnswering(page);
-  await page.evaluate(() => gsCompareBegin());          // as if Play were pressed again
+  await recordSounds(page);
+  await page.click("#compareStartBtn");
+  await page.clock.runFor(600);
+  const samples = await page.evaluate(() => window.__sounds.filter((s) => s.kind === "sample").length);
+  // Build 14: the button is busy (aria-disabled), not disabled, so VoiceOver
+  // keeps its place on it; a press while busy is ignored (12.27).
+  await page.click("#compareStartBtn", { force: true });
+  await page.evaluate(() => gsCompareBegin());
   await tick(page, 400);
-  expect(await page.evaluate(() => gsCompareState.phase)).not.toBe("answering");
-  await expect(page.locator("#answerOverlay")).toBeHidden();
+  expect(await page.evaluate(() => window.__sounds.filter((s) => s.kind === "sample").length)).toBe(samples);
   expect(await history(page)).toEqual([]);
+  // The trial then runs to its answer as usual.
+  await waitUntil(page, () => gsCompareState.phase === "answering", { ms: 20000, step: 200 });
+  await answerOn(page, "same");
+  await untilIdle(page);
+  expect(await history(page)).toHaveLength(1);
 });
 
 test("loudness and pitch controls persist, stay in sync on both screens, and the preview plays", async ({ page }) => {

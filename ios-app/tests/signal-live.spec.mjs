@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { watchErrors, openApp, setTimes, screenVisible, history, tick, announcer, statusText, waitUntil, swipeOn } from "./helpers.mjs";
+import { watchErrors, openApp, setTimes, screenVisible, history, tick, announcer, statusText, waitUntil, swipeOn, answerOn, streetGesture } from "./helpers.mjs";
 
 test.beforeEach(async ({ page }) => {
   // Speech: record what is said and finish at once, so the flows do not wait.
@@ -32,6 +32,7 @@ test("preparation: Ready says 'Get ready' (no beep), the steady sound plays unti
   await openApp(page);
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => gsShowScreen("signal"));
+  await page.click("input[name='signalStreet'][value='full']");   // build 14: First half is the default (F6)
   await expect(page.locator("#signalBtnLabel")).toHaveText("READY");
   await page.evaluate(() => {
     window.__beeps = 0;
@@ -60,12 +61,13 @@ test("preparation: Ready says 'Get ready' (no beep), the steady sound plays unti
   expect(log).toHaveLength(1);
   expect(log[0]).toMatchObject({ activity: "signal", street: "full", correct: true, marginSec: 0.4 });
   expect(Math.abs(log[0].userSec - 8)).toBeLessThan(0.15);
-  await expect(page.locator("#signalBtn")).toBeDisabled();  // replaying
+  await expect(page.locator("#signalBtn")).toHaveAttribute("aria-disabled", "true");  // replaying: busy, never disabled (12.27)
   await tick(page, 12000);
   await expect(page.locator("#signalBtnLabel")).toHaveText("READY");
-  await expect(page.locator("#signalBtn")).toBeEnabled();
+  await expect(page.locator("#signalBtn")).toHaveAttribute("aria-disabled", "false");
   await expect(page.locator("#signalScore")).toHaveText("Last 1: 1 within margin · margin 0.40s");
-  expect(await statusText(page, "signalStatusText")).toContain("Within the margin");
+  // No verdict words: the cue and the replay carry the result (12.29).
+  expect(await statusText(page, "signalStatusText")).toBe("Ready for another.");
   expect(errors).toEqual([]);
 });
 
@@ -179,18 +181,20 @@ test("street: swipe left, tap on arrival, then the STUDENT judges; the app does 
   await expect(page.locator("#liveOverlay")).toBeVisible();
   await swipeOn(page, "#liveSurface", { dx: -160 });     // vehicle from the left
   expect(await page.evaluate(() => gsLiveState.phase)).toBe("arriving");
-  await expect(page.locator("#liveArriveButtons")).toBeVisible();
+  await expect(page.locator("#liveSurfaceText")).toContainText("Tap when it passes");   // swipes on: no buttons (12.31)
   await tick(page, 6000);                                // 6 s warning vs 4 s first half
   await swipeOn(page, "#liveSurface");                   // tap: it passed
   expect(await page.evaluate(() => gsLiveState.phase)).toBe("judging");
   await expect(page.locator("#answerOverlay")).toBeVisible();
   expect(await history(page)).toEqual([]);               // nothing judged yet
   expect(await statusText(page, "liveOverlayStatus")).not.toMatch(/enough warning|longer than/i);
-  await page.click("#answerOverlay .answer-btn[data-answer='longer']");
+  await answerOn(page, "longer");
   const log = await history(page);
   expect(log).toHaveLength(1);
   expect(log[0]).toMatchObject({ activity: "live", street: "half", direction: "left", sense: "hearing", judged: true, answer: "longer", expected: "longer", correct: true });
-  expect(await announcer(page)).toContain("Correct. It was longer than your crossing.");
+  // No result words, spoken or shown (12.29): the cue and the replay carry it.
+  expect(await announcer(page)).not.toMatch(/Correct|Not quite/);
+  expect(await statusText(page, "liveOverlayStatus")).not.toMatch(/Correct|Not quite/);
   await untilReady(page);
   await expect(page.locator("#liveTally")).toHaveText("Last 1 vehicle · 1 of 1 judged correctly");
   expect(await page.evaluate(() => suppressSrAnnouncements)).toBe(false);
@@ -200,10 +204,10 @@ test("street: swipe left, tap on arrival, then the STUDENT judges; the app does 
 test("street: from the right compares with the full street; a wrong answer is logged as wrong", async ({ page }) => {
   await openLive(page, { "om-live-sense": "vision" });
   await page.click("#liveStartBtn");
-  await page.click("[data-live-detect='right']");
+  await streetGesture(page, "right");
   await tick(page, 5000);                                // 5 s warning vs 8 s full street
-  await page.click("#liveArrivedBtn");
-  await page.click("#answerOverlay .answer-btn[data-answer='longer']");
+  await streetGesture(page, "tap");
+  await answerOn(page, "longer");
   const log = await history(page);
   expect(log[0]).toMatchObject({ street: "full", direction: "right", sense: "vision", expected: "shorter", answer: "longer", correct: false });
 });
@@ -229,10 +233,10 @@ test("street: replay 'never' gives only the right/wrong sound; 'errors' replays 
     window.gsReplayJudgment = (...a) => { window.__replays += 1; return real(...a); };
   });
   await page.click("#liveStartBtn");
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 1000);
-  await page.click("#liveArrivedBtn");
-  await page.click("#answerOverlay .answer-btn[data-answer='longer']");   // wrong (it was shorter)
+  await streetGesture(page, "tap");
+  await answerOn(page, "longer");   // wrong (it was shorter)
   await untilReady(page);
   expect(await page.evaluate(() => window.__replays)).toBe(0);
 
@@ -241,16 +245,16 @@ test("street: replay 'never' gives only the right/wrong sound; 'errors' replays 
     f.options.liveReplay = "errors";
     gsSaveFeatures(f);
   });
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 1000);
-  await page.click("#liveArrivedBtn");
-  await page.click("#answerOverlay .answer-btn[data-answer='shorter']");  // right
+  await streetGesture(page, "tap");
+  await answerOn(page, "shorter");  // right
   await untilReady(page);
   expect(await page.evaluate(() => window.__replays)).toBe(0);
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 1000);
-  await page.click("#liveArrivedBtn");
-  await page.click("#answerOverlay .answer-btn[data-answer='longer']");   // wrong
+  await streetGesture(page, "tap");
+  await answerOn(page, "longer");   // wrong
   await untilReady(page);
   expect(await page.evaluate(() => window.__replays)).toBe(1);
 });
@@ -258,10 +262,10 @@ test("street: replay 'never' gives only the right/wrong sound; 'errors' replays 
 test("street: 'how much' after a correct longer/shorter answer, with the combined replay", async ({ page }) => {
   await openLive(page, { "om-features": JSON.stringify({ options: { liveHowMuch: "on" } }) });
   await page.click("#liveStartBtn");
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 6000);
-  await page.click("#liveArrivedBtn");
-  await page.click("#answerOverlay .answer-btn[data-answer='longer']");
+  await streetGesture(page, "tap");
+  await answerOn(page, "longer");
   await tick(page, 1300);
   await expect(page.locator("#howMuchOverlay")).toBeVisible();
   await expect(page.locator("#howMuchTitle")).toHaveText("How much longer?");
@@ -277,28 +281,35 @@ test("street: 'how much' after a correct longer/shorter answer, with the combine
 test("street: judging off records the warning time without a verdict", async ({ page }) => {
   await openLive(page, { "om-features": JSON.stringify({ options: { liveJudge: "off" } }) });
   await page.click("#liveStartBtn");
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 3000);
-  await page.click("#liveArrivedBtn");
+  await streetGesture(page, "tap");
   await expect(page.locator("#answerOverlay")).toBeHidden();
   expect((await history(page))[0]).toMatchObject({ judged: false });
   await untilReady(page);
 });
 
-test("street: Done closes the pad and leaving the screen cancels a vehicle in progress", async ({ page }) => {
+test("street: Back closes the pad and leaving the screen cancels a vehicle in progress", async ({ page }) => {
   await openLive(page);
   await page.click("#liveStartBtn");
-  await page.click("[data-live-detect='left']");
-  await page.click("#liveDoneBtn");
+  await streetGesture(page, "left");
+  await page.click("#liveBackBtn");
   await expect(page.locator("#liveOverlay")).toBeHidden();
-  await expect(page.locator("#liveStartBtn")).toBeFocused();
+  await expect(page.locator("#screenTitle")).toBeFocused();   // after Back, the screen's title (13.7)
   expect(await page.evaluate(() => document.getElementById("appMain").inert)).toBe(false);
+  // Build 14 (13.7): backing out with a vehicle in progress records it as cancelled, never scored.
+  let log = await history(page);
+  expect(log).toHaveLength(1);
+  expect(log[0]).toMatchObject({ activity: "live", direction: "left", skipped: true, skip: "vehicle", judged: false, correct: false });
+  expect(await page.evaluate(() => gsSummary().total)).toBe(0);
   await page.click("#liveStartBtn");
-  await page.click("[data-live-detect='right']");
+  await streetGesture(page, "right");
   await page.evaluate(() => gsShowScreen("home"));
   await screenVisible(page, "home");
   await expect(page.locator("#liveOverlay")).toBeHidden();
-  expect(await history(page)).toEqual([]);
+  // Leaving the screen (the header's Back) still drops the vehicle unrecorded.
+  log = await history(page);
+  expect(log).toHaveLength(1);
 });
 
 test("street: hearing or vision is the student's choice unless the instructor fixes it", async ({ page }) => {

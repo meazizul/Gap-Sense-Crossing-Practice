@@ -215,13 +215,13 @@
 
     <!-- ================= COMPARISON PREPARATION (internal name: signal) ================= -->
     <section id="screen-signal" class="screen" aria-labelledby="screenTitle" hidden>
-      <p class="screen-intro">Get ready to compare your time to various sample times. Press Ready. When the sound starts, it is like hearing a vehicle. Stop it when you think you would finish crossing.</p>
+      <p class="screen-intro">Get ready to compare your time to various sample times. Press Ready. When the sound starts, it is like hearing a vehicle. Stop it when you think you would finish crossing. Then you hear it again: the sound, your press, and the chime or the low pulse where your crossing time ends.</p>
 
-      <section class="card">
+      <section class="card" aria-labelledby="signalStreetLabel">
         <fieldset class="option-group">
-          <legend class="option-group-title">Which crossing</legend>
-          <label><input type="radio" name="signalStreet" value="full" checked /> Full street</label>
-          <label><input type="radio" name="signalStreet" value="half" /> First half (traffic from the left)</label>
+          <legend class="option-group-title" id="signalStreetLabel"><h2 class="legend-heading">Which crossing</h2></legend>
+          <label><input type="radio" name="signalStreet" value="half" checked /> First half (traffic from the left)</label>
+          <label><input type="radio" name="signalStreet" value="full" /> Full street</label>
         </fieldset>
       </section>
 
@@ -237,7 +237,7 @@
       <p class="field-help" id="signalScore"></p>
 
       <details class="card options-card" id="signalOptions">
-        <summary class="card-label">Options: sound and pitch</summary>
+        <summary><h2 class="card-label">Options: sound and pitch</h2></summary>
         <fieldset class="option-group" data-feature-choice="prepSound">
           <legend class="option-group-title">The sound</legend>
           <label><input type="radio" name="prepSound" value="continuous" checked /> A steady sound that keeps going until you stop it</label>
@@ -250,23 +250,22 @@
 
     <!-- ================= COMPARISON PRACTICE (internal name: compare) ================= -->
     <section id="screen-compare" class="screen" aria-labelledby="screenTitle" hidden>
-      <p class="screen-intro">The app plays a sample warning time: the time from first detecting a vehicle until it passes in front of you. Is it longer, shorter, or about the same as your crossing time?</p>
+      <p class="screen-intro">The app plays a sample warning time: the time from first detecting a vehicle until it passes in front of you. Is it longer, shorter, or about the same as your crossing time? After you answer, the sample plays again, with <span data-own-sound>your own sound</span> where your crossing time ends.</p>
 
-      <section class="safety-note" data-safety-note="compare" hidden>
-        <p class="safety-note-title">Longer does not mean long enough</p>
-        <p>A warning time that is longer than your crossing time is not, by itself, enough to cross. Work with your Orientation and Mobility Specialist on how many vehicles to sample, how to judge if a warning time is long enough, and all the other skills involved in crossing streets without traffic control.</p>
-        <button class="settings-action" type="button" data-dismiss-safety="compare">Got it, hide this note</button>
-      </section>
-
-      <section class="card">
+      <section class="card" aria-labelledby="compareStreetLabel">
         <fieldset class="option-group">
-          <legend class="option-group-title">Which crossing</legend>
-          <label><input type="radio" name="compareStreet" value="full" checked /> Full street</label>
-          <label><input type="radio" name="compareStreet" value="half" /> First half (traffic from the left)</label>
+          <legend class="option-group-title" id="compareStreetLabel"><h2 class="legend-heading">Which crossing</h2></legend>
+          <label><input type="radio" name="compareStreet" value="half" checked /> First half (traffic from the left)</label>
+          <label><input type="radio" name="compareStreet" value="full" /> Full street</label>
         </fieldset>
       </section>
 
-      <button class="settings-action primary big-action" id="compareStartBtn" type="button">Play a sample warning time</button>
+      <!-- One big main button, on screen without scrolling, like Practice my
+           timing (tracker 12.33). -->
+      <button class="action-btn idle" id="compareStartBtn" type="button">
+        <span class="action-btn-label">Play a sample warning time</span>
+        <span class="action-btn-hint" aria-hidden="true">Then answer: longer, shorter, or about the same</span>
+      </button>
 
       <div class="cue-banner" id="compareStatus" data-tone="neutral" data-visible="true" aria-live="off">
         <span class="cue-dot" aria-hidden="true"></span>
@@ -275,8 +274,14 @@
 
       <p class="field-help" id="compareScore"></p>
 
+      <section class="safety-note" data-safety-note="compare" aria-labelledby="safetyNoteCompareTitle" hidden>
+        <h2 class="safety-note-title" id="safetyNoteCompareTitle">Longer does not mean long enough</h2>
+        <p>A warning time that is longer than your crossing time is not, by itself, enough to cross. Work with your Orientation and Mobility Specialist on how many vehicles to sample, how to judge if a warning time is long enough, and all the other skills involved in crossing streets without traffic control.</p>
+        <button class="settings-action" type="button" data-dismiss-safety="compare">Got it, hide this note</button>
+      </section>
+
       <details class="card options-card" id="compareOptions">
-        <summary class="card-label">Options: sound, loudness, pauses, how much</summary>
+        <summary><h2 class="card-label">Options: sound, loudness, pauses, how much</h2></summary>
         <fieldset class="option-group" data-feature-choice="compareSound">
           <legend class="option-group-title">How the sample sounds</legend>
           <label><input type="radio" name="gsIntervalStyle" value="continuous" checked /> One steady sound for the whole warning time</label>
@@ -291,17 +296,11 @@
 
     <!-- ================= AT THE STREET (internal name: live) ================= -->
     <section id="screen-live" class="screen" aria-labelledby="screenTitle" hidden>
-      <p class="screen-intro">Position yourself as directed by your O&amp;M Specialist, so you can look or listen for approaching vehicles. Swipe left or right the moment you think you detect (see or hear) a vehicle, in the direction it is coming from. Then tap when it passes in front of you.</p>
+      <p class="screen-intro">Position yourself as directed by your O&amp;M Specialist, so you can look or listen for approaching vehicles. Swipe left or right the moment you think you detect (see or hear) a vehicle, in the direction it is coming from. Then tap when it passes in front of you. After you answer, that warning time plays again as a sound, with <span data-own-sound>your own sound</span> where your crossing time ends.</p>
 
-      <section class="safety-note" data-safety-note="live" hidden>
-        <p class="safety-note-title">Longer does not mean long enough</p>
-        <p>A warning time that is longer than your crossing time is not, by itself, enough to cross. Work with your Orientation and Mobility Specialist on how many vehicles to sample, how to judge if a warning time is long enough, and all the other skills involved in crossing streets without traffic control.</p>
-        <button class="settings-action" type="button" data-dismiss-safety="live">Got it, hide this note</button>
-      </section>
-
-      <section class="card" data-feature-choice="liveSense">
+      <section class="card" data-feature-choice="liveSense" aria-labelledby="liveSenseLabel">
         <fieldset class="option-group">
-          <legend class="option-group-title">I am detecting vehicles by</legend>
+          <legend class="option-group-title" id="liveSenseLabel"><h2 class="legend-heading">I am detecting vehicles by</h2></legend>
           <label><input type="radio" name="liveSense" value="hearing" checked /> Hearing</label>
           <label><input type="radio" name="liveSense" value="vision" /> Vision</label>
         </fieldset>
@@ -319,8 +318,14 @@
       </div>
       <p class="field-help" id="liveTally"></p>
 
+      <section class="safety-note" data-safety-note="live" aria-labelledby="safetyNoteLiveTitle" hidden>
+        <h2 class="safety-note-title" id="safetyNoteLiveTitle">Longer does not mean long enough</h2>
+        <p>A warning time that is longer than your crossing time is not, by itself, enough to cross. Work with your Orientation and Mobility Specialist on how many vehicles to sample, how to judge if a warning time is long enough, and all the other skills involved in crossing streets without traffic control.</p>
+        <button class="settings-action" type="button" data-dismiss-safety="live">Got it, hide this note</button>
+      </section>
+
       <details class="card options-card" id="liveOptions">
-        <summary class="card-label">Options: judging, how much, replay</summary>
+        <summary><h2 class="card-label">Options: judging, how much, replay</h2></summary>
         <label data-feature-choice="liveJudge"><input type="checkbox" id="liveJudgeToggle" checked /> After each vehicle, judge whether its warning time was longer, shorter, or about the same as my crossing</label>
         <label data-feature-choice="liveHowMuch"><input type="checkbox" id="liveHowMuchToggle" /> After a correct longer or shorter answer, tap out how much longer or shorter</label>
         <div data-feature-choice="liveReplay">
@@ -381,7 +386,7 @@
 
       <section class="card">
         <h2 class="card-label">For students</h2>
-        <p class="field-help"><strong>VoiceOver:</strong> the swipe areas in the iPhone app are direct touch areas. Turn on Direct Touch for Gap Sense once (VoiceOver rotor, Direct Touch), and swipes and taps there work the same as with VoiceOver off. The buttons are still there if you prefer them.</p>
+        <p class="field-help"><strong>VoiceOver:</strong> on the iPhone app each answer screen is a direct touch area, and VoiceOver's cursor lands on it as the screen opens. Turn on Direct Touch for Gap Sense once (VoiceOver rotor, Direct Touch), and swipes and taps there work the same as with VoiceOver off. Back, in the top-left corner, is outside the area: touch it, hear "Back", double-tap. <strong>TalkBack:</strong> swipe with two fingers on the answer screen, or double-tap to tap.</p>
         <ul class="plain-list">
           <li><strong>Your crossing times</strong> come from your O&amp;M Specialist. They time you crossing and set the times in Instructor setup, or send you a link that sets them.</li>
           <li><strong>1. Practice my timing.</strong> Tap Begin, then tap again when you think you would have arrived. You hear the difference rather than being told a number.</li>
@@ -470,11 +475,12 @@
             <option value="ticks">Two beeps with silence between</option>
             <option value="choose">Student chooses</option>
           </select>
-          <label for="ftCompareSwipe">How the student answers</label>
+          <label for="ftCompareSwipe">How the student answers, here and At the street</label>
           <select id="ftCompareSwipe" data-feature="compareSwipe">
-            <option value="on">Swipe pad and buttons</option>
+            <option value="on">Swipes and taps on the whole screen</option>
             <option value="off">Buttons only</option>
           </select>
+          <p class="setup-note">Back, top left on every answer screen, cancels a try that was interrupted or started by mistake. A cancelled try is recorded, never scored.</p>
           <label for="ftCompareRandomPause">Random pause before the sample</label>
           <select id="ftCompareRandomPause" data-feature="compareRandomPause">
             <option value="off">Off</option>
@@ -629,20 +635,22 @@
     </section>
   </main>
 
-  <!-- ============ FULL-SCREEN ANSWER PAD (comparison practice, at the street) ============ -->
-  <div class="gesture-overlay" id="answerOverlay" role="dialog" aria-modal="true" aria-labelledby="answerOverlayTitle" hidden>
+  <!-- ============ FULL-SCREEN ANSWER PAD (comparison practice, at the street) ============
+       Back sits top-left, outside the swipe area, on every pad (tracker 13.7).
+       With swipes on the whole area below the header is the swipe area and the
+       question is shown in it at the student's text size (tracker 12.31). -->
+  <div class="gesture-overlay swipes" id="answerOverlay" role="dialog" aria-modal="true" aria-labelledby="answerOverlayTitle" hidden>
     <div class="gesture-header">
-      <p class="gesture-title" id="answerOverlayTitle" tabindex="-1">Was it longer, shorter, or about the same as your crossing?</p>
-      <button class="settings-action" id="answerSkipBtn" type="button" aria-label="Skip. Noted as skipped, not scored.">Skip</button>
+      <button class="icon-btn pad-back" id="answerBackBtn" type="button" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" /></svg></button>
+      <p class="gesture-title" id="answerOverlayTitle" tabindex="-1">Your answer</p>
     </div>
-    <div class="gesture-surface" id="answerSurface" aria-hidden="true">
-      <span class="gesture-arrow">&#9650;</span>
-      <span>Swipe up: longer</span>
-      <span>Tap: about the same</span>
-      <span>Swipe down: shorter</span>
-      <span class="gesture-arrow">&#9660;</span>
+    <div class="gesture-surface" id="answerSurface" role="group" tabindex="-1" aria-label="Answer area. Swipe up for longer, swipe down for shorter, tap for about the same.">
+      <p class="pad-question" id="answerQuestion">Was it longer, shorter, or about the same as your crossing?</p>
+      <p class="pad-instructions"><span class="gesture-arrow" aria-hidden="true">&#9650;</span> Up: longer</p>
+      <p class="pad-instructions">Tap: about the same</p>
+      <p class="pad-instructions"><span class="gesture-arrow" aria-hidden="true">&#9660;</span> Down: shorter</p>
     </div>
-    <div class="answer-grid" role="group" aria-label="Your answer">
+    <div class="answer-grid" role="group" aria-label="Your answer" hidden>
       <button class="answer-btn" data-answer="longer" type="button">
         <span class="answer-glyph" aria-hidden="true">&#9650;</span>
         <span>Longer than my crossing</span>
@@ -659,23 +667,23 @@
   </div>
 
   <!-- ============ FULL-SCREEN "HOW MUCH" PAD ============ -->
-  <div class="gesture-overlay" id="howMuchOverlay" role="dialog" aria-modal="true" aria-labelledby="howMuchTitle" hidden>
+  <div class="gesture-overlay swipes" id="howMuchOverlay" role="dialog" aria-modal="true" aria-labelledby="howMuchTitle" hidden>
     <div class="gesture-header">
+      <button class="icon-btn pad-back" id="howMuchBackBtn" type="button" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" /></svg></button>
       <p class="gesture-title" id="howMuchTitle" tabindex="-1">How much longer or shorter?</p>
-      <button class="settings-action" id="howMuchSkipBtn" type="button" aria-label="Skip the estimate. Noted as skipped, not scored.">Skip</button>
     </div>
     <button class="action-btn idle howmuch-btn" id="compareFollowUpBtn" type="button">TAP TO START</button>
   </div>
 
   <!-- ============ FULL-SCREEN STREET PAD ============ -->
-  <div class="gesture-overlay" id="liveOverlay" role="dialog" aria-modal="true" aria-labelledby="liveOverlayTitle" hidden>
+  <div class="gesture-overlay swipes" id="liveOverlay" role="dialog" aria-modal="true" aria-labelledby="liveOverlayTitle" hidden>
     <div class="gesture-header">
+      <button class="icon-btn pad-back" id="liveBackBtn" type="button" aria-label="Back. Ends the street session."><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" /></svg></button>
       <p class="gesture-title" id="liveOverlayTitle" tabindex="-1">At the street</p>
-      <button class="settings-action" id="liveDoneBtn" type="button">Done</button>
     </div>
     <p class="gesture-status" id="liveOverlayStatus">Swipe left or right when you think you detect a vehicle.</p>
-    <div class="gesture-surface" id="liveSurface" aria-hidden="true">
-      <span id="liveSurfaceText">&#9664; Swipe left: from the left &nbsp;·&nbsp; Swipe right: from the right &#9654;</span>
+    <div class="gesture-surface" id="liveSurface" role="group" tabindex="-1" aria-label="Street. Swipe left or right the moment you detect a vehicle, toward the side it is coming from.">
+      <p class="pad-question" id="liveSurfaceText">Swipe left: from the left. Swipe right: from the right.</p>
     </div>
     <div class="answer-grid live-buttons" id="liveDetectButtons" role="group" aria-label="Vehicle detected">
       <button class="answer-btn" type="button" data-live-detect="left"><span class="answer-glyph" aria-hidden="true">&#9664;</span><span>Vehicle from the left</span></button>
@@ -786,6 +794,11 @@
             <input type="checkbox" id="debugToggle" />
             Show user times vs reference at replay start
           </label>
+          <details id="gestureLogWrap">
+            <summary>Gestures the answer screens received</summary>
+            <p class="setup-note">For checking screen readers on a phone: the last gestures, newest last, with where they came from (touch, native area, click, key) and how long the finger was down in milliseconds.</p>
+            <pre class="gesture-log" id="gestureLog" aria-live="off">None yet.</pre>
+          </details>
         </div>
       </div>
     </div>

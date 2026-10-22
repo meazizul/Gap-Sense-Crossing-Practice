@@ -86,3 +86,34 @@ export async function swipeOn(page, selector, { dx = 0, dy = 0 } = {}) {
   if (dx || dy) await page.mouse.move(x + dx, y + dy, { steps: 4 });
   await page.mouse.up();
 }
+
+/*
+ * Build 14: with swipes on (the default) the pads have no buttons; the whole
+ * pad is the swipe area. These answer the way a student would: a swipe or a
+ * tap on the area, or the button when the instructor set buttons only.
+ */
+export async function answerOn(page, answer) {
+  const buttons = page.locator("#answerOverlay .answer-grid");
+  if (await buttons.isVisible()) {
+    await page.click(`#answerOverlay .answer-btn[data-answer='${answer}']`);
+    return;
+  }
+  const dy = answer === "longer" ? -160 : answer === "shorter" ? 160 : 0;
+  await swipeOn(page, "#answerSurface", { dy });
+}
+
+/** Street pad gestures: left/right (vehicle detected), tap (it passed), down (never came). */
+export async function streetGesture(page, kind) {
+  const detect = page.locator("#liveDetectButtons");
+  const arrive = page.locator("#liveArriveButtons");
+  if (kind === "left" || kind === "right") {
+    if (await detect.isVisible()) { await page.click(`[data-live-detect='${kind}']`); return; }
+    await swipeOn(page, "#liveSurface", { dx: kind === "left" ? -160 : 160 });
+    return;
+  }
+  if (await arrive.isVisible()) {
+    await page.click(kind === "down" ? "#liveNeverBtn" : "#liveArrivedBtn");
+    return;
+  }
+  await swipeOn(page, "#liveSurface", { dy: kind === "down" ? 160 : 0 });
+}

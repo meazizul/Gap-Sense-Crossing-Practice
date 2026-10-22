@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openApp, setTimes, history, tick, statusText, swipeOn } from "./helpers.mjs";
+import { openApp, setTimes, history, tick, statusText, swipeOn, answerOn, streetGesture } from "./helpers.mjs";
 
 /*
  * Fixes from the 16 Oct 2026 test report on build 9: gesture timing, the
@@ -53,32 +53,32 @@ test("street: the warning time runs from the touch, not the lift, of the swipe",
   });
   expect(await page.evaluate(() => gsLiveState.phase)).toBe("arriving");
   await tick(page, 6000);
-  await page.click("#liveArrivedBtn");
+  await streetGesture(page, "tap");
   const warning = await page.evaluate(() => gsLiveState.warningSec);
   // 0.4 s of swipe plus 6 s of waiting: the swipe is part of the warning time.
   expect(warning).toBeGreaterThan(6.3);
   expect(warning).toBeLessThan(6.6);
 });
 
-test("street: Skip on the answer pad is recorded as skipped and never scored; Escape does the same", async ({ page }) => {
+test("street: Back on the answer pad is recorded as cancelled and never scored; Escape does the same", async ({ page }) => {
   await openLive(page);
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 3000);
-  await page.click("#liveArrivedBtn");
+  await streetGesture(page, "tap");
   await expect(page.locator("#answerOverlay")).toBeVisible();
-  await expect(page.locator("#answerSkipBtn")).toBeVisible();
-  await page.click("#answerSkipBtn");
+  await expect(page.locator("#answerBackBtn")).toBeVisible();
+  await page.click("#answerBackBtn");
   await expect(page.locator("#answerOverlay")).toBeHidden();
   let log = await history(page);
   expect(log).toHaveLength(1);
   expect(log[0]).toMatchObject({ activity: "live", street: "half", direction: "left", skipped: true, skip: "judgment", judged: false, correct: false });
   expect(log[0].userSec).toBeGreaterThan(2.8);
   expect(await page.evaluate(() => gsLiveState.phase)).toBe("detect");
-  expect(await statusText(page, "liveOverlayStatus")).toContain("Skipped");
+  expect(await statusText(page, "liveOverlayStatus")).toContain("Cancelled");
   // Escape on the next vehicle.
-  await page.click("[data-live-detect='right']");
+  await streetGesture(page, "right");
   await tick(page, 3000);
-  await page.click("#liveArrivedBtn");
+  await streetGesture(page, "tap");
   await expect(page.locator("#answerOverlay")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.locator("#answerOverlay")).toBeHidden();
@@ -94,15 +94,15 @@ test("street: Skip on the answer pad is recorded as skipped and never scored; Es
   expect(report).not.toContain("correct (");
 });
 
-test("street: Skip on 'how much' keeps the judgment and drops the estimate", async ({ page }) => {
+test("street: Back on 'how much' keeps the judgment and cancels the estimate", async ({ page }) => {
   await openLive(page, { "om-features": JSON.stringify({ options: { liveHowMuch: "on", liveReplay: "never" } }) });
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 6000);
-  await page.click("#liveArrivedBtn");
-  await page.click("#answerOverlay .answer-btn[data-answer='longer']");
+  await streetGesture(page, "tap");
+  await answerOn(page, "longer");
   await tick(page, 1300);
   await expect(page.locator("#howMuchOverlay")).toBeVisible();
-  await page.click("#howMuchSkipBtn");
+  await page.click("#howMuchBackBtn");
   await expect(page.locator("#howMuchOverlay")).toBeHidden();
   const log = await history(page);
   expect(log).toHaveLength(2);
@@ -127,15 +127,15 @@ test("street: the instructor can make the confirmation vibration only", async ({
     const real = window.hapticCue;
     window.hapticCue = (c, ...a) => { window.__cues.push(c); return real(c, ...a); };
   });
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 2000);
-  await page.click("#liveArrivedBtn");
+  await streetGesture(page, "tap");
   expect(await page.evaluate(() => window.__beeps)).toBe(0);
   expect(await page.evaluate(() => window.__cues)).toEqual(expect.arrayContaining(["start", "marker"]));
   // Default: the short sound still plays.
   await openLive(page);
   await page.evaluate(() => { window.__beeps = 0; window.playConfirmTone = () => { window.__beeps += 1; }; });
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   expect(await page.evaluate(() => window.__beeps)).toBe(1);
   await expect(page.locator("#ftLiveConfirm")).toHaveCount(1);
 });
@@ -143,7 +143,7 @@ test("street: the instructor can make the confirmation vibration only", async ({
 test("street: the screen is kept awake while a pad is open, and a hidden app drops the vehicle", async ({ page }) => {
   await openLive(page);
   expect(await page.evaluate(() => window.__wake.requests)).toBe(1);
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 1000);
   // The phone locks or another app comes to the front.
   await page.evaluate(() => {
@@ -158,11 +158,11 @@ test("street: the screen is kept awake while a pad is open, and a hidden app dro
     Object.defineProperty(document, "hidden", { value: false, configurable: true });
     Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
   });
-  await page.click("#liveDoneBtn");
+  await page.click("#liveBackBtn");
   expect(await page.evaluate(() => window.__wake.releases)).toBe(1);
 });
 
-test("comparison practice: Skip drops the trial unrecorded; a hidden app cancels it too", async ({ page }) => {
+test("comparison practice: Back records the trial as cancelled; a hidden app cancels it too", async ({ page }) => {
   await openApp(page);
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => gsShowScreen("compare"));
@@ -174,7 +174,7 @@ test("comparison practice: Skip drops the trial unrecorded; a hidden app cancels
   expect(log).toHaveLength(1);
   expect(log[0]).toMatchObject({ activity: "compare", skipped: true, skip: "judgment", correct: false });
   expect(await page.evaluate(() => gsCompareState.phase)).toBe("idle");
-  expect(await statusText(page, "compareStatusText")).toContain("Skipped");
+  expect(await statusText(page, "compareStatusText")).toContain("Cancelled");
   // Out of the score, the summary and the adaptive lane.
   await expect(page.locator("#compareScore")).toContainText("No attempts yet");
   expect(await page.evaluate(() => gsSummary().total)).toBe(0);
@@ -221,7 +221,7 @@ test("preparation: the headphone delay is taken off the measured time, and scree
   expect(log[0].userSec).toBeCloseTo(8.55, 1);
   expect(await page.evaluate(() => window.__cues)).toContain("reference_bad");
   await tick(page, 12000);
-  expect(await statusText(page, "signalStatusText")).toContain("Outside the margin");
+  expect(await statusText(page, "signalStatusText")).toBe("Ready for another.");
   // Stopped 0.6 s early as measured: 0.8 s early in truth, outside as well.
   await page.evaluate(() => { window.__cues = []; gsSignalState.phase = "timing"; gsSignalResolve(7.4); });
   log = await history(page);
@@ -285,7 +285,7 @@ test("iPhone app: Back asks the native player to stop, and pads toggle the idle 
   await page.evaluate(() => gsShowScreen("live"));
   await page.click("#liveStartBtn");
   expect(await page.evaluate(() => window.__native.keepAwake)).toEqual([true]);
-  await page.click("#liveDoneBtn");
+  await page.click("#liveBackBtn");
   expect(await page.evaluate(() => window.__native.keepAwake)).toEqual([true, false]);
   await page.evaluate(() => { gsShowScreen("signal"); gsShowScreen("home"); });
   expect(await page.evaluate(() => window.__native.stopSound)).toBeGreaterThan(0);

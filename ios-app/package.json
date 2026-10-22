@@ -14,11 +14,14 @@
     "@capacitor/android": "^7.6.9",
     "@capacitor/app": "^7.0.0",
     "@capacitor/core": "^7.0.0",
+    "@capacitor/filesystem": "^7.1.9",
     "@capacitor/haptics": "^7.0.0",
     "@capacitor/ios": "^7.0.0",
+    "@capacitor/preferences": "^7.0.4",
     "@capacitor/share": "^7.0.4",
     "@capacitor/splash-screen": "^7.0.0",
-    "@capacitor/status-bar": "^7.0.0"
+    "@capacitor/status-bar": "^7.0.0",
+    "qrcode-generator": "^1.5.2"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0",

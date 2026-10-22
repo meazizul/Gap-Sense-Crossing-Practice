@@ -22,12 +22,12 @@ for (const size of [{ width: 844, height: 390 }, { width: 667, height: 375 }]) {
     await setTimes(page, "4", "8", "0.4");
     await page.evaluate(() => { gsShowScreen("live"); document.getElementById("liveStartBtn").click(); });
     await tick(page, 100);
-    expect(await reachable(page, "#liveDoneBtn, #liveDetectButtons .answer-btn")).toEqual([true, true, true]);
+    expect(await reachable(page, "#liveBackBtn, #liveSurface")).toEqual([true, true]);
     await page.evaluate(() => gsLiveDetect("left"));
-    expect(await reachable(page, "#liveArriveButtons .answer-btn")).toEqual([true, true]);
+    expect(await reachable(page, "#liveBackBtn, #liveSurface")).toEqual([true, true]);
     await page.evaluate(() => gsLiveArrived());
     await tick(page, 100);
-    expect(await reachable(page, "#answerSkipBtn, #answerOverlay .answer-btn")).toEqual([true, true, true, true]);
+    expect(await reachable(page, "#answerBackBtn, #answerSurface")).toEqual([true, true]);
   });
 }
 
@@ -36,12 +36,12 @@ test("bug 28: with the answer pad over the street pad, only the answer pad can b
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => { gsShowScreen("live"); document.getElementById("liveStartBtn").click(); gsLiveDetect("left"); gsLiveArrived(); });
   expect(await page.evaluate(() => document.getElementById("liveOverlay").inert)).toBe(true);
-  await page.focus("#answerOverlay .answer-btn[data-answer='shorter']");
+  await page.focus("#answerSurface");
   for (let i = 0; i < 4; i += 1) {
     await page.keyboard.press("Tab");
     expect(await page.evaluate(() => document.getElementById("liveOverlay").contains(document.activeElement))).toBe(false);
   }
-  await page.click("#answerSkipBtn");
+  await page.click("#answerBackBtn");
   expect(await page.evaluate(() => document.getElementById("liveOverlay").inert)).toBe(false);
   expect(await page.evaluate(() => document.getElementById("liveOverlay").contains(document.activeElement))).toBe(true);
 });
@@ -99,7 +99,7 @@ test("bug 31: changing street during a replay, or leaving the street pad, stops 
     gsReplayJudgment({ sampleSec: 5, crossingSec: 4, startDelaySec: 0.3 });
   });
   expect(await page.evaluate(() => scheduledSounds.length)).toBeGreaterThan(0);
-  await page.click("#liveDoneBtn");
+  await page.click("#liveBackBtn");
   expect(await page.evaluate(() => scheduledSounds.length)).toBe(0);
 });
 

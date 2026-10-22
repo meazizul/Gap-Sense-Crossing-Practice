@@ -230,16 +230,20 @@ there work exactly as they do with VoiceOver off: no double tap, no hunting for
 a button, and the vehicle is timed from the touch. The buttons remain for
 anyone who prefers them. On Android with TalkBack, use the buttons.
 
-### Skipping an answer
+### Backing out of an answer screen
 
-The "longer, shorter or about the same" pad and the "how much" pad both have
-a **Skip** button (Escape on a keyboard). A student who does not know is never
-made to guess. The skip is noted in the log and the report as "skipped (not
-scored)", so the instructor sees it, but it never counts as right or wrong
-and never moves a score or an adaptive margin. Skipping "how much" keeps the
-judgment already given. On Android, the system Back button or gesture does the
-same as Skip on an open pad; with no pad open it leaves the street pad, then
-goes Home, and from Home puts the app in the background.
+Every answer screen has **Back** in its top-left corner, outside the swipe
+area (Escape on a keyboard, the system Back on Android, and VoiceOver's
+two-finger scrub do the same). Back is the way out of a try that was
+interrupted or started by mistake. It is not a way to decline a judgment: a
+student who is unsure gives their best judgment. Back goes up one level. On
+"longer, shorter or about the same" it cancels the try; on "how much" it keeps
+the judgment and cancels the estimate; at the street it returns to the street
+pad for the next vehicle, and on the street pad itself it ends the session. A
+cancelled try is recorded and shown in the log and the report as "cancelled
+(not scored)", so the instructor sees it, but it never counts as right or
+wrong and never moves a score or an adaptive margin. (Design: Cindi Lashinsky,
+October 2026.)
 
 ### Sound at the street
 

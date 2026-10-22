@@ -132,6 +132,7 @@ function gsShowScreen(name) {
   }
   if (name === "shortcuts") gsRenderShortcuts();
   gsRenderSafetyNotes();
+  gsRenderOwnSoundWording();
 
   // Focus the one visible heading, so a screen reader announces where the
   // student has arrived and the next swipe reaches the first control.
@@ -357,8 +358,9 @@ function gsBindDisclaimer() {
  * Android's Back button or back gesture. With no handler, Capacitor's default
  * only steps back through web history, and this app has none, so Back did
  * nothing at all (bug 20). Back now does what the screen's own way out does:
- * closes a dialog, skips an answer pad, leaves the street pad, goes Home,
- * and only from Home leaves the app (to the background, not killed).
+ * closes a dialog, does what a pad's own Back does (one level at a time),
+ * goes Home, and only from Home leaves the app (to the background, not
+ * killed).
  */
 function gsHandleBack() {
   const dialogs = [...document.querySelectorAll("dialog")].filter((d) => d.open);
@@ -368,9 +370,8 @@ function gsHandleBack() {
     if (top.id !== "disclaimerModal") top.close();
     return "dialog";
   }
-  if (!document.getElementById("howMuchOverlay")?.hidden) { gsHowMuchPadSkip(); return "howmuch"; }
-  if (!document.getElementById("answerOverlay")?.hidden) { gsAnswerPadSkip(); return "answer"; }
-  if (!document.getElementById("liveOverlay")?.hidden) { gsLiveClose(); return "street"; }
+  // A pad's Back (tracker 13.7): the pad on top goes, one level at a time.
+  if (typeof gsPadBack === "function" && gsPadBack()) return "pad";
   if (gsCurrentScreen !== "home") { gsShowScreen("home"); return "home"; }
   const AppPlugin = window.Capacitor?.Plugins?.App;
   if (typeof AppPlugin?.minimizeApp === "function") AppPlugin.minimizeApp();
@@ -559,6 +560,30 @@ function gsClearData() {
   const note = document.getElementById("reportNote");
   if (note) note.textContent = "All practice history deleted from this device.";
   announceScreenReader("All practice history deleted.");
+}
+
+/* ============================================================
+ * Gesture log (Settings, Debug): what the pads received
+ * ============================================================ */
+
+function gsRenderGestureLog() {
+  const el = document.getElementById("gestureLog");
+  if (!el || typeof gsGestureLog === "undefined") return;
+  el.textContent = gsGestureLog.length
+    ? gsGestureLog.map((g) => `${g.at}  ${g.source.padEnd(7)} ${g.kind.padEnd(6)} ${g.extra ? `${g.extra} ms` : ""}`.trimEnd()).join("\n")
+    : "None yet.";
+}
+
+/*
+ * The replay explanations name the student's own channel: sound, or sound
+ * with flash and vibration when those are on (tracker 12.29).
+ */
+function gsRenderOwnSoundWording() {
+  const parts = ["your own sound"];
+  if (typeof visualOutputEnabled === "function" && visualOutputEnabled()) parts.push("flash");
+  if (a11ySettings.vibrate && typeof hapticsAvailable === "function" && hapticsAvailable()) parts.push("vibration");
+  const text = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} or ${parts[parts.length - 1]}`;
+  document.querySelectorAll("[data-own-sound]").forEach((el) => { el.textContent = text; });
 }
 
 /* ============================================================
@@ -765,6 +790,8 @@ function gsBindShell() {
     gsRenderHome();
     gsRenderReportControls();
   });
+  document.getElementById("gestureLogWrap")?.addEventListener("toggle", gsRenderGestureLog);
+  document.getElementById("a11yModal")?.addEventListener("close", gsRenderOwnSoundWording);
 
   gsBindSafetyNotes();
   gsBindDisclaimer();

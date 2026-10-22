@@ -941,6 +941,23 @@
       if (outsideSelection) storeSelection("outside", outsideSelection);
     }
 
+    /*
+     * Busy, not disabled (tracker 12.27). While a try or a replay plays the
+     * main button must stay focusable: a disabled control drops VoiceOver's
+     * cursor to the first item on the screen, which is Back, after every
+     * try. aria-disabled keeps the button where it is; each click handler
+     * checks gsIsBusy and ignores the press.
+     */
+    function gsSetBusy(button, busy) {
+      if (!button) return;
+      button.setAttribute("aria-disabled", String(Boolean(busy)));
+      button.classList.toggle("is-busy", Boolean(busy));
+    }
+
+    function gsIsBusy(button) {
+      return Boolean(button) && button.getAttribute("aria-disabled") === "true";
+    }
+
     /* ---------------- Setup / timing ---------------- */
     function lockSettings(lock) {
       setupControls.forEach((control) => { control.disabled = lock; });
@@ -1837,7 +1854,7 @@
       gsBeginQuiet();
       actionBtn.classList.remove("idle");
       actionBtn.classList.add("running");
-      actionBtn.disabled = true;
+      gsSetBusy(actionBtn, true);
       setActionButtonLabel("Exemplar");
       setActionButtonHint("Listen");
       const sequenceLabel = labels.join(" to ");
@@ -1872,7 +1889,7 @@
         suppressSrAnnouncements = false;
         actionBtn.classList.remove("running");
         actionBtn.classList.add("idle");
-        actionBtn.disabled = false;
+        gsSetBusy(actionBtn, false);
         setActionButtonLabel("Begin");
         setActionButtonHint("Tap when you step off");
         setActionButtonStageByLabel("");
@@ -2133,7 +2150,7 @@
       markerTimes = [];
       stage = 0;
       started = false;
-      actionBtn.disabled = false;
+      gsSetBusy(actionBtn, false);
       actionBtn.classList.remove("running");
       actionBtn.classList.add("idle");
       setActionButtonLabel("Begin");
@@ -2195,7 +2212,7 @@
       emitCue("marker", { stageLabel: markedLabel, skipBanner: true });
 
       if (stage >= modes[currentMode].labels.length) {
-        actionBtn.disabled = true;
+        gsSetBusy(actionBtn, true);
         setActionButtonLabel("Replay");
         setActionButtonHint("Listen");
         setStatus("Replaying your markers and the reference.");
@@ -2335,7 +2352,7 @@
      * unlocked it. This also stops a replay that is still playing.
      */
     function cancelPractice() {
-      const busy = started || actionBtn.disabled || suppressSrAnnouncements;
+      const busy = started || gsIsBusy(actionBtn) || suppressSrAnnouncements;
       clearTimeout(replayTimeout);
       if (busy) resetState("Ready.");
     }
@@ -2498,6 +2515,9 @@
 
     /* ---------------- Event wiring ---------------- */
     actionBtn.addEventListener("click", () => {
+      // A press during the replay or an exemplar does nothing; the button is
+      // busy, not disabled, so VoiceOver keeps its place on it.
+      if (gsIsBusy(actionBtn)) return;
       ensureAudioContext();
       if (!started) startTimestamp = performance.now();
       recordMarker();
@@ -2918,7 +2938,7 @@
       // disabled while a replay or exemplar plays.
       if (document.hidden && typeof cancelPractice === "function") {
         const running = typeof started !== "undefined" && started;
-        const busy = running || (typeof actionBtn !== "undefined" && actionBtn.disabled);
+        const busy = running || (typeof actionBtn !== "undefined" && gsIsBusy(actionBtn));
         if (busy) {
           cancelPractice();
           if (typeof stopAllSound === "function") stopAllSound();

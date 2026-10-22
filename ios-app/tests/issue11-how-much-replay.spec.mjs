@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openApp, setTimes, history, tick, waitUntil } from "./helpers.mjs";
+import { openApp, setTimes, history, tick, waitUntil, answerOn, streetGesture } from "./helpers.mjs";
 
 /*
  * GitHub issue 11 (Cindi, build 13 website): in the Combined replay after a
@@ -47,6 +47,7 @@ async function openCompare(page) {
   await openApp(page, { storage: { "om-compareFollowUp": "true" } });
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => gsShowScreen("compare"));
+  await page.click("input[name='compareStreet'][value='full']");   // build 14: First half is the default (F6)
 }
 
 async function playUntilAnswering(page) {
@@ -63,7 +64,7 @@ async function compareReplay(page, roll, answer, estimateMs) {
   await page.evaluate((r) => { Math.random = () => r; }, roll);
   await playUntilAnswering(page);
   const { crossingSec, sampleSec } = await page.evaluate(() => ({ crossingSec: gsCompareState.crossingSec, sampleSec: gsCompareState.intervalSec }));
-  await page.click(`#answerOverlay .answer-btn[data-answer='${answer}']`);
+  await answerOn(page, answer);
   await tick(page, 1300);
   await expect(page.locator("#howMuchOverlay")).toBeVisible();
   await recordSounds(page);
@@ -120,12 +121,12 @@ test("issue 11, At the street: the combined replay after a real vehicle plays th
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => gsShowScreen("live"));
   await page.click("#liveStartBtn");
-  await page.click("[data-live-detect='left']");
+  await streetGesture(page, "left");
   await tick(page, 6000);
-  await page.click("#liveArrivedBtn");
+  await streetGesture(page, "tap");
   const { warningSec, crossingSec, category } = await page.evaluate(() => ({ warningSec: gsLiveState.warningSec, crossingSec: gsLiveState.crossingSec, category: gsLiveState.category }));
   expect(["longer", "shorter"]).toContain(category);
-  await page.click(`#answerOverlay .answer-btn[data-answer='${category}']`);
+  await answerOn(page, category);
   await tick(page, 1300);
   await expect(page.locator("#howMuchOverlay")).toBeVisible();
   await recordSounds(page);

@@ -147,7 +147,7 @@ test("preparation: the replay repeats the verdict already given, latency allowan
   expect(cues).toContain("reference_ok");
   expect(cues).not.toContain("reference_bad");
   await tick(page, 12000);
-  expect(await statusText(page, "signalStatusText")).toContain("Within the margin");
+  expect(await statusText(page, "signalStatusText")).toBe("Ready for another.");
 
   // The replay helper on its own: told the verdict, it uses it.
   const direct = await page.evaluate(() => {

@@ -49,11 +49,11 @@ test("bug 16: hidden during 'how much', the screen says the answer was saved", a
   expect(status).not.toContain("not recorded");
 });
 
-test("bug 17: the Skip buttons say a skip is noted, not that nothing is recorded", async ({ page }) => {
+test("bug 17 (build 14: Skip became Back): the pads' Back buttons are named Back and never say nothing is recorded", async ({ page }) => {
   await openApp(page);
-  for (const id of ["#answerSkipBtn", "#howMuchSkipBtn"]) {
+  for (const id of ["#answerBackBtn", "#howMuchBackBtn", "#liveBackBtn"]) {
     const label = await page.getAttribute(id, "aria-label");
-    expect(label).toContain("Noted as skipped");
+    expect(label).toMatch(/^Back/);
     expect(label).not.toContain("nothing");
   }
 });
@@ -146,7 +146,7 @@ test("bug 22: a stay-awake lock granted after the pad closed is released", async
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => { gsShowScreen("live"); document.getElementById("liveStartBtn").click(); });
   await tick(page, 100);
-  await page.click("#liveDoneBtn");
+  await page.click("#liveBackBtn");
   await tick(page, 1000);
   expect(await page.evaluate(() => window.__held)).toBe(0);
 });
@@ -181,23 +181,23 @@ test("bug 24: at 300% text on a small phone, every answer, Skip and Done can be 
     const onScreen = r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth;
     return onScreen && el.contains(document.elementFromPoint(x, y));
   }), sel);
-  expect(await reachable("#liveDoneBtn, #liveDetectButtons .answer-btn")).toEqual([true, true, true]);
+  // Build 14: with swipes on the whole pad is the swipe area; Back and the area are the controls.
+  expect(await reachable("#liveBackBtn, #liveSurface")).toEqual([true, true]);
   await page.evaluate(() => { gsLiveDetect("left"); gsLiveArrived(); });
   await tick(page, 100);
-  expect(await reachable("#answerSkipBtn, #answerOverlay .answer-btn")).toEqual([true, true, true, true]);
+  expect(await reachable("#answerBackBtn, #answerSurface")).toEqual([true, true]);
 });
 
-test("bug 25: Skip stays on one line", async ({ page }) => {
+test("bug 25 (build 14): Back is a square button in the top-left corner, large enough to hit", async ({ page }) => {
   await openApp(page);
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => { gsShowScreen("live"); document.getElementById("liveStartBtn").click(); gsLiveDetect("left"); gsLiveArrived(); });
-  const lines = await page.evaluate(() => {
-    const b = document.getElementById("answerSkipBtn");
-    const lh = parseFloat(getComputedStyle(b).lineHeight) || 20;
-    const pad = parseFloat(getComputedStyle(b).paddingTop) + parseFloat(getComputedStyle(b).paddingBottom);
-    return Math.round((b.clientHeight - pad) / lh);
-  });
-  expect(lines).toBeLessThanOrEqual(1);
+  const box = await page.evaluate(() => { const r = document.getElementById("answerBackBtn").getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; });
+  expect(box.left).toBeLessThan(40);
+  expect(box.top).toBeLessThan(80);
+  expect(box.width).toBeGreaterThanOrEqual(44);
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  const lines = 1;
 });
 
 test("bug 26: High contrast keeps a dark theme dark, and the Settings title readable", async ({ page }) => {

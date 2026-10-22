@@ -16,7 +16,7 @@ test("practice logs a within-margin attempt, shows a score line, and unlocks set
   await expect(page.locator("#settingsTrigger")).toBeDisabled();
   await tick(page, 4000);                                // exactly the half-street time
   await page.click("#actionBtn");                       // Mark (Halfway)
-  await expect(page.locator("#actionBtn")).toBeDisabled();
+  await expect(page.locator("#actionBtn")).toHaveAttribute("aria-disabled", "true");   // busy, never disabled (12.27)
   await tick(page, 8000);                                // replay lead-in + replay + pad
 
   const log = await history(page);
@@ -25,7 +25,7 @@ test("practice logs a within-margin attempt, shows a score line, and unlocks set
   expect(Math.abs(log[0].userSec - 4)).toBeLessThan(0.05);
   await expect(page.locator("#practiceScore")).toHaveText("Last 1: 1 within margin · margin 0.40s");
   await expect(page.locator("#settingsTrigger")).toBeEnabled();
-  await expect(page.locator("#actionBtn")).toBeEnabled();
+  await expect(page.locator("#actionBtn")).toHaveAttribute("aria-disabled", "false");
   expect(errors).toEqual([]);
 });
 

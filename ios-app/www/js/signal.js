@@ -27,7 +27,7 @@
 const gsSignalTimers = [];
 
 const gsSignalState = {
-  street: "full",
+  street: "half", // First half first (Cindi, Oct 20 2026; tracker F6)
   phase: "idle",   // idle | ready | waiting | timing | replaying
   signalAt: 0,
   style: "continuous",
@@ -85,7 +85,7 @@ function gsSignalUpdateButton() {
   const hint = document.getElementById("signalBtnHint");
   if (!btn || !label) return;
   btn.classList.remove("running", "stage-start", "stage-finish", "idle");
-  btn.disabled = false;
+  gsSetBusy(btn, false);
 
   const phase = gsSignalState.phase;
   if (phase === "ready" || phase === "waiting") {
@@ -108,7 +108,9 @@ function gsSignalUpdateButton() {
     label.textContent = "LISTEN";
     if (hint) hint.textContent = "Replaying";
     btn.classList.add("running");
-    btn.disabled = true;
+    // Busy, not disabled: the cursor stays on the button through the replay
+    // (tracker 12.27).
+    gsSetBusy(btn, true);
     btn.setAttribute("aria-label", "Replaying.");
     return;
   }
@@ -255,7 +257,9 @@ function gsSignalResolve(producedSec) {
   gsSignalState.phase = "replaying";
   gsSignalUpdateButton();
   suppressSrAnnouncements = false;
-  gsSignalStatus("Replaying: the sound, your press, and where your crossing time ends.");
+  // The chime or the pulse at the crossing time, and the replay, carry the
+  // result; nothing is said before or about it (tracker 12.29).
+  gsSignalStatus("", "neutral", { announce: false });
   gsBeginQuiet();
 
   const doneAt = gsReplayProduction({
@@ -270,7 +274,7 @@ function gsSignalResolve(producedSec) {
     suppressSrAnnouncements = false;
     gsSignalState.phase = "idle";
     gsSignalUpdateButton();
-    gsSignalStatus(within ? "Within the margin. Ready for another." : "Outside the margin. Ready for another.", within ? "ok" : "warn");
+    gsSignalStatus("Ready for another.");
   }, doneAt + 0.2);
 }
 

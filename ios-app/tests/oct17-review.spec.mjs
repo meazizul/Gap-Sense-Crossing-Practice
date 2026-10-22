@@ -120,9 +120,9 @@ test("bug 16: hidden during 'how much', the app does not say the recorded answer
 
 test("bug 17: the Skip buttons do not tell screen reader users that nothing is recorded", async ({ page }) => {
   await openApp(page);
-  for (const id of ["#answerSkipBtn", "#howMuchSkipBtn"]) {
+  for (const id of ["#answerBackBtn", "#howMuchBackBtn"]) {
     const name = (await page.getAttribute(id, "aria-label")) || (await page.locator(id).innerText());
-    expect(name).toMatch(/skip/i);
+    expect(name).toMatch(/^back/i);                      // build 14: Skip became Back
     expect(name).not.toMatch(/nothing/i);
   }
 });
@@ -201,7 +201,7 @@ test("bug 22: a stay-awake lock granted after the pad closed is released", async
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => { gsShowScreen("live"); document.getElementById("liveStartBtn").click(); });
   await tick(page, 100);
-  await page.click("#liveDoneBtn");
+  await page.click("#liveBackBtn");
   await tick(page, 1000);
   expect(await page.evaluate(() => window.__held)).toBe(0);
 });
@@ -235,26 +235,24 @@ for (const view of [
     await setTimes(page, "4", "8", "0.4");
     await page.evaluate(() => { gsShowScreen("live"); document.getElementById("liveStartBtn").click(); });
     await tick(page, 100);
-    expect(await reachable(page, "#liveDoneBtn, #liveDetectButtons .answer-btn")).toEqual([true, true, true]);
+    expect(await reachable(page, "#liveBackBtn, #liveSurface")).toEqual([true, true]);
     await page.evaluate(() => gsLiveDetect("left"));
     await tick(page, 50);
-    expect(await reachable(page, "#liveArriveButtons .answer-btn")).toEqual([true, true]);
+    expect(await reachable(page, "#liveBackBtn, #liveSurface")).toEqual([true, true]);
     await page.evaluate(() => gsLiveArrived());
     await tick(page, 100);
-    expect(await reachable(page, "#answerSkipBtn, #answerOverlay .answer-btn")).toEqual([true, true, true, true]);
+    expect(await reachable(page, "#answerBackBtn, #answerSurface")).toEqual([true, true]);
   });
 }
 
-test("bug 25: Skip shows its word on one line", async ({ page }) => {
+test("bug 25 (build 14): Back is one square control in the top-left corner of the pad", async ({ page }) => {
   await openApp(page);
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => { gsShowScreen("live"); document.getElementById("liveStartBtn").click(); gsLiveDetect("left"); gsLiveArrived(); });
-  const lines = await page.evaluate(() => {
-    const range = document.createRange();
-    range.selectNodeContents(document.getElementById("answerSkipBtn"));
-    return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
-  });
-  expect(lines).toBe(1);
+  const box = await page.evaluate(() => { const r = document.getElementById("answerBackBtn").getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; });
+  expect(box.left).toBeLessThan(40);
+  expect(box.top).toBeLessThan(80);
+  expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
 });
 
 for (const theme of ["dark", "inverted"]) {
@@ -293,7 +291,7 @@ test("bug 28: with the answer pad over the street pad, keyboard focus never reac
   await openApp(page);
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => { gsShowScreen("live"); document.getElementById("liveStartBtn").click(); gsLiveDetect("left"); gsLiveArrived(); });
-  await page.focus("#answerOverlay .answer-btn[data-answer='shorter']");
+  await page.focus("#answerSurface");
   for (let i = 0; i < 4; i += 1) {
     await page.keyboard.press("Tab");
     expect(await page.evaluate(() => document.getElementById("liveOverlay").contains(document.activeElement))).toBe(false);
@@ -352,7 +350,7 @@ test("bug 31: changing street during a replay, or Done at the street, stops sche
     gsReplayJudgment({ sampleSec: 5, crossingSec: 4, startDelaySec: 0.3 });
   });
   expect(await page.evaluate(() => scheduledSounds.length)).toBeGreaterThan(0);
-  await page.click("#liveDoneBtn");
+  await page.click("#liveBackBtn");
   expect(await page.evaluate(() => scheduledSounds.length)).toBe(0);
 });
 

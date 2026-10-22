@@ -33,16 +33,19 @@ class MainViewController: CAPBridgeViewController {
 ///   sustainStop({ id })
 ///   stopSound()        silence every tone now
 ///   keepAwake({ on })  keep the screen on while a pad is open
-///   directTouchShow({ x, y, width, height, label })
+///   directTouchShow({ x, y, width, height, label, hint, focus })
 ///                      lay a native direct-touch area over the page at that
 ///                      rectangle (CSS px). With VoiceOver on, touches there
 ///                      reach the app unchanged, so swipes and taps work the
-///                      same as without VoiceOver (build 12).
-///   directTouchHide()  remove it
-///   Event "directTouch" { kind: tap|up|down|left|right, durationMs, dx, dy }
+///                      same as without VoiceOver (build 12). With focus,
+///                      VoiceOver's cursor is moved onto the area (build 14).
+///   directTouchHide()  take it out of the view tree and tell VoiceOver
+///   Event "directTouch" { kind: tap|up|down|left|right|escape, durationMs, dx, dy }
+///                      "escape" is VoiceOver's two-finger scrub on the area
 ///   audioStatus()      engine, session category, phone volume, route, peak
 ///   speak({ text, rate, interrupt })  resolves when the speech ends
 ///   stopSpeaking()
+///   canOpen({ scheme })  whether a mail (mailto) or messaging (sms) app can open
 ///   pendingScreen()    the activity a Siri / Shortcuts request asked for, if any
 ///   log({ message })   write to the device log (diagnostics)
 ///
@@ -66,6 +69,7 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "keepAwake", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "directTouchShow", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "directTouchHide", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "canOpen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "log", returnType: CAPPluginReturnPromise)
     ]
 
@@ -173,40 +177,66 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     /// directTouchShow: a native view marked for direct interaction, placed
-    /// over the pad's gesture area. VoiceOver passes touches inside it straight
+    /// over the pad's swipe area. VoiceOver passes touches inside it straight
     /// to the app (the student turns Direct Touch on for Gap Sense once), so a
     /// swipe at the curb is the same swipe with VoiceOver on or off. Without
     /// VoiceOver it simply forwards the same gestures.
+    ///
+    /// Build 14 (tracker 12.28, 13.2, 13.3, 13.6): VoiceOver keeps its own
+    /// picture of the screen and has to be told when the area appears, moves,
+    /// changes its label or goes. Every change posts a layout-changed
+    /// notification; with `focus` the notification carries the area, which
+    /// moves the VoiceOver cursor onto it, so the area's label is read first
+    /// and the very first tap or swipe already reaches the app.
     @objc func directTouchShow(_ call: CAPPluginCall) {
         let x = CGFloat(call.getDouble("x") ?? 0)
         let y = CGFloat(call.getDouble("y") ?? 0)
         let width = CGFloat(call.getDouble("width") ?? 0)
         let height = CGFloat(call.getDouble("height") ?? 0)
         let label = call.getString("label") ?? "Gesture area"
+        let hint = call.getString("hint") ?? "Direct touch area. Swipe or tap here as you would without VoiceOver."
+        let focus = call.getBool("focus") ?? false
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let webView = self.bridge?.webView else { call.resolve(["shown": false]); return }
+            if width < 1 || height < 1 {
+                self.removeDirectTouch()
+                call.resolve(["shown": false])
+                return
+            }
             if self.directTouch == nil {
                 let view = GSDirectTouchView(frame: .zero)
                 view.onGesture = { [weak self] kind, durationMs, dx, dy in
                     self?.notifyListeners("directTouch", data: ["kind": kind, "durationMs": durationMs, "dx": dx, "dy": dy])
                 }
-                webView.addSubview(view)
                 self.directTouch = view
             }
             guard let view = self.directTouch else { call.resolve(["shown": false]); return }
+            if view.superview !== webView { webView.addSubview(view) }
             view.frame = CGRect(x: x, y: y, width: width, height: height)
             view.accessibilityLabel = label
-            view.isHidden = width < 1 || height < 1
+            view.accessibilityHint = hint
+            view.isHidden = false
             webView.bringSubviewToFront(view)
-            call.resolve(["shown": !view.isHidden])
+            // Tell VoiceOver. With focus the cursor moves onto the area.
+            UIAccessibility.post(notification: .layoutChanged, argument: focus ? view : nil)
+            call.resolve(["shown": true, "focused": focus])
         }
     }
 
+    /// directTouchHide: the area leaves the view tree, so no invisible area
+    /// can stay over the next screen, and VoiceOver is told the layout changed.
     @objc func directTouchHide(_ call: CAPPluginCall) {
         DispatchQueue.main.async { [weak self] in
-            self?.directTouch?.isHidden = true
+            self?.removeDirectTouch()
             call.resolve()
         }
+    }
+
+    private func removeDirectTouch() {
+        guard let view = directTouch, view.superview != nil || !view.isHidden else { return }
+        view.isHidden = true
+        view.removeFromSuperview()
+        UIAccessibility.post(notification: .layoutChanged, argument: nil)
     }
 
     /// keepAwake({ on }): stop the phone from locking while a full-screen pad
@@ -215,6 +245,18 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
         let on = call.getBool("on") ?? false
         DispatchQueue.main.async { UIApplication.shared.isIdleTimerDisabled = on }
         call.resolve()
+    }
+
+    /// canOpen({ scheme }): whether an app is set up for mailto: or sms:, so
+    /// "Email to my instructor" is only offered when a mail app can open
+    /// (tracker 12.38). The schemes are listed in Info.plist.
+    @objc func canOpen(_ call: CAPPluginCall) {
+        let scheme = call.getString("scheme") ?? "mailto"
+        let probe = scheme == "sms" ? "sms:" : "mailto:test@example.com"
+        guard let url = URL(string: probe) else { call.resolve(["canOpen": false]); return }
+        DispatchQueue.main.async {
+            call.resolve(["canOpen": UIApplication.shared.canOpenURL(url)])
+        }
     }
 
     @objc func pendingScreen(_ call: CAPPluginCall) {
@@ -606,5 +648,12 @@ final class GSDirectTouchView: UIView {
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         trackedTouch = nil
         startPoint = nil
+    }
+
+    /// VoiceOver's two-finger scrub ("go back") on the area: the page does
+    /// what the pad's Back button does (tracker 13.7).
+    override func accessibilityPerformEscape() -> Bool {
+        onGesture?("escape", 0, 0, 0)
+        return true
     }
 }
