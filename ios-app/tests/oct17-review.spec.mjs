@@ -407,6 +407,7 @@ test("bug 35: after deleting history, the old report can no longer be sent", asy
     gsPreviewReport();
     gsClearData();
   });
+  await page.click("#confirmDeleteHistoryBtn");   // build 15 (14.2): the warning comes first
   expect(await page.evaluate(() => document.getElementById("reportPreview").value)).not.toContain("Practice my timing");
 });
 

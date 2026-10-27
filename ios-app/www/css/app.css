@@ -1001,6 +1001,14 @@ html { background: var(--bg); min-height: 100%; }
       border-color: var(--outline);
     }
 
+    /* A destructive action (Delete history, tracker 14.2): the warning colour
+       and the word, never the colour alone. */
+    .settings-action.danger {
+      border-color: var(--warn);
+      color: var(--warn);
+      background: var(--surface);
+    }
+
     .preview-btn:disabled,
     .settings-action:disabled,
     .sound-option button:disabled { opacity: 0.55; cursor: not-allowed; }

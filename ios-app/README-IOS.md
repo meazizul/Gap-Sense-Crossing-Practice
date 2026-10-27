@@ -68,6 +68,18 @@ npx cap sync         # copies www/ and updates native plugins for iOS and Androi
 | SplashScreen | The launch screen |
 | StatusBar | Status bar style matching the theme |
 
+### Gap Sense's own Android plugin (`android/app/src/main/java/.../GSAndroidPlugin.java`)
+
+- **Window background.** Android 15 and 16 draw the app edge to edge, and
+  Capacitor keeps the page clear of the status and navigation bars by adding
+  margins (`adjustMarginsForEdgeToEdge: "auto"` in `capacitor.config.json`).
+  The window background shows in those margins, so the page passes its own
+  background colour to `setWindowBackground` whenever the theme is applied,
+  and the status bar icons stay readable on light and dark themes. The window
+  starts in the system's light or dark colour (`styles.xml`).
+- The Android app targets Android 16 (API 36), which Google Play requires
+  (`variables.gradle`); the Android Gradle plugin is 8.9.1.
+
 ### Gap Sense's own iOS plugin (`ios/App/App/GapSenseNative.swift`)
 
 - **Haptics.** One Core Haptics engine is created once and kept. It plays

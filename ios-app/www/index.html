@@ -374,7 +374,7 @@
 
       <section class="card">
         <h2 class="card-label">My data</h2>
-        <p class="field-help">Everything stays on this device. Deleting is permanent.</p>
+        <p class="field-help" id="myDataNote">Kept on this phone, and in your phone's own backup if it is on.</p>
         <button class="settings-action" id="clearDataBtn" type="button">Delete all my practice history</button>
       </section>
     </section>
@@ -954,6 +954,25 @@
         <p class="field-help">Using the installed Gap Sense app? Open the setup there too.</p>
         <a class="settings-action primary link-button" id="openInAppLink" href="gapsense://setup">Open in the Gap Sense app</a>
         <button class="settings-action" type="button" id="openInAppClose">Keep using it here</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ============ DELETE ALL MY PRACTICE HISTORY: the warning comes first (tracker 14.2) ============ -->
+  <dialog id="deleteHistoryModal" aria-labelledby="deleteHistoryTitle" aria-describedby="deleteHistoryText" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="deleteHistoryTitle" tabindex="-1">Delete all your practice history?</h2>
+      </div>
+      <div class="setup">
+        <div class="setup-group" id="deleteHistoryText">
+          <p class="field-help">This deletes every try you have recorded. It cannot be undone.</p>
+          <p class="field-help" id="deleteHistoryWhere">It is deleted from this phone now, and from your phone's backup at its next backup.</p>
+          <p class="field-help">Your settings, crossing times and instructor setup stay.</p>
+          <p class="field-help">To keep a copy of your practice, send or export a report first.</p>
+        </div>
+        <button class="settings-action primary" type="button" id="cancelDeleteHistoryBtn">Cancel</button>
+        <button class="settings-action danger" type="button" id="confirmDeleteHistoryBtn">Delete history</button>
       </div>
     </div>
   </dialog>

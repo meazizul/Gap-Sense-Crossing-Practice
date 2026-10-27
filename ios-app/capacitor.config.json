@@ -6,6 +6,9 @@
     "contentInset": "never",
     "backgroundColor": "#0F766E"
   },
+  "android": {
+    "adjustMarginsForEdgeToEdge": "auto"
+  },
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 800,

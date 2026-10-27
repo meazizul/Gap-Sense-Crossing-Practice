@@ -460,9 +460,20 @@ before attempting it. There is one per mode.
 
 ## 6. Where the settings live
 
-Everything persists on the device in `localStorage` under `om-*` keys. There is
-no account, no sync, and no server. Clearing browser data (or deleting the app)
-resets everything.
+Everything persists on the device in `localStorage` under `om-*` keys, with a
+durable copy in the phone's native storage (`store.js`, build 14). Both are
+included in the phone's own backup (iCloud Backup, Android Backup) when it is
+on. There is no app account and no server. Clearing browser data resets the web
+version; deleting the app removes its data from the phone.
+
+**Delete all my practice history** (Progress, My data; build 15, tracker 14.2
+and 14.4) opens a confirmation dialog first: Cancel comes before Delete
+history, the heading is focused for VoiceOver, and the text says where the
+history is deleted from (this phone now, the phone's backup at its next
+backup; the browser on the web). Only Delete history deletes, and only the
+history: settings, crossing times and instructor setup stay. The emptied
+history is written to the durable copy at once (`gsStore.clearHistoryNow`),
+so it cannot be restored on the next start.
 
 ---
 
@@ -499,7 +510,11 @@ gets squashed, not louder. Values above `1` in `TEST_TUNING` do the same thing.
 - **Native shell** (Capacitor). On iOS, `GapSenseNative.swift` adds a haptics
   plugin with one long-lived Core Haptics engine, the Siri App Shortcuts, and
   `gapsense://` link handling. Android declares the same link scheme and four
-  launcher shortcuts.
+  launcher shortcuts, and (build 15) `GSAndroidPlugin` gives the window the
+  page's background colour, so the edge-to-edge strips above and below the
+  page on Android 15 and 16 match the theme. The iPhone app ships a privacy
+  manifest (`PrivacyInfo.xcprivacy`: no tracking, no data collected, the
+  UserDefaults and file-timestamp APIs declared).
 - **Audio** is synthesized on demand. In the iPhone app the native player
   (`GapSenseAudio.swift`) plays it, so the silent switch cannot mute it. In
   the browser and on Android it is the Web Audio API, scheduled on the

@@ -152,7 +152,10 @@ test("bug 35: deleting history clears the report preview", async ({ page }) => {
     gsPreviewReport();
   });
   expect(await page.evaluate(() => document.getElementById("reportPreview").value)).toContain("Practice my timing");
+  // Build 15 (14.2): the button opens a warning; the delete itself is the confirm.
   await page.evaluate(() => gsClearData());
+  expect(await page.evaluate(() => document.getElementById("reportPreview").value)).toContain("Practice my timing");
+  await page.click("#confirmDeleteHistoryBtn");
   expect(await page.evaluate(() => document.getElementById("reportPreview").value)).toBe("");
   await expect(page.locator("#reportPreviewWrap")).toBeHidden();
 });

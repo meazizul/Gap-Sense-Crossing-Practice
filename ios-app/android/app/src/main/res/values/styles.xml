@@ -13,6 +13,11 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- Build 15: the window background shows in the edge-to-edge margins
+             above and below the page until the page sets its own colour
+             (GSAndroidPlugin.setWindowBackground); follow the system theme
+             so a dark phone does not start with a white strip. -->
+        <item name="android:windowBackground">?android:attr/colorBackground</item>
     </style>
 
 

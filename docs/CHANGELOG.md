@@ -8,6 +8,83 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-27 (build 15, part 1; built and tested, not yet released) — the delete warning, the durable copy after a delete, where the data really is, the privacy manifest, Android 16
+
+The first part of build 15 takes the items from Cindi Lashinsky's tracker
+that needed no team decision. The rest of build 15 (her feature requests and
+the replay changes from the team) waits for the 28 October meeting.
+
+**Delete all my practice history asks first (tracker 14.2)**
+
+- One tap, or one VoiceOver double-tap, no longer deletes anything. It opens
+  a warning dialog built like the app's other dialogs: the heading "Delete all
+  your practice history?" is focused and read first, Cancel comes before
+  Delete history, and Delete history is marked by colour and by its word.
+  Escape, the Android Back button and closing the dialog delete nothing, and
+  focus returns to the button.
+- The text says exactly where the history goes from: on a phone, "this phone
+  now, and your phone's backup at its next backup"; on the web, "this
+  browser". It also says what stays (settings, crossing times, instructor
+  setup) and suggests sending or exporting a report first.
+- After the delete, the message names the same places. Design: Cindi, 24
+  October 2026.
+
+**Deleted history cannot come back (tracker 14.4)**
+
+- Build 14's durable copy was rewritten 400 ms after a change, and never by
+  an empty app, so a delete with no crossing times saved, or a delete followed
+  by closing the app at once, left the old history in the copy and the next
+  start restored it. The delete now tells the copy it is intentional and
+  writes the emptied history at once (`gsStore.clearHistoryNow`). Settings,
+  crossing times and instructor setup stay in the copy.
+
+**Where the data really is (tracker 14.1)**
+
+- The privacy policy, the Progress screen and the guides said the data stays
+  only on the phone. The phone's own backup (iCloud Backup, Backup by Google
+  One) already includes it, as it does for every app. The text now says the
+  app collects no data, and describes where the data is kept: on the phone,
+  in the phone's own backup if it is on, and only in the browser on the web.
+  The policy gains a "Deleting your data" section that says what Delete
+  removes at once and what goes at the phone's next backup. Wording: Cindi
+  and her reviewer, 24 October 2026. The opening paragraph of the policy
+  (how the app describes itself) is unchanged, pending the team's decision.
+
+**iPhone privacy manifest (tracker 14.3)**
+
+- `PrivacyInfo.xcprivacy` is added to the App target: no tracking, no
+  tracking domains, no collected data, and the two required-reason APIs the
+  app and its plugins touch, UserDefaults (CA92.1; the app's own settings and
+  the Preferences plugin) and file timestamps (C617.1; the Filesystem plugin
+  reads a file's dates). None of the Capacitor pods in use ships its own
+  manifest, so the app's manifest covers them. Verified in the built bundle.
+
+**Android 16 (tracker 14.5)**
+
+- The Android app targets and compiles against Android 16 (API 36), which
+  Google Play now requires; the Android Gradle plugin moves from 8.7.2 to
+  8.9.1. Capacitor's edge-to-edge margin adjustment is set to `auto` so the
+  header is not drawn under the status bar on Android 15 and 16.
+- The strips above and below the page that this leaves show the window
+  background, white by default, so on the dark theme the strip above the
+  header stayed white and the light status bar icons on it could not be
+  seen. A small Android plugin (`GSAndroidPlugin.setWindowBackground`) now
+  gives the window the page's own background colour whenever the theme is
+  applied, and the window starts in the system's light or dark colour.
+  Checked on an Android 16 emulator in every combination of system and app
+  theme (see the test notes).
+
+**Housekeeping**
+
+- Version 15 everywhere (web About line, Android versionCode, iOS build
+  number); the offline cache name moves to v16 so browsers pick up the new
+  files.
+- Tests: `tests/build15-delete-privacy.spec.mjs` (six tests for 14.1, 14.2
+  and 14.4); the three older delete tests now confirm the warning; the
+  simulator self-test gains eight delete checks. Playwright 212/212.
+
+---
+
 ## 2026-10-22 (build 14, built and tested; not yet released) — Cindi's VoiceOver tests of builds 12 and 13, and her feature requests
 
 Cindi Lashinsky tested builds 12 and 13 on her iPhone with VoiceOver and kept a

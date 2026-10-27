@@ -2569,6 +2569,33 @@
       } catch (error) {
         /* non-fatal */
       }
+      updateAndroidWindowBackground();
+    }
+
+    /*
+     * Android 15 and 16 draw the app edge to edge; Capacitor keeps the page
+     * clear of the status and navigation bars with margins, and the window
+     * background shows in them. It takes the page's own background colour,
+     * so the strip above the header matches the theme and the status bar
+     * icons (dark on light, light on dark) stay readable (build 15, 14.5).
+     */
+    function updateAndroidWindowBackground() {
+      const GSAndroid = CapacitorGlobal?.Plugins?.GSAndroid;
+      if (nativePlatform !== "android" || typeof GSAndroid?.setWindowBackground !== "function") return;
+      const color = cssColorToHex(getComputedStyle(document.body).backgroundColor);
+      if (!color) return;
+      try {
+        const result = GSAndroid.setWindowBackground({ color });
+        if (result && typeof result.catch === "function") result.catch(() => {});
+      } catch (error) {
+        /* non-fatal */
+      }
+    }
+
+    function cssColorToHex(value) {
+      const m = /rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(value || "");
+      if (!m) return "";
+      return `#${[m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`;
     }
 
     function restoreStoredSettings() {

@@ -112,9 +112,10 @@ recording helps most.
 
 ## Your privacy
 
-The app has no account and no sign-in. It sends nothing anywhere. Your practice
-history stays on your own phone. You can delete it at any time from
-**Progress**, then **Delete all my practice history**.
+The app has no account and no sign-in, and does not collect any data. Your
+practice history is kept on your own phone, and in your phone's own backup if
+it is on. You can delete it at any time from **Progress**, then **Delete all my
+practice history**; the app asks you to confirm first.
 
 The full privacy policy is here:
 <https://github.com/meazizul/Gap-Sense-Crossing-Practice/blob/main/PRIVACY.md>

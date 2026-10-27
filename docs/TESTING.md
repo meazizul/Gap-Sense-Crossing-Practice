@@ -410,7 +410,9 @@ Progress → **Show my report to send**.
 - [ ] **Show to my instructor** shows one or more QR codes that another phone's camera reads; Next and Previous move between codes
 - [ ] **Email to my instructor** appears only when an instructor email is set and a mail app can open; with no mail app the note says so
 - [ ] **Export for Excel (CSV file)** shares (phone) or downloads (browser) a file that opens one try per row
-- [ ] **Delete all my practice history** empties everything, and Help, About shows where the backup copy is kept
+- [ ] **Delete all my practice history** opens a warning first (nothing is deleted on the tap); Cancel, Escape and Back delete nothing and focus returns to the button; **Delete history** empties the history, keeps settings and crossing times, and says where it was deleted from (build 15, tracker 14.2)
+- [ ] After **Delete history**, force-quit the app at once and reopen: the history is still gone, with and without crossing times saved (build 15, tracker 14.4)
+- [ ] Help, About shows where the backup copy is kept
 
 ### H7 — Adaptive margin (experimental)
 Instructor setup → tick **Adaptive margin of error**. Do ten practice attempts on one crossing.
@@ -467,7 +469,10 @@ to 39, written to check what the student experiences rather than how the code
 is written) and two regression files beside it (`tests/oct17-fixes.spec.mjs`,
 `tests/oct17-audit-fixes.spec.mjs`). Each of those tests failed on build 12
 and passes from build 13. A bug from that list counts as fixed only while its
-test passes.
+test passes. Build 14 added `tests/build14-*.spec.mjs` (pads, reports, sound
+and storage) and build 15 `tests/build15-delete-privacy.spec.mjs` (the delete
+warning, the durable copy after a delete, the privacy text); 212 tests at
+build 15, part 1.
 
 They cannot hear or feel anything. Still manual, on a real phone: B1 roadside
 audio, B2 ringer switch, every test in C, D4 VoiceOver (and TalkBack), F, H4

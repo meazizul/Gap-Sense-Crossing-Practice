@@ -273,6 +273,8 @@ test("deleting history clears attempts and adaptive lanes", async ({ page }) => 
   await setTimes(page);
   await page.evaluate(() => gsShowScreen("progress"));
   await page.click("#clearDataBtn");
+  // Build 15 (14.2): the button opens the warning; only Delete history deletes.
+  await page.click("#confirmDeleteHistoryBtn");
   expect(await history(page)).toEqual([]);
   expect(await page.evaluate(() => localStorage.getItem("om-adaptive-margin"))).toBeNull();
   await expect(page.locator("#progressBody")).toContainText("Nothing recorded yet");

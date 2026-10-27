@@ -338,9 +338,10 @@ vibrate, and for a DeafBlind user vibration is the entire interface.
 
 ### Privacy
 
-No account, no sign-in, no network. Everything stays on the phone. The app does
-not use the microphone. The person can delete all their history at any time
-from Progress.
+No account, no sign-in, no server; the app collects no data. Everything is kept
+on the phone, and in the phone's own backup if it is on. The app does not use
+the microphone. The person can delete all their history at any time from
+Progress, after a confirmation that says where it is deleted from.
 
 ---
 

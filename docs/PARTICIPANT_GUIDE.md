@@ -306,11 +306,13 @@ times are set.
 
 ## 10. Your privacy
 
-Everything stays on your own phone.
+Everything is kept on your own phone, and in your phone's own backup if it is
+on. Only you can see it.
 
 - There is no account. You do not sign in.
-- Nothing is sent anywhere.
-- Your practice history is saved only on your phone.
+- Nothing is sent to the people who make the app.
+- Your practice history is saved on your phone. Delete it any time from
+  Progress; the app asks you to confirm first.
 - The app never stores your name. It uses a short code that your instructor
   chooses.
 

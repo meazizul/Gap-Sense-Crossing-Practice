@@ -268,6 +268,14 @@
     status: () => ({ ...state }),
     syncNow,
     restoreIfNeeded,
+    /* Delete all my practice history (tracker 14.4): the emptied history is
+     * written to the copy now, not after the wait, and the copy is never
+     * restored over it on the next load. Settings stay in the copy. */
+    clearHistoryNow() {
+      clearedHere = true;
+      try { sessionStorage.setItem(CLEARED_FLAG, "1"); } catch (error) { /* no session storage */ }
+      return syncNow();
+    },
     /* Tests only: the web view's storage vanishes behind the app's back, as
      * when the phone reclaims it. Not an intentional clear. */
     simulateLoss() {
