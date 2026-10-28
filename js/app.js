@@ -31,8 +31,8 @@ let gsCurrentScreen = "home";
  * and CACHE_VERSION (sw.js). In the native app the real bundle values are
  * read from the App plugin and override these. */
 const GS_APP_VERSION = "1.0";
-const GS_APP_BUILD = "14";
-const GS_APP_DATE = "22 October 2026";
+const GS_APP_BUILD = "15";
+const GS_APP_DATE = "28 October 2026";
 
 async function gsRenderAbout() {
   const el = document.getElementById("aboutVersion");
@@ -711,7 +711,44 @@ function gsCloseQr() {
   if (dialog?.open) dialog.close();
 }
 
+/*
+ * Delete all my practice history (tracker 14.2 and 14.4, build 15). One tap
+ * deletes nothing: it opens a warning that says where the history is deleted
+ * from, with Cancel first and Delete history second. Only Delete history
+ * deletes, and the emptied history goes to the durable copy at once
+ * (store.js), so it cannot come back on the next start, even when the app is
+ * closed straight after.
+ */
+function gsDataOnPhone() {
+  return Boolean(window.Capacitor?.isNativePlatform?.());
+}
+
+function gsRenderDataPlace() {
+  const phone = gsDataOnPhone();
+  const note = document.getElementById("myDataNote");
+  if (note) note.textContent = phone ? "Kept on this phone, and in your phone's own backup if it is on." : "Kept only in this browser.";
+  const where = document.getElementById("deleteHistoryWhere");
+  if (where) where.textContent = phone ? "It is deleted from this phone now, and from your phone's backup at its next backup." : "It is deleted from this browser.";
+}
+
 function gsClearData() {
+  const dialog = document.getElementById("deleteHistoryModal");
+  if (!dialog || typeof dialog.showModal !== "function") { gsConfirmDeleteHistory(); return; }
+  gsRenderDataPlace();
+  if (!dialog.open) {
+    lockPageScroll();
+    setMainContentInert(true);
+    dialog.showModal();
+  }
+  document.getElementById("deleteHistoryTitle")?.focus();
+}
+
+function gsCloseDeleteHistory() {
+  const dialog = document.getElementById("deleteHistoryModal");
+  if (dialog?.open) dialog.close();
+}
+
+async function gsConfirmDeleteHistory() {
   gsClearHistory();
   // A preview made before the delete still held the deleted practice, and
   // Send it would send it (bug 35, Oct 2026 review).
@@ -720,9 +757,15 @@ function gsClearData() {
   gsCloseReport();
   gsRenderProgress();
   gsRenderHome();
+  const message = gsDataOnPhone()
+    ? "All practice history deleted from this phone. Your phone's backup will no longer have it after its next backup."
+    : "All practice history deleted from this browser.";
   const note = document.getElementById("reportNote");
-  if (note) note.textContent = "All practice history deleted from this device.";
-  announceScreenReader("All practice history deleted.");
+  if (note) note.textContent = message;
+  gsCloseDeleteHistory();
+  announceScreenReader(message);
+  // The durable copy is rewritten now, not after the usual wait (14.4).
+  try { await window.gsStore?.clearHistoryNow?.(); } catch (error) { /* the copy follows on the next change */ }
 }
 
 /* ============================================================
@@ -913,6 +956,16 @@ function gsBindShell() {
   document.getElementById("showQrBtn")?.addEventListener("click", gsShowQr);
   document.getElementById("csvReportBtn")?.addEventListener("click", gsExportCsv);
   document.getElementById("clearDataBtn")?.addEventListener("click", gsClearData);
+  document.getElementById("cancelDeleteHistoryBtn")?.addEventListener("click", gsCloseDeleteHistory);
+  document.getElementById("confirmDeleteHistoryBtn")?.addEventListener("click", gsConfirmDeleteHistory);
+  document.getElementById("deleteHistoryModal")?.addEventListener("close", () => {
+    if (!gsAnyDialogOpen()) {
+      unlockPageScroll();
+      setMainContentInert(false);
+    }
+    document.getElementById("clearDataBtn")?.focus({ preventScroll: true });
+  });
+  gsRenderDataPlace();
   document.getElementById("closeQr")?.addEventListener("click", gsCloseQr);
   document.getElementById("qrPrevBtn")?.addEventListener("click", () => { if (gsQrState.index > 0) { gsQrState.index -= 1; gsRenderQr(); } });
   document.getElementById("qrNextBtn")?.addEventListener("click", () => { if (gsQrState.index < gsQrState.chunks.length - 1) { gsQrState.index += 1; gsRenderQr(); } });

@@ -7,7 +7,8 @@
      *   om-a11y-vibrate, om-a11y-use-text-labels, om-a11y-theme,
      *   om-a11y-text-size, om-a11y-high-contrast, om-a11y-focus-boost,
      *   om-a11y-announce-cues, om-a11y-sync-visual-replay,
-     *   om-a11y-outside-visual-variant, om-a11y-user-flash-contrast
+     *   om-a11y-outside-visual-variant, om-a11y-user-flash-contrast,
+     *   om-a11y-say-replay, om-a11y-describe-sounds (build 15)
      * Cue types: start, marker, replay_start, replay_end,
      *            validation_error, reference_ok, reference_bad
      * ============================================================ */
@@ -47,6 +48,8 @@
     const a11yFocusBoost = document.getElementById("a11yFocusBoost");
     const a11yAnnounceCues = document.getElementById("a11yAnnounceCues");
     const a11ySelfVoice = document.getElementById("a11ySelfVoice");
+    const a11ySayReplay = document.getElementById("a11ySayReplay");
+    const a11yDescribeSounds = document.getElementById("a11yDescribeSounds");
     const a11ySpeechRate = document.getElementById("a11ySpeechRate");
     const soundTestBtn = document.getElementById("soundTestBtn");
     const soundTestNote = document.getElementById("soundTestNote");
@@ -119,6 +122,8 @@
       a11yFocusBoost,
       a11yAnnounceCues,
       a11ySelfVoice,
+      a11ySayReplay,
+      a11yDescribeSounds,
       a11ySpeechRate,
       soundTestBtn,
       hapticsTestBtn,
@@ -194,6 +199,12 @@
       // students who are still learning VoiceOver or TalkBack. Off by default
       // so it never doubles up with a screen reader.
       selfVoice: false,
+      // Build 15 (Jonggi's test of build 14, 25 Oct 2026): the word "Replay"
+      // before every replay, and a plain-words description after the
+      // right-or-wrong sound and after each replay, for everyone, whether or
+      // not a screen reader is running. Never a number of seconds.
+      sayReplay: true,
+      describeSounds: true,
       speechRate: 1
     };
 
@@ -1919,9 +1930,13 @@
         visualReplayState.rafId = null;
       }
       hideVisualReplayFrame();
+      gsReplayBarStop();
     }
 
     function startSynchronizedVisualReplay(events, endAtSec, target = null, { append = false } = {}) {
+      // The bar on the screen runs whenever anything is shown at all; the
+      // full-screen flashes only with the synchronized visual replay on.
+      if (!target) gsReplayBarStart(events, endAtSec, { append });
       if (!visualOutputEnabled() || !a11ySettings.syncVisualReplay) return;
       const context = ensureAudioContext();
       // Replay B schedules two replays back to back; the second used to stop
@@ -2140,13 +2155,16 @@
      */
     let srAnnounceToggle = false;
     let srAnnounceClearTimer = null;
-    function announceScreenReader(message) {
+    function announceScreenReader(message, { force = false, speak = true } = {}) {
       if (!message) return;
-      if (suppressSrAnnouncements) return;
+      // force: the replay word and the descriptions (build 15) are meant for
+      // the quiet stretch; speak: false when the text is already being spoken
+      // by the app itself, so self-voicing does not say it twice.
+      if (suppressSrAnnouncements && !force) return;
       // Self-voicing speaks every announcement aloud, whether or not a screen
       // reader is running. It is the student's choice, under Accessibility.
       // Never while a practice crossing is being timed.
-      if (a11ySettings.selfVoice && !started) gsSpeak(message);
+      if (speak && a11ySettings.selfVoice && !started) gsSpeak(message);
       if (!a11ySettings.announceCues) return;
       srAnnounceToggle = !srAnnounceToggle;
       srAnnouncer.textContent = srAnnounceToggle ? message : `${message}​`;
@@ -2169,8 +2187,31 @@
      */
     let nativeSpeechToken = null;
 
+    /*
+     * Who speaks for the app. On iPhone the GSNative plugin (with the tones,
+     * build 9). On Android, Android's own text-to-speech through the
+     * GSAndroid plugin (build 15): the Android web view has no web speech
+     * engine at all, so until now nothing the app "said" on Android, from
+     * "Get ready" to the directions, was ever heard. In a browser, web speech.
+     */
+    const nativeSpeech = nativeSound
+      ? GSNativePlugin
+      : (isNativeShell && nativePlatform === "android" && typeof CapacitorGlobal?.Plugins?.GSAndroid?.speak === "function"
+        ? CapacitorGlobal.Plugins.GSAndroid
+        : null);
+
+    function nativeSpeechCall(method, args) {
+      try {
+        const result = nativeSpeech[method](args);
+        if (result && typeof result.catch === "function") result.catch(() => {});
+        return result;
+      } catch (error) {
+        return null;
+      }
+    }
+
     function speechAvailable() {
-      if (nativeSound) return true;
+      if (nativeSpeech) return true;
       return typeof window.speechSynthesis !== "undefined" && typeof window.SpeechSynthesisUtterance === "function";
     }
 
@@ -2201,16 +2242,17 @@
         if (onDone) setTimeout(done, 0);
         return false;
       }
-      if (nativeSound) {
-        // Spoken by the app itself, through the same session as the tones,
-        // so the silent switch cannot mute "Get ready" either.
+      if (nativeSpeech) {
+        // Spoken by the app itself: on iPhone through the same session as the
+        // tones, so the silent switch cannot mute "Get ready" either; on
+        // Android through the system text-to-speech engine.
         const token = {};
         nativeSpeechToken = token;
         const finish = () => {
           if (nativeSpeechToken === token) nativeSpeechToken = null;
           done();
         };
-        Promise.resolve(nativeCall("speak", { text, rate: Number(a11ySettings.speechRate) || 1, interrupt }))
+        Promise.resolve(nativeSpeechCall("speak", { text, rate: Number(a11ySettings.speechRate) || 1, interrupt }))
           .then(finish, finish);
         if (onDone) setTimeout(done, maxWaitMs);
         return true;
@@ -2236,7 +2278,7 @@
 
     /** Is anything being spoken right now? */
     function gsSpeechBusy() {
-      if (nativeSound) return nativeSpeechToken !== null;
+      if (nativeSpeech) return nativeSpeechToken !== null;
       try {
         return speechAvailable() && window.speechSynthesis.speaking;
       } catch (error) {
@@ -2245,9 +2287,9 @@
     }
 
     function gsStopSpeech() {
-      if (nativeSound) {
+      if (nativeSpeech) {
         nativeSpeechToken = null;
-        nativeCall("stopSpeaking", {});
+        nativeSpeechCall("stopSpeaking", {});
         return;
       }
       try {
@@ -2261,6 +2303,200 @@
     function gsBeginQuiet() {
       suppressSrAnnouncements = true;
       if (a11ySettings.selfVoice) gsStopSpeech();
+    }
+
+    /* ---------------- Spoken replay word and descriptions (build 15) ----------------
+     * Jonggi tested build 14 on Android without TalkBack and heard nothing
+     * at the start of a replay: "Replay." went to the screen-reader live
+     * region only, and the app's own speech was blocked until the replay
+     * ended. Now, for everyone:
+     *   - "Replay" is said before every replay (gsReplayIntro), with the
+     *     tones held back until the word is over;
+     *   - after the right-or-wrong sound and after each replay, the app says
+     *     in words what the sounds were (gsDescribe), never a number of
+     *     seconds (Cindi's rule), and the next step waits for the words
+     *     (gsDescribeThen) so they are never cut off by the replay (the
+     *     reason words were removed in October 2026, tracker 12.29).
+     * With VoiceOver or TalkBack running the same text goes to the live
+     * region instead, in the voice the student already uses. */
+    const GS_REPLAY_INTRO_SEC = 1.0;
+    let gsScreenReaderRunning = false;
+
+    function gsScreenReaderOn() {
+      return typeof window.__gsScreenReader === "boolean" ? window.__gsScreenReader : gsScreenReaderRunning;
+    }
+
+    /* Asks the native shell whether VoiceOver or TalkBack is on. The web
+     * build cannot know, so it speaks for itself. */
+    function gsRefreshScreenReader() {
+      if (!isNativeShell) return;
+      const plugin = nativePlatform === "android" ? CapacitorGlobal?.Plugins?.GSAndroid : GSNativePlugin;
+      if (!plugin || typeof plugin.accessibilityStatus !== "function") return;
+      try {
+        Promise.resolve(plugin.accessibilityStatus()).then((status) => {
+          if (status && typeof status.screenReader === "boolean") gsScreenReaderRunning = status.screenReader;
+        }).catch(() => {});
+      } catch (error) {
+        /* keep the last value */
+      }
+    }
+
+    function gsCanSpeakAloud() {
+      return speechAvailable() && a11ySettings.outputMode !== "visual-only";
+    }
+
+    /* Says "Replay" and returns how long the tones must wait for it. With a
+     * screen reader the live region says it; `announced` when the caller has
+     * already put it there (Practice's replay_start cue). */
+    function gsReplayIntro({ announced = false } = {}) {
+      if (!a11ySettings.sayReplay) return 0;
+      if (gsScreenReaderOn() || !gsCanSpeakAloud()) {
+        if (!announced) announceScreenReader("Replay.", { force: true, speak: false });
+        return gsScreenReaderOn() ? 0.6 : 0;
+      }
+      gsSpeak("Replay", { interrupt: true });
+      return GS_REPLAY_INTRO_SEC;
+    }
+
+    /* Speaks a description (or hands it to the screen reader). onDone runs
+     * when the words are over and at least minSec have passed. Returns
+     * whether anything was said. */
+    function gsDescribe(text, { onDone = null, minSec = 0 } = {}) {
+      const finish = (afterMs) => { if (onDone) setTimeout(onDone, Math.max(0, afterMs)); };
+      if (!a11ySettings.describeSounds || !text) {
+        finish(minSec * 1000);
+        return false;
+      }
+      if (gsScreenReaderOn() || !gsCanSpeakAloud()) {
+        announceScreenReader(text, { force: true, speak: false });
+        finish(Math.max(minSec, gsScreenReaderOn() ? 1.5 : 0) * 1000);
+        return true;
+      }
+      // If the speech engine never reports the end (some Android engines,
+      // headless browsers), move on when the words should be over.
+      const rate = Number(a11ySettings.speechRate) || 1;
+      const maxWaitMs = Math.min(7000, (400 + text.length * 80) / rate);
+      const spokeAt = performance.now();
+      gsSpeak(text, {
+        interrupt: true,
+        maxWaitMs,
+        onDone: () => finish(minSec * 1000 - (performance.now() - spokeAt))
+      });
+      return true;
+    }
+
+    /* The next step of an activity after a description: with nothing to say
+     * it is an ordinary (cancellable) timer; after words, the words end it. */
+    function gsDescribeThen(timers, text, fn, minSec) {
+      if (!a11ySettings.describeSounds || !text) {
+        const id = setTimeout(fn, Math.max(0, minSec) * 1000);
+        if (Array.isArray(timers)) timers.push(id);
+        return;
+      }
+      gsDescribe(text, { onDone: fn, minSec });
+    }
+
+    function gsVerdictWords(within) {
+      return within ? "within the margin" : "outside the margin";
+    }
+
+    /* The margin on a practice screen, in words. The number of seconds shows
+     * only with "Show user times" on: Cindi's rule is that nothing during
+     * practice shows a number of seconds (tracker F2, build 15). */
+    function gsMarginNote(marginSec, adaptive) {
+      if (showDebug) return ` · margin ${Number(marginSec).toFixed(2)}s${adaptive ? " (adaptive)" : ""}`;
+      return adaptive ? " · adaptive margin" : "";
+    }
+
+    /* ---------------- Replay bar (build 15) ----------------
+     * A progress bar under the main button (and in the street pad) for the
+     * length of every replay: the replay is a thing on screen of its own,
+     * not just the button's label (Jonggi, 25 Oct 2026). It fills over the
+     * replay; each sound leaves a mark where it played (your sound, the
+     * sample, the chime or the pulse). The time in seconds appears only
+     * with "Show user times" on. Screen readers skip it: they get the words. */
+    const gsReplayBar = { rafId: null, startAt: 0, endAtSec: 0, events: [], next: 0, bars: [] };
+
+    function gsReplayBarEls() {
+      return [...document.querySelectorAll(".replay-bar")];
+    }
+
+    function gsReplayBarStop() {
+      if (gsReplayBar.rafId !== null) {
+        cancelAnimationFrame(gsReplayBar.rafId);
+        gsReplayBar.rafId = null;
+      }
+      gsReplayBarEls().forEach((bar) => {
+        bar.hidden = true;
+        const fill = bar.querySelector(".replay-bar-fill");
+        const ticks = bar.querySelector(".replay-bar-ticks");
+        if (fill) fill.style.width = "0%";
+        if (ticks) ticks.textContent = "";
+      });
+    }
+
+    function gsReplayBarTick(event, totalSec) {
+      const left = Math.max(0, Math.min(100, (event.timeSec / totalSec) * 100));
+      const kind = event.type === "user" ? "tick-user"
+        : event.type === "sample" ? "tick-sample"
+          : event.feedbackType === "acceptable" ? "tick-ok" : "tick-outside";
+      gsReplayBar.bars.forEach((bar) => {
+        const ticks = bar.querySelector(".replay-bar-ticks");
+        if (!ticks) return;
+        const tick = document.createElement("span");
+        tick.className = `replay-tick ${kind}`;
+        tick.style.left = `${left}%`;
+        if (event.type === "sample") {
+          const hold = Number.isFinite(event.holdSec) ? event.holdSec : 0.2;
+          tick.style.width = `${Math.max(1, Math.min(100 - left, (hold / totalSec) * 100))}%`;
+        }
+        ticks.appendChild(tick);
+      });
+    }
+
+    function gsReplayBarStart(events, endAtSec, { append = false } = {}) {
+      // In every output mode: the bar is the replay's place on the screen,
+      // not the full-screen visual feedback (which stays an option).
+      const clock = ensureAudioContext();
+      if (append && gsReplayBar.rafId !== null) {
+        const offset = clock.currentTime - gsReplayBar.startAt;
+        gsReplayBar.events = [
+          ...gsReplayBar.events,
+          ...events.map((event) => ({ ...event, timeSec: event.timeSec + offset }))
+        ].sort((a, b) => a.timeSec - b.timeSec);
+        gsReplayBar.endAtSec = Math.max(gsReplayBar.endAtSec, endAtSec + offset);
+        return;
+      }
+      gsReplayBarStop();
+      gsReplayBar.startAt = clock.currentTime;
+      gsReplayBar.endAtSec = Math.max(0.1, endAtSec);
+      gsReplayBar.events = [...events].sort((a, b) => a.timeSec - b.timeSec);
+      gsReplayBar.next = 0;
+      gsReplayBar.bars = gsReplayBarEls();
+      gsReplayBar.bars.forEach((bar) => { bar.hidden = false; });
+
+      const frame = () => {
+        const elapsed = clock.currentTime - gsReplayBar.startAt;
+        const total = gsReplayBar.endAtSec;
+        while (gsReplayBar.next < gsReplayBar.events.length && elapsed >= gsReplayBar.events[gsReplayBar.next].timeSec) {
+          gsReplayBarTick(gsReplayBar.events[gsReplayBar.next], total);
+          gsReplayBar.next += 1;
+        }
+        const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
+        const label = showDebug ? `${Math.max(0, elapsed).toFixed(1)} s of ${total.toFixed(1)} s` : "Replay";
+        gsReplayBar.bars.forEach((bar) => {
+          const fill = bar.querySelector(".replay-bar-fill");
+          const text = bar.querySelector(".replay-bar-label");
+          if (fill) fill.style.width = `${pct}%`;
+          if (text && text.textContent !== label) text.textContent = label;
+        });
+        if (elapsed >= total) {
+          gsReplayBarStop();
+          return;
+        }
+        gsReplayBar.rafId = requestAnimationFrame(frame);
+      };
+      gsReplayBar.rafId = requestAnimationFrame(frame);
     }
 
     function visualOutputEnabled() {
@@ -2371,11 +2607,12 @@
     function beginReplay() {
       const reference = getReferenceTimes();
       const labels = modes[currentMode].labels;
-      const baseDelay = TEST_TUNING.replayLeadInSec;
       const maxTime = Math.max(...markerTimes, ...reference);
       clearExemplarVisuals();
       emitCue("replay_start", { referenceTimes: reference, markerTimes });
       gsBeginQuiet();
+      // "Replay" is said first; the tones wait for the word (build 15).
+      const baseDelay = TEST_TUNING.replayLeadInSec + gsReplayIntro({ announced: true });
 
       if (labels[0]) {
         exemplarVisualTimeouts.push(
@@ -2455,11 +2692,18 @@
       startSynchronizedVisualReplay(visualEvents, replayDoneAtSec);
 
       clearTimeout(replayTimeout);
+      // What the replay was, in words, once it is over (build 15): your taps,
+      // then each crossing time with its verdict. Never a number of seconds.
+      const verdicts = marks.map(({ label, feedbackType }) => `${label.toLowerCase()}: ${gsVerdictWords(feedbackType === "acceptable")}`);
+      const describe = marks.length > 1
+        ? `That was your taps, then ${verdicts.slice(0, -1).join(", ")}, and ${verdicts[verdicts.length - 1]}.`
+        : `That was your taps, then the crossing time: ${gsVerdictWords(marks[0]?.feedbackType === "acceptable")}.`;
       replayTimeout = setTimeout(() => {
         suppressSrAnnouncements = false;
         resetState("Ready for another try.");
         renderPracticeScore();
-        emitCue("replay_end", { message: "Ready for another try." });
+        const said = a11ySettings.describeSounds && gsDescribe(`${describe} Ready for another try.`);
+        emitCue("replay_end", { message: "Ready for another try.", skipAnnounce: Boolean(said) });
       }, replayDoneAtSec * 1000);
     }
 
@@ -2476,11 +2720,11 @@
         const recent = gsHistoryFor("practice", street, 10);
         const within = recent.filter((entry) => entry.correct).length;
         const margin = marginFor("practice", street);
-        const marginNote = `margin ${margin.toFixed(2)}s${adaptive ? " (adaptive)" : ""}`;
+        const marginNote = gsMarginNote(margin, adaptive);
         const name = labels.length > 1 ? `${label}: ` : "";
         return recent.length
-          ? `${name}Last ${recent.length}: ${within} within margin · ${marginNote}`
-          : `${name}No attempts yet · ${marginNote}`;
+          ? `${name}Last ${recent.length}: ${within} within margin${marginNote}`
+          : `${name}No attempts yet${marginNote}`;
       });
       el.textContent = parts.join(". ");
     }
@@ -2528,7 +2772,7 @@
         cueBanner.dataset.tone = bannerTones[type] || "neutral";
       }
       syncCueBannerVisibility();
-      announceScreenReader(message);
+      if (!detail.skipAnnounce) announceScreenReader(message);
       hapticCue(type);
 
       if (a11ySettings.flashAction && !prefersReducedMotion.matches) {
@@ -2569,6 +2813,33 @@
       } catch (error) {
         /* non-fatal */
       }
+      updateAndroidWindowBackground();
+    }
+
+    /*
+     * Android 15 and 16 draw the app edge to edge; Capacitor keeps the page
+     * clear of the status and navigation bars with margins, and the window
+     * background shows in them. It takes the page's own background colour,
+     * so the strip above the header matches the theme and the status bar
+     * icons (dark on light, light on dark) stay readable (build 15, 14.5).
+     */
+    function updateAndroidWindowBackground() {
+      const GSAndroid = CapacitorGlobal?.Plugins?.GSAndroid;
+      if (nativePlatform !== "android" || typeof GSAndroid?.setWindowBackground !== "function") return;
+      const color = cssColorToHex(getComputedStyle(document.body).backgroundColor);
+      if (!color) return;
+      try {
+        const result = GSAndroid.setWindowBackground({ color });
+        if (result && typeof result.catch === "function") result.catch(() => {});
+      } catch (error) {
+        /* non-fatal */
+      }
+    }
+
+    function cssColorToHex(value) {
+      const m = /rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(value || "");
+      if (!m) return "";
+      return `#${[m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`;
     }
 
     function restoreStoredSettings() {
@@ -2593,6 +2864,8 @@
       const storedUserFlashContrast = localStorage.getItem("om-a11y-user-flash-contrast");
       const storedSelfVoice = localStorage.getItem("om-a11y-self-voice");
       const storedSpeechRate = Number(localStorage.getItem("om-a11y-speech-rate"));
+      const storedSayReplay = localStorage.getItem("om-a11y-say-replay");
+      const storedDescribeSounds = localStorage.getItem("om-a11y-describe-sounds");
 
       if (storedClear) clearTimeInput.value = storedClear;
       if (storedFull) fullTimeInput.value = storedFull;
@@ -2625,6 +2898,8 @@
       if (storedAnnounceCues) a11ySettings.announceCues = storedAnnounceCues === "true";
       if (storedSelfVoice) a11ySettings.selfVoice = storedSelfVoice === "true";
       if ([0.8, 1, 1.25].includes(storedSpeechRate)) a11ySettings.speechRate = storedSpeechRate;
+      if (storedSayReplay) a11ySettings.sayReplay = storedSayReplay === "true";
+      if (storedDescribeSounds) a11ySettings.describeSounds = storedDescribeSounds === "true";
       if (storedSyncVisualReplay) a11ySettings.syncVisualReplay = storedSyncVisualReplay === "true";
       if (storedOutsideVisualVariant === "up" || storedOutsideVisualVariant === "down") {
         a11ySettings.outsideVisualVariant = storedOutsideVisualVariant;
@@ -2651,6 +2926,8 @@
       a11yAnnounceCues.checked = a11ySettings.announceCues;
       if (a11ySelfVoice) a11ySelfVoice.checked = a11ySettings.selfVoice;
       if (a11ySpeechRate) a11ySpeechRate.value = String(a11ySettings.speechRate);
+      if (a11ySayReplay) a11ySayReplay.checked = a11ySettings.sayReplay;
+      if (a11yDescribeSounds) a11yDescribeSounds.checked = a11ySettings.describeSounds;
       applyA11ySettings();
     }
 
@@ -2768,6 +3045,10 @@
       showDebug = debugToggle.checked;
       localStorage.setItem("om-debug-replay", String(showDebug));
       applyDebugAccessibility();
+      // The margin in seconds on the practice screens follows this switch (F2).
+      renderPracticeScore();
+      if (typeof gsSignalRenderScore === "function") gsSignalRenderScore();
+      if (typeof gsCompareRenderScore === "function") gsCompareRenderScore();
     });
 
     clearTimeInput.addEventListener("input", () => { refreshTimingRequirementPrompt(); });
@@ -2902,6 +3183,18 @@
       a11ySettings.speechRate = [0.8, 1, 1.25].includes(rate) ? rate : 1;
       localStorage.setItem("om-a11y-speech-rate", String(a11ySettings.speechRate));
       gsSpeak("This is the speaking rate.");
+    });
+
+    a11ySayReplay?.addEventListener("change", () => {
+      a11ySettings.sayReplay = a11ySayReplay.checked;
+      localStorage.setItem("om-a11y-say-replay", String(a11ySettings.sayReplay));
+      if (a11ySettings.sayReplay) gsSpeak("Replay");
+    });
+
+    a11yDescribeSounds?.addEventListener("change", () => {
+      a11ySettings.describeSounds = a11yDescribeSounds.checked;
+      localStorage.setItem("om-a11y-describe-sounds", String(a11ySettings.describeSounds));
+      if (a11ySettings.describeSounds) gsSpeak("The app will describe the sounds in words.");
     });
 
     /*
@@ -3203,6 +3496,14 @@
       setStatus(pendingStatusMessage);
       announceScreenReader(pendingStatusMessage);
     }
+
+    // Is VoiceOver or TalkBack on? Asked at start and whenever the app comes
+    // back to the front (build 15: the replay word and the descriptions go
+    // to the screen reader when there is one, else the app speaks them).
+    gsRefreshScreenReader();
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) gsRefreshScreenReader();
+    });
 
     // Offline support for the web/PWA build. Harmless inside the native shell,
     // where files are already local.

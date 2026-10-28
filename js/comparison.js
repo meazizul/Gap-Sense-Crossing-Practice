@@ -219,9 +219,10 @@ function gsShowResult(correct) {
  * stopped it, and the right/wrong cue where their real crossing time ends.
  * Returns the time (seconds from now) at which the replay is over.
  */
-function gsReplayProduction({ producedSec, crossingSec, style = "continuous", marginSec, within: verdict, startDelaySec = 0.6 }) {
+function gsReplayProduction({ producedSec, crossingSec, style = "continuous", marginSec, within: verdict, startDelaySec = 0.6, intro = true }) {
   ensureAudioContext();
-  const t0 = startDelaySec;
+  // "Replay" first; the tones wait for the word (build 15).
+  const t0 = startDelaySec + (intro ? gsReplayIntro() : 0);
   // The caller has already decided right or wrong (with its latency
   // allowance) and told the student. The replay must repeat that verdict,
   // never recompute it: a chime followed by a buzz for the same attempt was
@@ -259,9 +260,9 @@ function gsReplayProduction({ producedSec, crossingSec, style = "continuous", ma
  * already been given, and Cindi found a "wrong" pulse inside the replay of a
  * correct answer confusing.
  */
-function gsReplayJudgment({ sampleSec, crossingSec, style = "continuous", startDelaySec = 0.6 }) {
+function gsReplayJudgment({ sampleSec, crossingSec, style = "continuous", startDelaySec = 0.6, intro = true }) {
   ensureAudioContext();
-  const t0 = startDelaySec;
+  const t0 = startDelaySec + (intro ? gsReplayIntro() : 0);
   if (style === "ticks") {
     gsPlaySampleBeep(t0);
     gsPlaySampleBeep(t0 + sampleSec);
@@ -300,9 +301,9 @@ function gsReplayJudgment({ sampleSec, crossingSec, style = "continuous", startD
  * Example: crossing 6 s, sample 8.5 s, estimate 3.5 s → sound 0–8.5 s,
  * student's sound at 6 s and at 9.5 s, wrong cue at 8.5 s.
  */
-function gsReplayMagnitudeA({ crossingSec, sampleSec, estimateSec, direction, marginSec, style = "continuous", startDelaySec = 0.6 }) {
+function gsReplayMagnitudeA({ crossingSec, sampleSec, estimateSec, direction, marginSec, style = "continuous", startDelaySec = 0.6, intro = true }) {
   ensureAudioContext();
-  const t0 = startDelaySec;
+  const t0 = startDelaySec + (intro ? gsReplayIntro() : 0);
   const trueDiff = Math.abs(sampleSec - crossingSec);
   const within = Math.abs(estimateSec - trueDiff) <= marginSec;
   const feedbackType = within ? "acceptable" : "outside";
@@ -341,9 +342,9 @@ function gsReplayMagnitudeA({ crossingSec, sampleSec, estimateSec, direction, ma
  * at the start and where their tapped-out estimate ended; the right/wrong cue
  * where the true difference ends.
  */
-function gsReplayMagnitudeB({ estimateSec, trueDiffSec, marginSec, startDelaySec = 0.6, append = false }) {
+function gsReplayMagnitudeB({ estimateSec, trueDiffSec, marginSec, startDelaySec = 0.6, append = false, intro = !append }) {
   ensureAudioContext();
-  const t0 = startDelaySec;
+  const t0 = startDelaySec + (intro ? gsReplayIntro() : 0);
   const within = Math.abs(estimateSec - trueDiffSec) <= marginSec;
   const feedbackType = within ? "acceptable" : "outside";
   playUserMarkerTone(t0);
@@ -902,7 +903,8 @@ const gsCompareState = {
   crossingSec: 0,
   marginSec: 0.4,
   expected: "same",
-  phase: "idle" // idle | waiting | playing | answering | judged | howmuch | replaying
+  phase: "idle", // idle | waiting | playing | answering | judged | howmuch | replaying
+  lastDescribe: "" // what the last replay was, in words (build 15)
 };
 
 function gsCompareMargin() {
@@ -1076,10 +1078,24 @@ function gsCompareAnswer(answer) {
   gsShowResult(correct);
   gsCompareStatus("", "neutral", { announce: false });
 
+  // Build 15: the result in words after the sound, for everyone, and the
+  // next step waits for the words, so they are never cut off (the reason
+  // words were removed in 12.29). Off under Accessibility > Speech.
+  const verdict = correct ? "Correct." : `Not correct. It was ${gsAnswerWords(gsCompareState.expected)}.`;
+  gsCompareState.lastDescribe = "That was the sample warning time, then your own sound where your crossing time ends.";
+
   // "How much" only makes sense when the student got the direction right:
   // if they could not tell longer from shorter, they cannot judge how much.
   const offerHowMuch = correct && gsCompareState.expected !== "same" && gsCompareHowMuchEnabled();
-  gsLater(gsCompareTimers, offerHowMuch ? gsCompareStartHowMuch : () => gsCompareReplay(), 1.2);
+  gsDescribeThen(gsCompareTimers, verdict, () => {
+    if (gsCompareState.phase !== "judged") return;
+    if (offerHowMuch) gsCompareStartHowMuch();
+    else gsCompareReplay();
+  }, 1.2);
+}
+
+function gsAnswerWords(answer) {
+  return answer === "same" ? "about the same" : String(answer || "");
 }
 
 /** The judgment replay of this trial, then back to idle. */
@@ -1089,7 +1105,7 @@ function gsCompareReplay(afterSec = 0.1) {
   const params = { sampleSec: gsCompareState.intervalSec, crossingSec: gsCompareState.crossingSec, style: gsCompareStyle() };
   const doneAt = gsReplayJudgment({ ...params, startDelaySec: afterSec + 0.4 });
   gsPlayAgainSet("compare", () => gsReplayJudgment({ ...params, startDelaySec: 0.5 }));
-  gsLater(gsCompareTimers, () => gsCompareFinish("Press Play for another."), doneAt + 0.2);
+  gsLater(gsCompareTimers, () => gsCompareFinish("Press Play for another.", "neutral", { describe: gsCompareState.lastDescribe }), doneAt + 0.2);
 }
 
 /* Play it again: the same replay, not recorded, then back to idle. */
@@ -1102,14 +1118,16 @@ function gsComparePlayAgain() {
   gsCompareStatus("", "neutral", { announce: false });
   gsBeginQuiet();
   const doneAt = fn();
-  gsLater(gsCompareTimers, () => gsCompareFinish("Press Play for another.", "neutral", { focus: "playAgain" }), doneAt + 0.2);
+  gsLater(gsCompareTimers, () => gsCompareFinish("Press Play for another.", "neutral", { focus: "playAgain", describe: gsCompareState.lastDescribe }), doneAt + 0.2);
 }
 
-function gsCompareFinish(message, tone = "neutral", { focus = "play" } = {}) {
+function gsCompareFinish(message, tone = "neutral", { focus = "play", describe = "" } = {}) {
   suppressSrAnnouncements = false;
   gsCompareState.phase = "idle";
   gsCompareSetStartEnabled(true);
-  gsCompareStatus(message, tone);
+  // The replay in words, then the prompt, as one utterance (build 15).
+  const said = Boolean(describe) && a11ySettings.describeSounds && gsDescribe(`${describe} ${message}`);
+  gsCompareStatus(message, tone, { announce: !said });
   gsPlayAgainShow("compare", focus !== "title");
   // After Back, focus goes to the screen's title (tracker 13.7); after Play it
   // again, the button itself; otherwise Play, where the student already is.
@@ -1196,12 +1214,14 @@ function gsCompareHowMuchDone(produced) {
 
   gsCompareState.phase = "replaying";
   // The right or wrong cue inside the replay says how the estimate went; no
-  // words before or after (tracker 12.29).
+  // words before it (tracker 12.29). After the replay, the replay in words
+  // (build 15), with the verdict, never the seconds.
   const closing = "Press Play for another.";
   const tone = "neutral";
   gsCompareStatus("", "neutral", { announce: false });
 
   if (gsFeature("magnitudeReplay") === "b") {
+    gsCompareState.lastDescribe = `That was the sample and your crossing time, then your estimate against the real difference: ${gsVerdictWords(correct)}.`;
     gsBeginQuiet();
     const judgment = { sampleSec: gsCompareState.intervalSec, crossingSec: gsCompareState.crossingSec, style: gsCompareStyle() };
     const estimate = { estimateSec: produced, trueDiffSec: trueDiff, marginSec: margin, append: true };
@@ -1211,9 +1231,10 @@ function gsCompareHowMuchDone(produced) {
     };
     const secondDone = replayB(0.8);
     gsPlayAgainSet("compare", () => replayB(0.5));
-    gsLater(gsCompareTimers, () => gsCompareFinish(closing, tone), secondDone + 0.2);
+    gsLater(gsCompareTimers, () => gsCompareFinish(closing, tone, { describe: gsCompareState.lastDescribe }), secondDone + 0.2);
     return;
   }
+  gsCompareState.lastDescribe = `That was the sample, your crossing time, where you thought the sample ended, and the sound where it really ended: ${gsVerdictWords(correct)}.`;
 
   gsBeginQuiet();
   const params = {
@@ -1226,7 +1247,7 @@ function gsCompareHowMuchDone(produced) {
   };
   const doneAt = gsReplayMagnitudeA({ ...params, startDelaySec: 0.8 });
   gsPlayAgainSet("compare", () => gsReplayMagnitudeA({ ...params, startDelaySec: 0.5 }));
-  gsLater(gsCompareTimers, () => gsCompareFinish(closing, tone), doneAt + 0.2);
+  gsLater(gsCompareTimers, () => gsCompareFinish(closing, tone, { describe: gsCompareState.lastDescribe }), doneAt + 0.2);
 }
 
 function gsCompareRenderScore() {
@@ -1238,9 +1259,7 @@ function gsCompareRenderScore() {
   const howMuch = gsHistoryFor("compare", gsCompareState.street, 10, true);
   const accuracy = gsAccuracy(recentWindow);
   const margin = gsCompareMargin();
-  const marginNote = gsAdaptiveEnabled()
-    ? ` · margin ${margin.toFixed(2)}s (adaptive)`
-    : ` · margin ${margin.toFixed(2)}s`;
+  const marginNote = gsMarginNote(margin, gsAdaptiveEnabled());
   const howMuchNote = howMuch.length
     ? ` · how much: ${howMuch.filter((e) => e.correct).length} of ${howMuch.length} within margin`
     : "";
@@ -1274,6 +1293,7 @@ function gsCompareSetStreet(street) {
  * ============================================================ */
 
 const gsLiveState = {
+  lastDescribe: "", // what the last replay was, in words (build 15)
   phase: "closed", // closed | detect | arriving | judging | howmuch | feedback
   direction: "left",
   detectedAt: 0,
@@ -1548,21 +1568,27 @@ function gsLiveAnswer(answer) {
   if (gsLiveState.phase !== "judging") return;
   const correct = answer === gsLiveState.category;
   gsLiveLog({ judged: true, answer, correct });
-  // The cue and the replay carry the result; no words (tracker 12.29).
+  // The cue carries the result, then the result in words (build 15); the
+  // next step waits for the words so they are never cut off (12.29).
   gsShowResult(correct);
   gsLiveStatus("", "neutral", { announce: false });
+  const verdict = correct ? "Correct." : `Not correct. It was ${gsAnswerWords(gsLiveState.category)}.`;
 
   const offerHowMuch = correct && gsLiveState.category !== "same" && gsLiveHowMuchEnabled();
   if (offerHowMuch) {
     gsLiveState.phase = "howmuch";
-    gsLater(gsLiveTimers, () => {
+    gsDescribeThen(gsLiveTimers, verdict, () => {
+      if (gsLiveState.phase !== "howmuch") return;
       const title = `How much ${gsLiveState.category}?`;
       gsOpenHowMuchPad({ title, onDone: gsLiveHowMuchDone, onBack: gsLiveHowMuchBack });
       gsAnnouncePad(`${title} Tap to start, tap again to end.`, "Tap anywhere on the screen to start, and tap again to end.");
     }, 1.2);
     return;
   }
-  gsLiveAfterVehicle({ judged: true, correct });
+  gsDescribeThen(gsLiveTimers, verdict, () => {
+    if (gsLiveState.phase !== "judging") return;
+    gsLiveAfterVehicle({ judged: true, correct });
+  }, 0);
 }
 
 /*
@@ -1658,26 +1684,29 @@ function gsLiveAfterVehicle({ judged, correct, magnitude = null }) {
   gsLiveRenderTally();
   const mode = gsLiveReplayMode();
 
-  if (magnitude) {
-    // The magnitude estimate gets its own right/wrong sound first.
-    gsLater(gsLiveTimers, () => gsShowResult(magnitude.correct), 0.2);
-  }
-
   const wrong = (judged && !correct) || (magnitude && !magnitude.correct);
   const replay = mode === "always" || (mode === "errors" && wrong);
-  if (!replay) {
-    gsLater(gsLiveTimers, gsLiveReady, magnitude ? 1.4 : 1.0);
-    return;
-  }
+  const replayB = magnitude && gsFeature("magnitudeReplay") === "b";
+  // The replay in words, once it is over (build 15). Never the seconds.
+  gsLiveState.lastDescribe = !magnitude
+    ? "That was the warning time, then your own sound where your crossing time ends."
+    : replayB
+      ? `That was the warning time and your crossing time, then your estimate against the real difference: ${gsVerdictWords(magnitude.correct)}.`
+      : `That was the warning time, your crossing time, where you thought it ended, and the sound where it really ended: ${gsVerdictWords(magnitude.correct)}.`;
 
-  gsLater(gsLiveTimers, () => {
+  const start = () => {
+    if (gsLiveState.phase !== "feedback") return;
+    if (!replay) {
+      gsLiveReady();
+      return;
+    }
     gsBeginQuiet();
     const style = "continuous";
     const warningSec = gsLiveState.warningSec;
     const crossingSec = gsLiveState.crossingSec;
     const category = gsLiveState.category;
-    const replay = (startDelaySec) => {
-      if (magnitude && gsFeature("magnitudeReplay") === "b") {
+    const run = (startDelaySec) => {
+      if (replayB) {
         const first = gsReplayJudgment({ sampleSec: warningSec, crossingSec, style, startDelaySec });
         return gsReplayMagnitudeB({ estimateSec: magnitude.produced, trueDiffSec: magnitude.trueDiff, marginSec: magnitude.marginSec, startDelaySec: first + 0.5, append: true });
       }
@@ -1686,10 +1715,21 @@ function gsLiveAfterVehicle({ judged, correct, magnitude = null }) {
       }
       return gsReplayJudgment({ sampleSec: warningSec, crossingSec, style, startDelaySec });
     };
-    const doneAt = replay(0.3);
-    gsPlayAgainSet("live", () => replay(0.5));
-    gsLater(gsLiveTimers, gsLiveReady, doneAt + 0.2);
-  }, magnitude ? 1.6 : 1.4);
+    const doneAt = run(0.3);
+    gsPlayAgainSet("live", () => run(0.5));
+    gsLater(gsLiveTimers, () => gsLiveReady({ describe: gsLiveState.lastDescribe }), doneAt + 0.2);
+  };
+
+  if (magnitude) {
+    // The magnitude estimate gets its own right/wrong sound first, then the
+    // verdict in words; the replay waits for the words.
+    gsLater(gsLiveTimers, () => {
+      gsShowResult(magnitude.correct);
+      gsDescribeThen(gsLiveTimers, `${magnitude.correct ? "Within" : "Outside"} the margin.`, start, replay ? 1.4 : 1.2);
+    }, 0.2);
+    return;
+  }
+  gsLater(gsLiveTimers, start, replay ? 1.4 : 1.0);
 }
 
 /* Play it again at the street: the last vehicle's replay, then ready again. */
@@ -1700,15 +1740,18 @@ function gsLivePlayAgain() {
   gsSetBusy(gsPlayAgainButton("live"), true);
   gsBeginQuiet();
   const doneAt = fn();
-  gsLater(gsLiveTimers, gsLiveReady, doneAt + 0.2);
+  gsLater(gsLiveTimers, () => gsLiveReady({ describe: gsLiveState.lastDescribe }), doneAt + 0.2);
 }
 
-function gsLiveReady() {
+function gsLiveReady({ describe = "" } = {}) {
   suppressSrAnnouncements = false;
   if (gsLiveState.phase === "closed") return;
   gsLiveState.phase = "detect";
   gsLiveRenderPad();
-  gsLiveStatus("Ready for the next vehicle.");
+  const message = "Ready for the next vehicle.";
+  // The replay in words, then the prompt, as one utterance (build 15).
+  const said = Boolean(describe) && a11ySettings.describeSounds && gsDescribe(`${describe} ${message}`);
+  gsLiveStatus(message, "neutral", { announce: !said });
   const playAgain = gsPlayAgainButton("live");
   const wasPlayingAgain = playAgain && !playAgain.hidden && gsIsBusy(playAgain);
   gsPlayAgainShow("live", true);
