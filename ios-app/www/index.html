@@ -203,6 +203,12 @@
       <span class="action-btn-indicator" id="actionBtnIndicator" aria-hidden="true">○</span>
       <span class="action-btn-hint" id="actionBtnHint" aria-hidden="true">Tap when you step off</span>
     </button>
+    <!-- The replay as a thing of its own on screen (build 15): a bar that
+         fills for the length of the replay, a mark where each sound played. -->
+    <div class="replay-bar" hidden aria-hidden="true">
+      <div class="replay-bar-track"><div class="replay-bar-fill"></div><div class="replay-bar-ticks"></div></div>
+      <span class="replay-bar-label">Replay</span>
+    </div>
 
     <div class="cue-banner" id="cueBanner" data-visible="false" data-tone="neutral" aria-live="off">
       <span class="cue-dot" aria-hidden="true"></span>
@@ -230,6 +236,10 @@
         <span class="action-btn-hint" id="signalBtnHint">Press, then wait for the sound</span>
       </button>
       <button class="settings-action primary play-again-btn" id="signalPlayAgainBtn" type="button" hidden>Play it again</button>
+      <div class="replay-bar" hidden aria-hidden="true">
+        <div class="replay-bar-track"><div class="replay-bar-fill"></div><div class="replay-bar-ticks"></div></div>
+        <span class="replay-bar-label">Replay</span>
+      </div>
 
       <div class="cue-banner" id="signalStatus" data-tone="neutral" data-visible="true" aria-live="off">
         <span class="cue-dot" aria-hidden="true"></span>
@@ -269,6 +279,10 @@
         <span class="action-btn-hint" aria-hidden="true">Then answer: longer, shorter, or about the same</span>
       </button>
       <button class="settings-action primary play-again-btn" id="comparePlayAgainBtn" type="button" hidden>Play it again</button>
+      <div class="replay-bar" hidden aria-hidden="true">
+        <div class="replay-bar-track"><div class="replay-bar-fill"></div><div class="replay-bar-ticks"></div></div>
+        <span class="replay-bar-label">Replay</span>
+      </div>
 
       <div class="cue-banner" id="compareStatus" data-tone="neutral" data-visible="true" aria-live="off">
         <span class="cue-dot" aria-hidden="true"></span>
@@ -315,6 +329,10 @@
         <span class="action-btn-label">START</span>
         <span class="action-btn-hint">Opens the full-screen gesture pad</span>
       </button>
+      <div class="replay-bar" hidden aria-hidden="true">
+        <div class="replay-bar-track"><div class="replay-bar-fill"></div><div class="replay-bar-ticks"></div></div>
+        <span class="replay-bar-label">Replay</span>
+      </div>
 
       <div class="cue-banner" id="liveStatus" data-tone="neutral" data-visible="true" aria-live="off">
         <span class="cue-dot" aria-hidden="true"></span>
@@ -705,6 +723,10 @@
       <p class="gesture-title" id="liveOverlayTitle" tabindex="-1">At the street</p>
     </div>
     <p class="gesture-status" id="liveOverlayStatus">Swipe left or right when you think you detect a vehicle.</p>
+    <div class="replay-bar" hidden aria-hidden="true">
+      <div class="replay-bar-track"><div class="replay-bar-fill"></div><div class="replay-bar-ticks"></div></div>
+      <span class="replay-bar-label">Replay</span>
+    </div>
     <button class="settings-action primary play-again-btn" id="livePlayAgainBtn" type="button" hidden>Play it again</button>
     <div class="gesture-surface" id="liveSurface" role="group" tabindex="-1" aria-label="Street. Swipe left or right the moment you detect a vehicle, toward the side it is coming from.">
       <p class="pad-question" id="liveSurfaceText">Swipe left: from the left. Swipe right: from the right.</p>
@@ -865,6 +887,15 @@
             Speak directions aloud (for use without VoiceOver or TalkBack)
           </label>
           <p class="setup-note">The app reads its own directions and results out loud. Speech always stops while a sound is being timed.</p>
+          <label>
+            <input type="checkbox" id="a11ySayReplay" />
+            Say "Replay" before each replay
+          </label>
+          <label>
+            <input type="checkbox" id="a11yDescribeSounds" />
+            Describe the sounds in words
+          </label>
+          <p class="setup-note">After the right-or-wrong sound and after each replay, the app says what the sounds were, for example "Correct." or "That was your taps, then the crossing time: within the margin." Never a number of seconds. Both are on for everyone; with VoiceOver or TalkBack on, the screen reader says them.</p>
           <label for="a11ySpeechRate">Speaking rate</label>
           <select id="a11ySpeechRate">
             <option value="0.8">Slower</option>

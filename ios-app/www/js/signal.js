@@ -29,6 +29,7 @@ const gsSignalTimers = [];
 const gsSignalState = {
   street: "half", // First half first (Cindi, Oct 20 2026; tracker F6)
   phase: "idle",   // idle | ready | waiting | timing | replaying
+  lastDescribe: "", // what the last replay was, in words (build 15)
   signalAt: 0,
   style: "continuous",
   stopTone: null,
@@ -265,15 +266,24 @@ function gsSignalResolve(producedSec) {
   gsBeginQuiet();
 
   const params = { producedSec: measuredSec, crossingSec, style: gsSignalState.style, marginSec, within }; // the verdict already given, latency allowance included
+  // The replay in words, once it is over (build 15). Never the seconds.
+  gsSignalState.lastDescribe = `That was the sample, your stop, and your crossing time: ${gsVerdictWords(within)}.`;
   const doneAt = gsReplayProduction({ ...params, startDelaySec: 1.0 });
   gsPlayAgainSet("signal", () => gsReplayProduction({ ...params, startDelaySec: 0.5 }));
   gsLater(gsSignalTimers, () => {
     suppressSrAnnouncements = false;
     gsSignalState.phase = "idle";
     gsSignalUpdateButton();
-    gsSignalStatus("Ready for another.");
+    gsSignalFinishStatus();
     gsPlayAgainShow("signal", true);
   }, doneAt + 0.2);
+}
+
+/* "Ready for another.", after the replay in words when those are on. */
+function gsSignalFinishStatus() {
+  const message = "Ready for another.";
+  const said = Boolean(gsSignalState.lastDescribe) && a11ySettings.describeSounds && gsDescribe(`${gsSignalState.lastDescribe} ${message}`);
+  gsSignalStatus(message, "neutral", { announce: !said });
 }
 
 /* Play it again (F1): the last try's replay once more, not recorded. */
@@ -290,7 +300,7 @@ function gsSignalPlayAgain() {
     suppressSrAnnouncements = false;
     gsSignalState.phase = "idle";
     gsSignalUpdateButton();
-    gsSignalStatus("Ready for another.");
+    gsSignalFinishStatus();
     gsPlayAgainShow("signal", true);
     gsPlayAgainButton("signal")?.focus({ preventScroll: true });
   }, doneAt + 0.2);
@@ -312,10 +322,10 @@ function gsSignalRenderScore() {
   const recent = gsHistoryFor("signal", gsSignalState.street, 10);
   const within = recent.filter((entry) => entry.correct).length;
   const margin = gsEffectiveMargin("signal", gsSignalState.street);
-  const note = `margin ${margin.toFixed(2)}s${gsAdaptiveEnabled() ? " (adaptive)" : ""}`;
+  const note = gsMarginNote(margin, gsAdaptiveEnabled());
   el.textContent = recent.length
-    ? `Last ${recent.length}: ${within} within margin · ${note}`
-    : `No attempts yet · ${note}`;
+    ? `Last ${recent.length}: ${within} within margin${note}`
+    : `No attempts yet${note}`;
 }
 
 function gsSignalSetStreet(street) {

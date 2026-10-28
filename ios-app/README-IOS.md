@@ -79,6 +79,13 @@ npx cap sync         # copies www/ and updates native plugins for iOS and Androi
   starts in the system's light or dark colour (`styles.xml`).
 - The Android app targets Android 16 (API 36), which Google Play requires
   (`variables.gradle`); the Android Gradle plugin is 8.9.1.
+- **Screen reader check.** `accessibilityStatus` answers whether TalkBack
+  (touch exploration) is on, so the page hands the replay word and the sound
+  descriptions to TalkBack instead of speaking them itself (build 15).
+- **Speech.** Android's web view has no web speech engine, so `speak`,
+  `stopSpeaking` and `speechStatus` put the app's own voice through Android
+  text-to-speech (build 15): "Get ready", "Replay", the descriptions and
+  Speak directions aloud. `speak` resolves when the utterance ends.
 
 ### Gap Sense's own iOS plugin (`ios/App/App/GapSenseNative.swift`)
 
@@ -94,6 +101,10 @@ npx cap sync         # copies www/ and updates native plugins for iOS and Androi
 - **Self-test.** Launched with `-GSSelfTest YES`, the app writes a one-line
   health report to the device log: plugins present, sound engine state, speech
   available, and which screen is showing. It never runs in normal use.
+- **Screen reader check.** `accessibilityStatus` answers whether VoiceOver
+  (and Switch Control) is running, asked at start and whenever the app comes
+  back to the front, so the replay word and the sound descriptions go to
+  VoiceOver's voice when there is one (build 15).
 
 It also plays the app's sounds and speech (see Sound below). The web code reaches it as `window.Capacitor.Plugins.GSNative`. In a browser,
 the web code falls back to the Vibration API (Android browsers) or nothing

@@ -102,10 +102,15 @@ Sitting anywhere, the person:
 2. Waits as long as they believe the crossing takes, imagining the walk.
 3. Taps again. The button reads **MARK**. This means "I have arrived."
 
-The app then replays two things close together:
+The app says "Replay" and then replays two things close together:
 
 - **Their tap**, as their own sound, at the moment they actually tapped.
 - **The reference**, a feedback tone at the moment they *should* have tapped.
+
+A bar under the button fills for the length of the replay and marks each
+sound where it played. When the replay is over the app says what it was, in
+words and never in seconds: "That was your taps, then the crossing time:
+within the margin."
 
 If the two sounds land together, they were right. The further apart the sounds,
 the further off they were. The feedback tone also says which way:
@@ -330,7 +335,10 @@ screen-reader announcements. The app quietens the screen reader during playback
 on purpose, so it does not talk over the sounds.
 
 **Self-voicing** reads the app's directions and results aloud, for people still
-learning VoiceOver or TalkBack. **Siri**: "Practice my timing in Gap Sense" and
+learning VoiceOver or TalkBack. Separately, and for everyone, the app says
+"Replay" before every replay and describes the result and each replay in words
+afterwards; with a screen reader running those words go through the screen
+reader instead. **Siri**: "Practice my timing in Gap Sense" and
 the other three open an activity directly; on Android, touch and hold the icon.
 
 Vibration is the reason this is a native app at all. Safari on iPhone cannot

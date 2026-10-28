@@ -240,7 +240,7 @@ test("'how much' is offered only after a correct longer/shorter answer", async (
   await forceCategory(page, 0.9);
   await playUntilAnswering(page);
   await answerOn(page, "shorter");
-  await tick(page, 1300);
+  await tick(page, 3200);                                // "Not correct. It was longer." is said first (build 15)
   expect(await page.evaluate(() => gsCompareState.phase)).toBe("replaying");
   await untilIdle(page);
   // Correct "about the same": no "how much".

@@ -34,7 +34,7 @@ test("comparison score: the last ten JUDGMENTS, even when 'how much' entries sit
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => { gsCompareState.street = "full"; gsCompareRenderScore(); });
   await expect(page.locator("#compareScore")).toHaveText(
-    "Last 10: 70% correct · how much: 2 of 5 within margin · margin 0.40s"
+    "Last 10: 70% correct · how much: 2 of 5 within margin"
   );
   // An older judgment outside the ten is not counted.
   await page.evaluate(() => {

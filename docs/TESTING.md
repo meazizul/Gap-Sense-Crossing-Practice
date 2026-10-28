@@ -223,6 +223,28 @@ Enable iOS **Reduce Motion**.
 
 **Pass:** the button flash effect is suppressed; everything still functions.
 
+### D7 — The replay said and shown (build 15)
+VoiceOver and TalkBack **off**. Run a practice try, a Comparison preparation
+try, a Comparison practice trial (answer wrong on purpose) and one vehicle At
+the street.
+
+**Pass:**
+- [ ] "Replay" is spoken before every replay and no tone starts before the
+      word is over
+- [ ] A bar under the button (in the street pad, under the status) fills for
+      the length of the replay and gains a mark at each sound; it disappears
+      when the replay ends; no seconds on it unless **Show user times** is on
+- [ ] After the right/wrong sound: "Correct." or "Not correct. It was …", and
+      the replay starts only after the words
+- [ ] After each replay, one sentence describing it ending with the usual
+      prompt; never a number of seconds
+- [ ] Accessibility > Speech: turning both switches off restores silence
+      (word, descriptions and all); the bar still shows
+- [ ] With VoiceOver or TalkBack **on**: the same words are read by the screen
+      reader, not twice
+- [ ] Score lines under the buttons show no "margin 0.40s" (F2); it returns
+      with **Show user times** on
+
 ---
 
 ## E. Persistence and sharing

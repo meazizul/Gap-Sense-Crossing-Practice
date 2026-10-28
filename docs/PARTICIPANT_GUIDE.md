@@ -124,9 +124,13 @@ through practice and feedback.
 3. Press the button again when you think you would have arrived.
 4. Listen.
 
-You will hear your two taps. Then you will hear the correct time.
+The app says "Replay". Then you hear your two taps and the correct time. When
+it is over, the app tells you in words what you heard, for example "That was
+your taps, then the crossing time: within the margin." A bar under the button
+shows the replay as it plays.
 
-**Do not count seconds.** Feel the time instead.
+**Do not count seconds.** Feel the time instead. The app never tells you a
+number of seconds.
 
 Do this many times. It becomes easier. A line under the button tells you how
 many of your last tries were close enough.
@@ -179,8 +183,8 @@ If you use a screen reader, use the buttons. The focus lands on **About the
 same**. Flick once to reach the other two answers.
 
 **Right away, you hear if you were right.** The good sound, or the not-good
-sound. If you turned on visual feedback, you also see a green circle or an
-orange triangle.
+sound, and then the words: "Correct." or "Not correct. It was longer." If you
+turned on visual feedback, you also see a green circle or an orange triangle.
 
 **Then listen again.** The app plays the sample and your crossing time
 together. The sample plays. Your own sound plays where your crossing time ends.
@@ -253,6 +257,13 @@ iPhone. Apple does not allow it there.
 **Speak directions aloud.** The app can read its own directions out loud. This
 helps if you are still learning VoiceOver or TalkBack. You can choose a slower
 or faster speaking rate.
+
+**Say "Replay" before each replay** and **Describe the sounds in words.** Both
+are on for everyone. The app says "Replay" before every replay, says whether
+you were right after the right-or-wrong sound, and describes each replay in
+words when it is over. Never a number of seconds. If you use VoiceOver or
+TalkBack, your screen reader reads these words. Turn either off here if you
+prefer the sounds alone.
 
 **Colors.** Choose light, dark, or yellow-on-black. There is also a
 high-contrast setting.

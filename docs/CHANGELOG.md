@@ -8,6 +8,84 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-28 (build 15, part 2; built and tested, not yet released) — the replay said and shown, the result in words, the margin in words
+
+Jonggi Hong tested build 14 on an Android phone without TalkBack (25 October
+2026) and heard nothing at the start of a replay, saw the replay only as the
+button's label, and asked for the sounds to be explained in words as they
+happen. This part of build 15 answers all of that, for everyone, in every
+activity.
+
+**"Replay" is said before every replay**
+
+- Practice my timing, Comparison preparation, Comparison practice and At the
+  street all say the word "Replay" first, and the tones wait one second for
+  it. Until now the word went only to the screen-reader live region, and the
+  app's own speech stayed blocked until the replay was over, so without
+  VoiceOver or TalkBack there was nothing to hear. With a screen reader
+  running the live region still gets it, in the student's own voice.
+
+**The result and the replay in words, never a number**
+
+- After the right-or-wrong sound the app says "Correct." or "Not correct. It
+  was longer." (or shorter, or about the same). After each replay it says
+  what the sounds were: "That was your taps, then the crossing time: within
+  the margin." in Practice my timing; "That was the sample, your stop, and
+  your crossing time: outside the margin." in Comparison preparation; "That
+  was the sample warning time, then your own sound where your crossing time
+  ends." in Comparison practice and At the street; and for "how much", where
+  the student thought the sample ended and where it really ended, with the
+  verdict. Never a number of seconds (Cindi's rule).
+- Words were taken out of Comparison practice in October (tracker 12.29)
+  because they repeated the cue and the replay cut them off. The replay now
+  waits for the words to end, so nothing is cut off, and the prompt that
+  follows ("Press Play for another.") is part of the same utterance.
+- Two new switches under Accessibility > Speech, both on: "Say "Replay"
+  before each replay" and "Describe the sounds in words". With VoiceOver or
+  TalkBack on, both go through the screen reader instead of the app's own
+  voice; the iPhone and Android apps ask the system (`accessibilityStatus`
+  in both native plugins).
+
+**The Android app can speak at all now**
+
+- Android's web view has no web speech engine, so nothing the Android app
+  "said" since build 1, from "Get ready" to Speak directions aloud, was ever
+  heard; the app silently fell back each time. The Android plugin now speaks
+  through Android's own text-to-speech (`speak`, `stopSpeaking`,
+  `speechStatus`), the same way the iPhone app has since build 9, so "Get
+  ready", the replay word, the descriptions and self-voicing all work on
+  Android. Checked on the Android 16 emulator: engine ready, "Replay" then
+  the description spoken on a practice try, the verdict spoken before the
+  comparison replay, silence with the switches off, no crashes.
+
+**The replay on screen**
+
+- A replay bar under the main button, and in the street pad, fills for the
+  length of every replay; each sound leaves a mark where it played: the
+  student's own sound, the sample as a blue span, the chime in green or the
+  pulse in orange. It shows in every output mode; the full-screen flashes
+  remain the option they were. The time in seconds appears on the bar only
+  with "Show user times" on. Screen readers skip the bar; they get the words.
+  So marking stays on the button and the replay has its own place, as
+  Jonggi asked, without changing how a try is made.
+
+**The margin in words on the practice screens (tracker F2)**
+
+- The score line under each main button no longer shows "margin 0.40s" while
+  the student practises; it reads "Last 5: 4 within margin", with "adaptive
+  margin" when that is on. The number of seconds returns with "Show user
+  times" on, for the instructor. Cindi's question on F2 was whether that
+  number should be there at all during practice; now it is not.
+
+**Tests**
+
+- Playwright: new `build15-replay-words.spec.mjs` (10 tests: the switches,
+  the word before the tones, the words after each replay in all four
+  activities, the replay waiting for the words, the screen-reader path, the
+  bar, the margin words); seven older tests updated to the new words and
+  timings, and the 12.29 test rewritten for the revised rule. The simulator
+  self-test gains eight checks.
+
 ## 2026-10-27 (build 15, part 1; built and tested, not yet released) — the delete warning, the durable copy after a delete, where the data really is, the privacy manifest, Android 16
 
 The first part of build 15 takes the items from Cindi Lashinsky's tracker

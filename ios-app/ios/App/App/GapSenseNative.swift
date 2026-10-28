@@ -70,6 +70,7 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "directTouchShow", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "directTouchHide", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "canOpen", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "accessibilityStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "log", returnType: CAPPluginReturnPromise)
     ]
 
@@ -176,6 +177,18 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func stopSpeaking(_ call: CAPPluginCall) {
         DispatchQueue.main.async { GSSpeech.shared.stop() }
         call.resolve()
+    }
+
+    /// accessibilityStatus (build 15): is VoiceOver running? The page then
+    /// hands the replay word and the sound descriptions to VoiceOver's own
+    /// voice instead of speaking them itself.
+    @objc func accessibilityStatus(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            call.resolve([
+                "screenReader": UIAccessibility.isVoiceOverRunning,
+                "switchControl": UIAccessibility.isSwitchControlRunning
+            ])
+        }
     }
 
     /// directTouchShow: a native view marked for direct interaction, placed

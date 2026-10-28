@@ -205,18 +205,35 @@ test("12.27: Comparison preparation and Practice keep their button focusable thr
   await expect(page.locator("#actionBtn")).toHaveAttribute("aria-disabled", "false");
 });
 
-test("12.29: nothing is said between the answer and the end of the replay; each page explains its replay up front", async ({ page }) => {
+test("12.29, revised in build 15: the result is said only after its sound, the replay waits for the words, and each page explains its replay up front", async ({ page }) => {
+  // Words came back in build 15 (Jonggi, 25 Oct 2026), but never cut off: the
+  // verdict is spoken after the right/wrong sound, the replay starts when
+  // the words are over, and the replay is described once it has ended.
+  await page.addInitScript(() => {
+    window.__spoken = [];
+    const fake = { speaking: false, cancel() {}, speak(u) { window.__spoken.push(u.text); setTimeout(() => u.onend && u.onend(), 10); }, getVoices() { return []; } };
+    Object.defineProperty(window, "speechSynthesis", { value: fake, configurable: true });
+    window.SpeechSynthesisUtterance = function (text) { this.text = text; };
+  });
   await openCompare(page);
   expect(await page.locator("#screen-compare .screen-intro").innerText()).toMatch(/the sample plays again, with your own sound( or vibration|, flash or vibration)? where your crossing time ends/);
   expect(await page.locator("#screen-signal .screen-intro").innerText()).toContain("you hear it again");
   expect(await page.locator("#screen-live .screen-intro").innerText()).toContain("plays again as a sound");
   await openAnswerPad(page);
-  await page.evaluate(() => { window.__said = []; const el = document.getElementById("srAnnouncer"); new MutationObserver(() => window.__said.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true }); });
+  await page.evaluate(() => { window.__spoken = []; window.__said = []; const el = document.getElementById("srAnnouncer"); new MutationObserver(() => window.__said.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true }); });
   await answerOn(page, "shorter");                       // wrong
+  await tick(page, 50);
+  const spoken = () => page.evaluate(() => window.__spoken);
+  expect((await spoken())[0]).toMatch(/^(Correct\.|Not correct\. It was (longer|shorter|about the same)\.)$/);
+  // The replay has not started while the words are being said.
+  expect(await page.evaluate(() => gsCompareState.phase)).toBe("judged");
   await waitUntil(page, () => gsCompareState.phase === "idle", { ms: 45000, step: 250 });
+  const all = await spoken();
+  expect(all[1]).toBe("Replay");
+  expect(all[all.length - 1]).toBe("That was the sample warning time, then your own sound where your crossing time ends. Press Play for another.");
+  // Nothing went to the live region as well: the app spoke for itself.
   const said = await page.evaluate(() => window.__said.map((s) => s.replace(/​/g, "")));
-  expect(said.join(" | ")).not.toMatch(/Correct|Not quite|It was|Feel the difference|First the sample/);
-  expect(said[said.length - 1]).toBe("Press Play for another.");
+  expect(said.join(" | ")).not.toMatch(/Correct|It was|That was/);
   expect(await statusText(page, "compareStatusText")).toBe("Press Play for another.");
 });
 

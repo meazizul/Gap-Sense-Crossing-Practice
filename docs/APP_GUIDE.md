@@ -382,6 +382,17 @@ they sound, the further off you were. That distance is the lesson. The replays
 in Comparison preparation use the same vocabulary. In the comparison replays,
 your own sound marks where your crossing time ends.
 
+**Said and shown (build 15).** Every replay is announced with the word
+"Replay", and the tones wait for it. While it plays, a bar under the button
+fills for its length and marks each sound where it played: your own sound,
+the sample as a blue span, the chime in green, the pulse in orange. When it is
+over the app says what you heard, in words and never in seconds: "That was
+your taps, then the crossing time: within the margin." In the comparison
+activities the right-or-wrong sound is followed by "Correct." or "Not
+correct. It was longer.", and the replay starts only when the words are over.
+Both can be turned off under Accessibility > Speech. With VoiceOver or
+TalkBack running, the words go through the screen reader instead.
+
 ---
 
 ## 4. Accessibility options
@@ -434,13 +445,22 @@ than in a browser, and the note under the button always states which is active.
 **Speak directions aloud** (self-voicing) makes the app read its own
 directions and results, for students still learning VoiceOver or TalkBack. A
 **Speaking rate** sets slower, normal or faster. Speech always stops while a
-sound is being timed.
+sound is being timed. On iPhone and Android the app speaks through the
+system's own voice (the Android app only since build 15; before that the
+Android web view had no speech engine and said nothing).
+
+**Say "Replay" before each replay** and **Describe the sounds in words** (both
+on by default, build 15) work for everyone, with or without self-voicing: the
+word before every replay, and the result and the replay in words afterwards,
+never a number of seconds. The native apps ask the system whether VoiceOver or
+TalkBack is running and, if so, hand the same words to the screen reader.
 
 ### Screen reader
 **Announce cues** controls spoken feedback. Prompts and results are spoken
 straight away; announcements are **paused only while a replay plays**, so
 VoiceOver does not talk over the timing tones. This is intentional: the tones
-are the content.
+are the content. The word "Replay" before the tones and the description after
+them are the two exceptions, and both are placed so they never overlap a tone.
 
 ### Siri and shortcuts
 On iPhone, say "Practice my timing in Gap Sense", "Comparison preparation in

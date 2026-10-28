@@ -65,7 +65,7 @@ test("preparation: Ready says 'Get ready' (no beep), the steady sound plays unti
   await tick(page, 12000);
   await expect(page.locator("#signalBtnLabel")).toHaveText("READY");
   await expect(page.locator("#signalBtn")).toHaveAttribute("aria-disabled", "false");
-  await expect(page.locator("#signalScore")).toHaveText("Last 1: 1 within margin · margin 0.40s");
+  await expect(page.locator("#signalScore")).toHaveText("Last 1: 1 within margin");
   // No verdict words: the cue and the replay carry the result (12.29).
   expect(await statusText(page, "signalStatusText")).toBe("Ready for another.");
   expect(errors).toEqual([]);

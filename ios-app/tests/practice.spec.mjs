@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { watchErrors, openApp, setTimes, screenVisible, history, tick, announcer } from "./helpers.mjs";
+import { watchErrors, openApp, setTimes, screenVisible, history, tick, announcer, waitUntil } from "./helpers.mjs";
 
 test.beforeEach(async ({ page }) => {
   await page.clock.install();
@@ -10,7 +10,7 @@ test("practice logs a within-margin attempt, shows a score line, and unlocks set
   await openApp(page);
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => gsShowScreen("practice"));
-  await expect(page.locator("#practiceScore")).toHaveText("No attempts yet · margin 0.40s");
+  await expect(page.locator("#practiceScore")).toHaveText("No attempts yet");   // the margin in seconds only with Show times on (F2, build 15)
 
   await page.click("#actionBtn");                       // Begin
   await expect(page.locator("#settingsTrigger")).toBeDisabled();
@@ -23,7 +23,7 @@ test("practice logs a within-margin attempt, shows a score line, and unlocks set
   expect(log).toHaveLength(1);
   expect(log[0]).toMatchObject({ activity: "practice", street: "half", correct: true, marginSec: 0.4 });
   expect(Math.abs(log[0].userSec - 4)).toBeLessThan(0.05);
-  await expect(page.locator("#practiceScore")).toHaveText("Last 1: 1 within margin · margin 0.40s");
+  await expect(page.locator("#practiceScore")).toHaveText("Last 1: 1 within margin");
   await expect(page.locator("#settingsTrigger")).toBeEnabled();
   await expect(page.locator("#actionBtn")).toHaveAttribute("aria-disabled", "false");
   expect(errors).toEqual([]);
@@ -72,7 +72,10 @@ test("adaptive margin applies to practice per lane", async ({ page }) => {
   } });
   await setTimes(page, "4", "8", "0.4");
   await page.evaluate(() => gsShowScreen("practice"));
+  await expect(page.locator("#practiceScore")).toContainText("adaptive margin");
+  await page.evaluate(() => { const t = document.getElementById("debugToggle"); t.checked = true; t.dispatchEvent(new Event("change")); });
   await expect(page.locator("#practiceScore")).toContainText("margin 0.10s (adaptive)");
+  await page.evaluate(() => { const t = document.getElementById("debugToggle"); t.checked = false; t.dispatchEvent(new Event("change")); });
   await page.click("#actionBtn");
   await tick(page, 4300);                                // 0.3 s late: fine at 0.4, outside at 0.1
   await page.click("#actionBtn");
@@ -83,6 +86,9 @@ test("adaptive margin applies to practice per lane", async ({ page }) => {
 });
 
 test("screen-reader messages are announced synchronously and suppressed during replay", async ({ page }) => {
+  // With a screen reader running (build 15), the replay in words goes to the
+  // live region once the replay is over, with the prompt.
+  await page.addInitScript(() => { window.__gsScreenReader = true; });
   await openApp(page);
   await setTimes(page);
   await page.evaluate(() => gsShowScreen("practice"));
@@ -95,8 +101,8 @@ test("screen-reader messages are announced synchronously and suppressed during r
   expect(await announcer(page)).toBe("Replay.");
   await tick(page, 2500);
   expect(await announcer(page)).toBe("Replay.");
-  await tick(page, 6000);
-  expect(await announcer(page)).toBe("Ready for another try.");
+  await waitUntil(page, () => document.getElementById("srAnnouncer").textContent.includes("That was your taps"), { ms: 8000, step: 100 });
+  expect(await announcer(page)).toBe("That was your taps, then the crossing time: within the margin. Ready for another try.");
 });
 
 test("progress page shows practice attempts and the run strip", async ({ page }) => {
