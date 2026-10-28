@@ -1,6 +1,7 @@
 # How to Get Gap Sense on Your Phone
 
-A short guide for people taking part in the study.
+A short guide for people taking part in the study. The shortest version is one
+page with a button for each phone: <https://azizulhaque.me/Gap-Sense-Crossing-Practice/install.html>.
 
 Short sentences. Simple words. Written to be read with a screen reader, or read
 aloud to you. Installing takes about two minutes.
@@ -64,7 +65,7 @@ Gap Sense now appears on your home screen. Open it like any other app.
 
 The app comes as a file called **GapSense-android-debug.apk**. Download it from:
 
-**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build15/GapSense-android-debug.apk>**
+**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/latest/download/GapSense-android-debug.apk>**
 
 1. Open the link on your phone. The file downloads.
 2. Open the downloaded file. Your phone may say

@@ -18,7 +18,9 @@ through ongoing collaboration with her. See [`NOTICE.md`](NOTICE.md).
 
 ## Install the app (build 15)
 
-Three ways. Pick your phone. Each one is a single link.
+**One page with a button for each phone:** <https://azizulhaque.me/Gap-Sense-Crossing-Practice/install.html>. Send that link; it is all a participant needs.
+
+Or use the links directly:
 
 **iPhone.** On the phone, tap this link:
 <https://testflight.apple.com/join/wYreYpF6>
@@ -27,10 +29,11 @@ link takes you to get it first; then tap the link again. Already have Gap
 Sense? Open **TestFlight** and press **Update**.
 
 **Android.** On the phone, tap this link:
-<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build15/GapSense-android-debug.apk>
+<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/latest/download/GapSense-android-debug.apk>
 Press **Download**, open the downloaded file, press **Install**. If the phone
-asks, allow installing from this source once. Installing over an older build
-keeps your data. A Google Play link is coming; it will not need that step.
+asks, allow installing from this source once. This link always gives the
+newest build; installing over an older one keeps your data. A Google Play
+version is on its way and will not need the allow step.
 
 **Any browser, no install.** Open
 <https://azizulhaque.me/Gap-Sense-Crossing-Practice/>. Everything works except
