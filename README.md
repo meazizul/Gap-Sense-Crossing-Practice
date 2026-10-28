@@ -16,13 +16,29 @@ through ongoing collaboration with her. See [`NOTICE.md`](NOTICE.md).
 
 ---
 
-## Install the current build (build 14)
+## Install the app (build 15)
 
-- **iPhone:** open <https://testflight.apple.com/join/wYreYpF6> on the phone (TestFlight). About two minutes. If Gap Sense is already installed, open TestFlight and press **Update**.
-- **Android:** download the APK from <https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build14/GapSense-android-debug.apk> and open it on the phone. Installing over an older build keeps your data. Steps in `docs/INSTALL_GUIDE.md`.
-- **Any browser:** open <https://azizulhaque.me/Gap-Sense-Crossing-Practice/>. Everything works except vibration. Reload once if you have used it before.
+Three ways. Pick your phone. Each one is a single link.
 
-To check which build you have: open the app, **Help**, **About**. It should say build 14.
+**iPhone.** On the phone, tap this link:
+<https://testflight.apple.com/join/wYreYpF6>
+Press **Accept**, then **Install**. If you do not have TestFlight yet, the
+link takes you to get it first; then tap the link again. Already have Gap
+Sense? Open **TestFlight** and press **Update**.
+
+**Android.** On the phone, tap this link:
+<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build15/GapSense-android-debug.apk>
+Press **Download**, open the downloaded file, press **Install**. If the phone
+asks, allow installing from this source once. Installing over an older build
+keeps your data. A Google Play link is coming; it will not need that step.
+
+**Any browser, no install.** Open
+<https://azizulhaque.me/Gap-Sense-Crossing-Practice/>. Everything works except
+vibration. If you have used it before, reload once.
+
+To check which build you have: open the app, **Help**, **About**. It should
+say build 15. Step-by-step help for each phone, written to be read aloud:
+[`docs/INSTALL_GUIDE.md`](docs/INSTALL_GUIDE.md).
 
 ## Test it and tell us what you find
 

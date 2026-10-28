@@ -64,7 +64,7 @@ Gap Sense now appears on your home screen. Open it like any other app.
 
 The app comes as a file called **GapSense-android-debug.apk**. Download it from:
 
-**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build14/GapSense-android-debug.apk>**
+**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/download/v1.0-build15/GapSense-android-debug.apk>**
 
 1. Open the link on your phone. The file downloads.
 2. Open the downloaded file. Your phone may say
@@ -78,6 +78,11 @@ person button and press **Test haptic pulse**.
 
 Android phones vary. If you get stuck, ask your instructor. It is a one-minute
 fix in person.
+
+**Coming soon: Google Play.** The app is being set up on Google Play. When
+your instructor sends you a Google Play link, tap it and press **Install**.
+Nothing to allow, nothing to download by hand, the same as any other app. Until
+then the file above is the way.
 
 ---
 
@@ -96,7 +101,7 @@ screen: press **Share**, then **Add to Home Screen**.
 ## Which version do I have, and how do I report a problem?
 
 Open the app, press **Help**, and read **About**. The current version is
-**build 14**. If it says an older build, update: on iPhone open TestFlight and
+**build 15**. If it says an older build, update: on iPhone open TestFlight and
 press **Update**; on Android download the file above again and install it over
 the old one (your practice history stays); in a browser, reload the page.
 
