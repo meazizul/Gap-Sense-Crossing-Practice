@@ -23,7 +23,7 @@ render() {
   echo "  wrote docs/pdf/$out"
 }
 
-render PARTICIPANT_GUIDE.md       Gap-Sense-Participant-Guide.pdf       "Gap Sense — How to Use the App"
-render INSTALL_GUIDE.md           Gap-Sense-Install-Guide.pdf           "Gap Sense — How to Get the App on Your Phone"
-render HOW_IT_WORKS.md            Gap-Sense-How-It-Works.pdf            "Gap Sense — How It Works, and Why"
+render PARTICIPANT_GUIDE.md       CrossingTime-Participant-Guide.pdf       "CrossingTime — How to Use the App"
+render INSTALL_GUIDE.md           CrossingTime-Install-Guide.pdf           "CrossingTime — How to Get the App on Your Phone"
+render HOW_IT_WORKS.md            CrossingTime-How-It-Works.pdf            "CrossingTime — How It Works, and Why"
 echo "done."

@@ -2,7 +2,7 @@
   "name": "gap-sense-crossing-practice",
   "version": "1.0.0",
   "private": true,
-  "description": "Gap Sense — Crossing Practice: an O&M street-crossing timing trainer (iOS)",
+  "description": "CrossingTime (formerly Gap Sense): an O&M street-crossing timing trainer (iOS)",
   "scripts": {
     "dev": "python3 -m http.server 8000 --directory www",
     "lan": "node serve-lan.mjs",

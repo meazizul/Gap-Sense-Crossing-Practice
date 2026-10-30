@@ -1,5 +1,5 @@
 /* ============================================================
- * Gap Sense — durable copy of everything the app keeps
+ * CrossingTime — durable copy of everything the app keeps
  * ============================================================
  *
  * Everything (settings, crossing times, the instructor's setup, the practice

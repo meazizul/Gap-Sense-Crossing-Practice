@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Gap Sense</string>
+	<string>CrossingTime</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -35,7 +35,7 @@
 	<array>
 		<dict>
 			<key>INAlternativeAppName</key>
-			<string>Gap Sense</string>
+			<string>CrossingTime</string>
 		</dict>
 		<dict>
 			<key>INAlternativeAppName</key>

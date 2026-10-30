@@ -1,5 +1,5 @@
 /* ============================================================
- * Gap Sense — Comparison preparation (internal name: signal)
+ * CrossingTime — Comparison preparation (internal name: signal)
  * ============================================================
  *
  * Cindi's first comparison step: the student "judges time

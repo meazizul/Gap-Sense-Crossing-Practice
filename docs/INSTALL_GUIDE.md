@@ -1,7 +1,7 @@
-# How to Get Gap Sense on Your Phone
+# How to Get CrossingTime on Your Phone
 
 A short guide for people taking part in the study. The shortest version is one
-page with a button for each phone: <https://azizulhaque.me/Gap-Sense-Crossing-Practice/install.html>.
+page with a button for each phone: <https://azizulhaque.me/crossingtime/>.
 
 Short sentences. Simple words. Written to be read with a screen reader, or read
 aloud to you. Installing takes about two minutes.
@@ -21,7 +21,7 @@ trying apps before they are in the App Store. It is free and safe.
 
 If you already have TestFlight, skip this step.
 
-### Step 2. Open the Gap Sense link
+### Step 2. Open the CrossingTime link
 
 The link is:
 
@@ -33,11 +33,11 @@ The link is:
 3. Press **Accept**.
 4. Press **Install**.
 
-Gap Sense now appears on your home screen. Open it like any other app.
+CrossingTime now appears on your home screen. Open it like any other app.
 
 ### Step 3. Check vibration
 
-1. Open **Gap Sense**. The first time, it tells you the app is for use with
+1. Open **CrossingTime**. The first time, it tells you the app is for use with
    your O&M Specialist. Press **I understand**.
 2. Find the **person** button at the top of the screen. It opens
    **Accessibility**.
@@ -55,7 +55,7 @@ Gap Sense now appears on your home screen. Open it like any other app.
   and press **Update**. To check your version, open **Help** in the app and
   read **About**.
 - **A link from your instructor.** If your instructor sends you a setup link,
-  tap it. If it opens in Safari, choose **Open in the Gap Sense app**.
+  tap it. If it opens in Safari, choose **Open in the CrossingTime app**.
 - **TestFlight may ask for feedback.** You can ignore that. Your instructor will
   ask you in person.
 
@@ -63,9 +63,9 @@ Gap Sense now appears on your home screen. Open it like any other app.
 
 ## If you have an Android phone
 
-The app comes as a file called **GapSense-android-debug.apk**. Download it from:
+The app comes as a file called **CrossingTime-android.apk**. Download it from:
 
-**<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/latest/download/GapSense-android-debug.apk>**
+**<https://github.com/meazizul/crossingtime/releases/latest/download/CrossingTime-android.apk>**
 
 1. Open the link on your phone. The file downloads.
 2. Open the downloaded file. Your phone may say
@@ -80,6 +80,12 @@ person button and press **Test haptic pulse**.
 Android phones vary. If you get stuck, ask your instructor. It is a one-minute
 fix in person.
 
+**The session code.** When you first open CrossingTime, the Home screen shows
+a box called **Session code**. The four practice activities open after you
+type the code your instructor gives you at the session. Until then you can
+read Help, change Accessibility and enter crossing times. Type the code once;
+the phone remembers it.
+
 **Coming soon: Google Play.** The app is being set up on Google Play. When
 your instructor sends you a Google Play link, tap it and press **Install**.
 Nothing to allow, nothing to download by hand, the same as any other app. Until
@@ -92,7 +98,7 @@ then the file above is the way.
 You can still try the app in a web browser on any phone or computer. The
 address is:
 
-**<https://azizulhaque.me/Gap-Sense-Crossing-Practice/>**
+**<https://azizulhaque.me/crossingtime/app/>**
 
 Everything works except vibration. On an iPhone, Safari can add it to the home
 screen: press **Share**, then **Add to Home Screen**.
@@ -102,13 +108,13 @@ screen: press **Share**, then **Add to Home Screen**.
 ## Which version do I have, and how do I report a problem?
 
 Open the app, press **Help**, and read **About**. The current version is
-**build 15**. If it says an older build, update: on iPhone open TestFlight and
+**build 16**. If it says an older build, update: on iPhone open TestFlight and
 press **Update**; on Android download the file above again and install it over
 the old one (your practice history stays); in a browser, reload the page.
 
 If something goes wrong or is confusing, tell us. Either tell your instructor,
 or write it here (a free GitHub account is needed):
-<https://github.com/meazizul/Gap-Sense-Crossing-Practice/issues/new>
+<https://github.com/meazizul/crossingtime/issues/new>
 
 Say which phone you have, the build from **About**, what you did, what
 happened, and what you expected. If you use VoiceOver or TalkBack, a screen
@@ -124,11 +130,11 @@ it is on. You can delete it at any time from **Progress**, then **Delete all my
 practice history**; the app asks you to confirm first.
 
 The full privacy policy is here:
-<https://github.com/meazizul/Gap-Sense-Crossing-Practice/blob/main/PRIVACY.md>
+<https://github.com/meazizul/crossingtime/blob/main/PRIVACY.md>
 
 ---
 
 ## What to do next
 
-Read **How to Use Gap Sense**. It explains the three sounds and the four parts
+Read **How to Use CrossingTime**. It explains the three sounds and the four parts
 of the app. Your instructor has a copy, or you can find it with this guide.

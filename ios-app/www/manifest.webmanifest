@@ -1,6 +1,6 @@
 {
-  "name": "Gap Sense — Crossing Practice",
-  "short_name": "Gap Sense",
+  "name": "CrossingTime",
+  "short_name": "CrossingTime",
   "description": "An O&M timing trainer that builds a felt sense of how long it takes to cross a street.",
   "start_url": "./index.html",
   "scope": "./",

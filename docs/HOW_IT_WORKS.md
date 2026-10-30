@@ -1,4 +1,4 @@
-# How Gap Sense Works, and Why Each Part Exists
+# How CrossingTime Works, and Why Each Part Exists
 
 A plain explanation of the whole app in one story, then each function on its
 own: what it is for, why it was built, how it works, and when to use it.
@@ -334,11 +334,16 @@ to three times, color schemes including yellow on black, high contrast, and
 screen-reader announcements. The app quietens the screen reader during playback
 on purpose, so it does not talk over the sounds.
 
+**The session code.** For conference sessions the app can be installed at
+home while the four practice activities stay closed until a short code,
+given out in the room, is typed once. It keeps people from practising alone
+before the session and needs no internet.
+
 **Self-voicing** reads the app's directions and results aloud, for people still
 learning VoiceOver or TalkBack. Separately, and for everyone, the app says
 "Replay" before every replay and describes the result and each replay in words
 afterwards; with a screen reader running those words go through the screen
-reader instead. **Siri**: "Practice my timing in Gap Sense" and
+reader instead. **Siri**: "Practice my timing in CrossingTime" and
 the other three open an activity directly; on Android, touch and hold the icon.
 
 Vibration is the reason this is a native app at all. Safari on iPhone cannot

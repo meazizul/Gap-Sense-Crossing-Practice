@@ -716,6 +716,27 @@ html { background: var(--bg); min-height: 100%; }
     .setup-required-prompt p { margin: 0; line-height: 1.4; }
     .setup-required-prompt .settings-action { width: 100%; }
 
+    /* Session code card (build 16): same card as the setup prompt, with a
+       large single field so the code is easy to type and to hear. */
+    .session-code-card { border-color: var(--accent); }
+    .session-code-card .setup-required-prompt-title { color: var(--accent); }
+    .session-code-label { font-weight: 700; }
+    .session-code-input {
+      width: 100%;
+      font-size: 1.6rem;
+      letter-spacing: 0.25em;
+      text-align: center;
+      padding: 0.7rem;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .session-code-input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    #sessionCodeNote[data-tone="warn"] { color: var(--warn); font-weight: 700; }
+    #sessionCodeNote[data-tone="ok"] { color: var(--ok); font-weight: 700; }
+
     /* ---------------- Forms / dialogs ---------------- */
     .field-help {
       margin: 0;

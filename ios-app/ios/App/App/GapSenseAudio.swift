@@ -3,7 +3,7 @@ import UIKit
 
 // MARK: - Sound
 
-/// Gap Sense's own tone player for the iPhone app.
+/// CrossingTime's own tone player for the iPhone app.
 ///
 /// Why native: inside the web view, Web Audio is played by WebKit, which
 /// decides the audio session itself and can fall back to the "ambient"

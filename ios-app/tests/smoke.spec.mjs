@@ -199,10 +199,10 @@ test("web build keeps pinch zoom but blocks double-tap zoom; Help shows the buil
   expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).toBe("manipulation");
   expect(await page.evaluate(() => getComputedStyle(document.getElementById("settingsTrigger")).touchAction)).toBe("manipulation");
   await page.evaluate(() => gsShowScreen("help"));
-  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 15 (web), 28 October 2026.");
+  await expect(page.locator("#aboutVersion")).toHaveText("CrossingTime version 1.0, build 16 (web), 30 October 2026.");
 });
 
-test("native shell: pinch zoom allowed, bundle version, Gap Sense haptics plugin, playback audio session", async ({ page }) => {
+test("native shell: pinch zoom allowed, bundle version, CrossingTime haptics plugin, playback audio session", async ({ page }) => {
   const errors = watchErrors(page);
   await page.addInitScript(() => {
     window.__haptics = [];
@@ -229,14 +229,14 @@ test("native shell: pinch zoom allowed, bundle version, Gap Sense haptics plugin
   expect(meta).not.toContain("user-scalable=no");
   expect(meta).not.toContain("maximum-scale=1");
   await page.evaluate(() => gsShowScreen("help"));
-  await expect(page.locator("#aboutVersion")).toHaveText("Gap Sense version 1.0, build 13 (iPhone app), 28 October 2026.");   // the stubbed App plugin reports build 13
+  await expect(page.locator("#aboutVersion")).toHaveText("CrossingTime version 1.0, build 13 (iPhone app), 30 October 2026.");   // the stubbed App plugin reports build 13
   await expect(page.locator("#hapticsSupportNote")).toContainText("Native haptics active");
   await page.evaluate(() => { hapticCue("marker"); hapticCue("reference_ok"); hapticCue("reference_bad"); hapticCue("ready"); });
   expect(await page.evaluate(() => window.__haptics)).toEqual(["marker", "reference_ok", "reference_bad", "ready"]);
   expect(await page.evaluate(() => navigator.audioSession.type)).toBe("playback");
   await page.evaluate(() => gsShowScreen("shortcuts"));
   await expect(page.locator("#shortcutsIos")).toBeVisible();
-  await expect(page.locator("#shortcutsIos")).toContainText("Practice my timing in Gap Sense");
+  await expect(page.locator("#shortcutsIos")).toContainText("Practice my timing in CrossingTime");
   expect(errors).toEqual([]);
 });
 
@@ -290,7 +290,7 @@ test("native shell: gapsense:// links apply a setup and open activities", async 
   await page.evaluate(() => window.__appListeners.appUrlOpen({ url: "gapsense://open/signal" }));
   await screenVisible(page, "signal");
   // Links made inside the app point at the public web address, never localhost.
-  expect(await page.evaluate(() => buildShareTimingLink())).toMatch(/^https:\/\/azizulhaque\.me\/Gap-Sense-Crossing-Practice\/#ts=4[A-Za-z0-9_-]+$/);
+  expect(await page.evaluate(() => buildShareTimingLink())).toMatch(/^https:\/\/azizulhaque\.me\/crossingtime\/app\/#ts=4[A-Za-z0-9_-]+$/);
 });
 
 test("the web build does not take over the audio session", async ({ page }) => {
@@ -346,7 +346,7 @@ test("service worker: fetches fresh files online and still works offline", async
   await page.waitForFunction(async () => (await navigator.serviceWorker.ready).active?.state === "activated", null, { timeout: 15000 });
   await page.reload();
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), null, { timeout: 15000 });
-  expect(await page.evaluate(async () => (await caches.keys()))).toContain("gapsense-v17");
+  expect(await page.evaluate(async () => (await caches.keys()))).toContain("gapsense-v18");
   await context.setOffline(true);
   await page.reload();
   await expect(page.locator("#screen-home")).toBeVisible();

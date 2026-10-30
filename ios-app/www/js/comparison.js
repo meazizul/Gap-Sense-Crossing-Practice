@@ -1,5 +1,5 @@
 /* ============================================================
- * Gap Sense — Comparison tasks
+ * CrossingTime — Comparison tasks
  * ============================================================
  *
  * Knowing your own crossing time is the prerequisite skill. The skill it is a
@@ -400,7 +400,7 @@ function gsPadSwipesOn() {
  * Swipes and taps must work the same with VoiceOver on or off. A web page
  * cannot get raw swipes under VoiceOver, so the iPhone app lays a native
  * view marked for direct interaction over the pad's swipe area whenever a
- * pad is open. The student turns Direct Touch on for Gap Sense once
+ * pad is open. The student turns Direct Touch on for CrossingTime once
  * (VoiceOver rotor); from then on a swipe in that area reaches the app
  * unchanged. The native side classifies the gesture with the same
  * thresholds as the web pad and reports how long the finger was down, so
@@ -425,9 +425,9 @@ const GS_PAD_LABELS = {
 };
 
 /* The hint a screen reader adds after the label. VoiceOver needs Direct Touch
- * on for Gap Sense; TalkBack passes a two-finger swipe through as one finger. */
+ * on for CrossingTime; TalkBack passes a two-finger swipe through as one finger. */
 function gsPadHint() {
-  if (gsDirectTouchSupported()) return "Direct touch area. If swipes do not work, turn on Direct Touch for Gap Sense in the VoiceOver rotor.";
+  if (gsDirectTouchSupported()) return "Direct touch area. If swipes do not work, turn on Direct Touch for CrossingTime in the VoiceOver rotor.";
   if (typeof nativePlatform !== "undefined" && nativePlatform === "android") return "With TalkBack on, swipe with two fingers, or double-tap to tap.";
   return "";
 }

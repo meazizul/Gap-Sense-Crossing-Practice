@@ -1,4 +1,4 @@
-# Changelog — Gap Sense: Crossing Practice
+# Changelog — CrossingTime (Gap Sense until build 15)
 
 What changed, why, and when. Newest first.
 
@@ -7,6 +7,41 @@ so dates before this file existed were reconstructed from file timestamps rather
 than commit history. They are accurate to the day.
 
 ---
+
+## 2026-10-30 (build 16) — CrossingTime, the session code, one permanent link
+
+**The app is CrossingTime** (team decision, 28 October 2026). The name
+Gap Sense, used from August to October 2026, had the problem that "gap" means
+the time between vehicles, which is not what the app measures. The display
+name, the Home header, Help, Siri phrases, the store listings, the web
+address and every guide now say CrossingTime. The bundle identifier, the
+Android package and the `gapsense://` link scheme are unchanged, so updating
+keeps every setting and every record. Siri still accepts "Gap Sense" as an
+alternative name. The public repository is now `meazizul/crossingtime` and
+the web app is served from <https://azizulhaque.me/crossingtime/app/>.
+
+**The session code (SOMA/SWOMA 2026)**
+
+- A fresh install shows a Session code card on Home. Help, Accessibility,
+  Instructor setup, Progress and the setup links all work; the four practice
+  activities stay disabled until the code is entered, and a link, a Siri
+  phrase or an Android shortcut to an activity lands on the card instead.
+  The code is checked on the phone (nothing is sent anywhere), kept in the
+  app as a hash, and once entered the phone stays unlocked; the flag is part
+  of the durable copy like every other setting.
+- Installs that already had crossing times or practice history before this
+  build are unlocked on their first start, so people already testing are not
+  shut out.
+- The field is one large numeric box with its own label, so VoiceOver and
+  TalkBack users can find and type it; wrong codes are announced.
+
+**One link for participants**
+
+- <https://azizulhaque.me/crossingtime/> is a plain page with one button each
+  for iPhone, Android and the browser, two steps under each, and the note
+  about the session code. The page stays at that address; what is behind the
+  buttons is kept current. The Android button always downloads the newest
+  release (`CrossingTime-android.apk`).
 
 ## 2026-10-28 (build 15, part 2; built and tested, not yet released) — the replay said and shown, the result in words, the margin in words
 
@@ -364,7 +399,7 @@ VoiceOver, so until now screen reader users had buttons instead.
   "longer", and so on, the same as without VoiceOver. The native side
   measures how long the finger was down, so the vehicle is still timed from
   the touch, not the lift.
-- **One-time setup.** VoiceOver users turn on Direct Touch for Gap Sense once
+- **One-time setup.** VoiceOver users turn on Direct Touch for CrossingTime once
   (VoiceOver rotor, Direct Touch). Help says so. The buttons are still there.
 - Android with TalkBack is unchanged: the gesture route there is still
   unresolved.
@@ -513,7 +548,7 @@ page.
   practice" is now **Comparison practice**.
 - American English throughout (practice, curb, traveler, judgment).
 - New task descriptions on Home, written by Cindi.
-- The app name ("Gap Sense") is kept for now. It is under discussion, because
+- The app name ("CrossingTime") is kept for now. It is under discussion, because
   "gap" means the time between vehicles in published work. The name is held in
   one place in the code so a rename is a small change.
 
@@ -548,7 +583,7 @@ page.
   the number.
 - Links made inside the installed app point at the public web address, never
   at the app's internal address.
-- After a browser applies a setup, it offers **Open in the Gap Sense app**,
+- After a browser applies a setup, it offers **Open in the CrossingTime app**,
   which hands the same setup to the installed app through a `gapsense://` link.
 - **Send my progress to my instructor**: the student sees the report, presses
   **Send it**, and chooses Messages, Mail or any app. No copy and paste, no
@@ -617,15 +652,15 @@ page.
 - Home activities are single buttons whose name is the title and the
   description, so VoiceOver reads one item per activity. The hidden "Home"
   heading is gone; focus moves to the visible screen title on every screen.
-- **Siri**: "Practice my timing in Gap Sense", "Comparison preparation in Gap
-  Sense", "Comparison practice in Gap Sense", "At the street in Gap Sense" work
+- **Siri**: "Practice my timing in CrossingTime", "Comparison preparation in Gap
+  Sense", "Comparison practice in CrossingTime", "At the street in CrossingTime" work
   with no setup, and appear in the Shortcuts app. A **Siri and shortcuts**
   screen explains them. On Android, touch and hold the app icon for the same
   four shortcuts.
 
 **Haptics and sound on iPhone**
 
-- A small Gap Sense plugin now plays every haptic cue through one long-lived
+- A small CrossingTime plugin now plays every haptic cue through one long-lived
   Core Haptics engine that plays haptics only and never touches audio. The
   stock plugin built a new engine for every long buzz, freed it at once, and
   shared the audio session with the web view.
@@ -702,7 +737,7 @@ Found while testing build 3, within minutes of it going live.
   `touch-action: manipulation` on the page removes double-tap zoom everywhere
   while keeping pinch. Capacitor's `zoomEnabled` is set to false as well.
 - **Help → About shows the version and build**, read from the app bundle in
-  the native apps ("Gap Sense version 1.0, build 4 (iPhone app)"), so a tester
+  the native apps ("CrossingTime version 1.0, build 4 (iPhone app)"), so a tester
   can confirm which build they are running. TestFlight itself only shows
   "1.0" prominently.
 - iOS build 4, Android versionCode 4, service-worker cache v6. 41 browser tests.
@@ -946,7 +981,7 @@ testing in the browser.
 
 ## 2026-08-15 — Native iOS app, redesigned interface, project rename
 
-### Renamed to "Gap Sense — Crossing Practice"
+### Renamed to "CrossingTime"
 
 The project previously carried three different names at once: the page title said
 "O&M Timing Practice Prototype", social metadata said "Street Timing Practice",
@@ -955,8 +990,8 @@ Crossings". Settled on one name across the whole project.
 
 | Context | Value |
 |---|---|
-| Full name | Gap Sense — Crossing Practice |
-| Home-screen label / heading | Gap Sense (iOS truncates long labels) |
+| Full name | CrossingTime |
+| Home-screen label / heading | CrossingTime (iOS truncates long labels) |
 | Page subtitle | Crossing Practice |
 | iOS bundle identifier | `com.gapsense.crossingpractice` |
 | npm package | `gap-sense-crossing-practice` |

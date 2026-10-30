@@ -1,4 +1,4 @@
-# How to Use Gap Sense
+# How to Use CrossingTime
 
 A guide for people who will try the app.
 
@@ -56,6 +56,13 @@ can play each sound as many times as you like.
 
 ---
 
+## 2b. The session code
+
+The first time you open the app, the Home screen shows a box called **Session
+code**. The four practice parts open after you type the code your instructor
+gives you at the session. Type it once. The phone remembers it. Everything
+else, Help, Accessibility and your crossing times, works before that.
+
 ## 3. The most important thing
 
 In practice, you will hear **two sounds close together**:
@@ -74,13 +81,13 @@ That space is the lesson. It is not a number. It is a feeling of time.
 
 ## 4. Trying the app quickly
 
-First, get the app on your phone. The short guide **How to Get Gap Sense on
+First, get the app on your phone. The short guide **How to Get CrossingTime on
 Your Phone** explains it: on iPhone through TestFlight, on Android as a file.
 Your instructor has it.
 
 If your instructor sent you a setup link, open it now. It sets up the app for
 you. If the app was not installed when you first tapped the link, go back and
-tap it again. Then choose **Open in the Gap Sense app**.
+tap it again. Then choose **Open in the CrossingTime app**.
 
 If someone gave you a web link instead, open it. The app is ready to use
 straight away. It already has example times in it.

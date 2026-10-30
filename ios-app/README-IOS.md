@@ -1,6 +1,6 @@
 # How the iPhone and Android apps are built
 
-Gap Sense is a web app. The iPhone and Android apps are the same web app,
+CrossingTime is a web app. The iPhone and Android apps are the same web app,
 wrapped in a native shell with [Capacitor](https://capacitorjs.com/) 7.
 
 The native shell exists for one main reason: Safari on iPhone cannot vibrate,
@@ -68,7 +68,7 @@ npx cap sync         # copies www/ and updates native plugins for iOS and Androi
 | SplashScreen | The launch screen |
 | StatusBar | Status bar style matching the theme |
 
-### Gap Sense's own Android plugin (`android/app/src/main/java/.../GSAndroidPlugin.java`)
+### CrossingTime's own Android plugin (`android/app/src/main/java/.../GSAndroidPlugin.java`)
 
 - **Window background.** Android 15 and 16 draw the app edge to edge, and
   Capacitor keeps the page clear of the status and navigation bars by adding
@@ -87,7 +87,7 @@ npx cap sync         # copies www/ and updates native plugins for iOS and Androi
   text-to-speech (build 15): "Get ready", "Replay", the descriptions and
   Speak directions aloud. `speak` resolves when the utterance ends.
 
-### Gap Sense's own iOS plugin (`ios/App/App/GapSenseNative.swift`)
+### CrossingTime's own iOS plugin (`ios/App/App/GapSenseNative.swift`)
 
 - **Haptics.** One Core Haptics engine is created once and kept. It plays
   haptics only, so it never touches the app's sound. Each cue is one pattern:
@@ -95,7 +95,7 @@ npx cap sync         # copies www/ and updates native plugins for iOS and Androi
   long buzz (outside the margin), one medium tap (a sample starts or ends), and
   two light taps ("get ready"). Phones without Core Haptics fall back to UIKit
   feedback.
-- **Siri.** App Shortcuts let a student say "Practice my timing in Gap Sense"
+- **Siri.** App Shortcuts let a student say "Practice my timing in CrossingTime"
   (and the same for the other three activities) with no setup. They also appear
   in the Shortcuts app.
 - **Self-test.** Launched with `-GSSelfTest YES`, the app writes a one-line
@@ -145,7 +145,7 @@ the web code falls back to the Vibration API (Android browsers) or nothing
 ### Links and shortcuts (iOS and Android)
 
 - `gapsense://setup?ts=…` applies an instructor's setup. A browser that opens a
-  setup link offers "Open in the Gap Sense app" with this address.
+  setup link offers "Open in the CrossingTime app" with this address.
 - `gapsense://open/practice` (or `signal`, `compare`, `live`) opens an
   activity.
 - Android adds four launcher shortcuts (touch and hold the app icon), defined

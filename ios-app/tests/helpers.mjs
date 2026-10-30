@@ -11,7 +11,7 @@ export function watchErrors(page) {
 }
 
 /** Open the app fresh: clear storage, mark the tutorial seen, reload. */
-export async function openApp(page, { query = "", tutorialSeen = true, disclaimerSeen = true, storage = {} } = {}) {
+export async function openApp(page, { query = "", tutorialSeen = true, disclaimerSeen = true, storage = {}, locked = false } = {}) {
   await page.goto(`/index.html${query}`);
   // No service worker between tests: a cache-first worker would serve stale
   // files after an edit and hide the very bugs these tests look for.
@@ -21,15 +21,17 @@ export async function openApp(page, { query = "", tutorialSeen = true, disclaime
     const keys = await caches.keys();
     await Promise.all(keys.map((k) => caches.delete(k)));
   });
-  await page.evaluate(async ({ tutorialSeen, disclaimerSeen, storage }) => {
+  await page.evaluate(async ({ tutorialSeen, disclaimerSeen, storage, locked }) => {
     localStorage.clear();
     if (tutorialSeen) localStorage.setItem("om-tutorial-seen", "true");
     if (disclaimerSeen) localStorage.setItem("om-disclaimer-ack", "true");
+    // Build 16: the activities wait for the session code; tests start past it.
+    if (!locked) { localStorage.setItem("om-unlocked", "true"); localStorage.setItem("om-lock-seen", "1"); }
     Object.entries(storage).forEach(([k, v]) => localStorage.setItem(k, v));
     // Build 14: the durable copy (store.js) follows; written now so the next
     // load starts from exactly this state.
     if (window.gsStore?.syncNow) await window.gsStore.syncNow();
-  }, { tutorialSeen, disclaimerSeen, storage });
+  }, { tutorialSeen, disclaimerSeen, storage, locked });
   await page.goto(`/index.html${query}`);
   await page.waitForFunction(() => typeof gsBoot === "function" && document.getElementById("screen-home"));
 }

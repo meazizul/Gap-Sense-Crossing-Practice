@@ -239,7 +239,7 @@
     const isNativeShell = Boolean(CapacitorGlobal?.isNativePlatform?.());
     const nativePlatform = isNativeShell ? (CapacitorGlobal.getPlatform?.() || "") : "web";
     const HapticsPlugin = CapacitorGlobal?.Plugins?.Haptics;
-    // Gap Sense's own native plugin (iOS, build 7+): one long-lived Core
+    // CrossingTime's own native plugin (iOS, build 7+): one long-lived Core
     // Haptics engine that plays haptics only and never touches the audio
     // session. The stock plugin built a new engine for every long buzz and let
     // it be freed at once, and its engine shared the audio session with the
@@ -1139,7 +1139,7 @@
      * (capacitor://localhost on iOS, https://localhost on Android), which
      * means nothing on anyone else's phone.
      */
-    const GS_PUBLIC_URL = "https://azizulhaque.me/Gap-Sense-Crossing-Practice/";
+    const GS_PUBLIC_URL = "https://azizulhaque.me/crossingtime/app/";
     const GS_APP_SCHEME = "gapsense";
 
     function shareBaseUrl() {
@@ -1298,7 +1298,7 @@
     /* The link stands alone on the last line: nothing after it for a
      * messaging app to take as part of it. */
     function buildSetupTimingMessage() {
-      return ["Gap Sense setup from your instructor. Tap the link below once.", "", buildShareTimingLink()].join("\n");
+      return ["CrossingTime setup from your instructor. Tap the link below once.", "", buildShareTimingLink()].join("\n");
     }
 
     function buildPracticeTimingMessage() {
@@ -1647,7 +1647,7 @@
     async function copyShareTimingLink() {
       if (!validateShareSetup()) return;
       populateShareMessagePreviews();
-      const outcome = await gsShareText({ title: "Gap Sense setup", text: setupTimingMessage.value });
+      const outcome = await gsShareText({ title: "CrossingTime setup", text: setupTimingMessage.value });
       if (outcome === "shared") setShareNote(`Setup link shared.${shareLockNote()}`);
       else if (outcome === "copied") setShareNote(`Setup message copied. Paste it into a text or email to the student.${shareLockNote()}`);
       else if (outcome === "failed") {

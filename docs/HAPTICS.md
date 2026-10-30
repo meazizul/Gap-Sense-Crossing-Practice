@@ -1,4 +1,4 @@
-# Haptics & Vibration — Gap Sense: Crossing Practice
+# Haptics & Vibration — CrossingTime: Crossing Practice
 
 Everything about touch feedback: why it matters here, why iOS makes it hard, how
 this app solves it, and how to verify it works.
@@ -81,7 +81,7 @@ conditionally compiled.
 
 Each event type maps to a deliberately distinguishable sensation:
 
-| Cue | When it fires | Native iOS (Gap Sense plugin) | Android app / web |
+| Cue | When it fires | Native iOS (CrossingTime plugin) | Android app / web |
 |---|---|---|---|
 | `start` | Tapping **Begin**; each end of a sample warning time; the sound starting in *Comparison preparation*; detecting a vehicle | One medium knock (60 ms) | `[60]` ms |
 | `ready` | Pressing **Ready** in *Comparison preparation* ("Get ready") | Two lighter knocks, 140 ms apart | `[50, 90, 50]` |
@@ -127,7 +127,7 @@ nobody has to find the switch. To check or change it:
 
 | Note text | Meaning |
 |---|---|
-| "Native haptics active. If you feel nothing, check iPhone Settings…" | ✅ iPhone app, Gap Sense haptics plugin |
+| "Native haptics active. If you feel nothing, check iPhone Settings…" | ✅ iPhone app, CrossingTime haptics plugin |
 | "Native vibration active…" | ✅ Android app |
 | "Web vibration available. Patterns are coarse on/off only…" | ⚠️ Android browser |
 | "No haptics on this browser. iOS Safari has never supported web vibration…" | ❌ Web on iOS, or desktop |

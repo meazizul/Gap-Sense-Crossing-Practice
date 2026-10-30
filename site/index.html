@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CrossingTime</title>
+  <meta name="description" content="CrossingTime: street-crossing timing practice for blind and low-vision students, with an O&M Specialist. Get it on iPhone or Android, or use it in the browser." />
+  <link rel="icon" href="app/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="app/icons/apple-touch-icon.png" />
+  <style>
+    :root { color-scheme: light dark; --bg: #EEF2F7; --card: #FFFFFF; --text: #0F172A; --muted: #475569; --accent: #0F766E; --on-accent: #FFFFFF; --border: #CBD5E1; --note: #FFF7ED; --note-border: #C2410C; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #070C14; --card: #131C2B; --text: #E8EEF7; --muted: #A8B6C8; --accent: #2DD4BF; --on-accent: #06201C; --border: #334155; --note: #1F1A14; --note-border: #FB923C; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 1.25rem/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    main { max-width: 40rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    header { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.5rem; }
+    header img { width: 64px; height: 64px; border-radius: 16px; }
+    h1 { font-size: 2rem; margin: 0; }
+    .lead { color: var(--muted); margin: 0 0 1.25rem; }
+    section { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1.25rem; margin: 0 0 1.25rem; }
+    h2 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+    ol { padding-left: 1.4rem; margin: 0.75rem 0 0; }
+    li { margin: 0.35rem 0; }
+    .button { display: block; text-align: center; background: var(--accent); color: var(--on-accent); text-decoration: none; font-weight: 700; font-size: 1.35rem; padding: 1.1rem 1rem; border-radius: 14px; margin: 0.75rem 0 0; }
+    .button:focus-visible { outline: 4px solid var(--text); outline-offset: 3px; }
+    .note { color: var(--muted); font-size: 1.05rem; margin: 0.75rem 0 0; }
+    .session { background: var(--note); border: 2px solid var(--note-border); }
+    a { color: var(--accent); }
+    footer { color: var(--muted); font-size: 0.95rem; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <img src="app/icons/icon-192.png" alt="" />
+      <div>
+        <h1>CrossingTime</h1>
+        <p class="lead" style="margin:0">Crossing practice, for use with your O&amp;M Specialist.</p>
+      </div>
+    </header>
+    <p class="lead">This page is the one link you need. It stays the same; what is behind it is kept up to date. Install at home, before your session.</p>
+
+    <section class="session" aria-labelledby="session">
+      <h2 id="session">Coming to a session?</h2>
+      <p>Install the app now, on the phone you will bring. The practice activities open with a short code you receive in the room. Everything else in the app works straight away. Bring headphones.</p>
+    </section>
+
+    <section aria-labelledby="iphone">
+      <h2 id="iphone">iPhone</h2>
+      <a class="button" href="https://testflight.apple.com/join/wYreYpF6">Get CrossingTime for iPhone</a>
+      <ol>
+        <li>Press the button. TestFlight opens. If you do not have TestFlight yet, it takes you to get it first; then press the button again.</li>
+        <li>Press <strong>Accept</strong>, then <strong>Install</strong>.</li>
+      </ol>
+      <p class="note">Already have it? Open TestFlight and press <strong>Update</strong>. The app may still show its earlier name, Gap Sense, until the next update.</p>
+    </section>
+
+    <section aria-labelledby="android">
+      <h2 id="android">Android</h2>
+      <a class="button" href="https://github.com/meazizul/crossingtime/releases/latest/download/CrossingTime-android.apk">Get CrossingTime for Android</a>
+      <ol>
+        <li>Press the button. The file downloads. Press <strong>Download</strong> if the phone asks.</li>
+        <li>Open the downloaded file and press <strong>Install</strong>. If the phone says it is not allowed, press <strong>Settings</strong>, allow this source, then go back and press <strong>Install</strong>.</li>
+      </ol>
+      <p class="note">This button always gives the newest build; installing over an older one keeps your data. A Google Play version is on its way; when it is ready, this button will take you to Google Play instead and the allow step goes away.</p>
+    </section>
+
+    <section aria-labelledby="browser">
+      <h2 id="browser">Any browser, nothing to install</h2>
+      <a class="button" href="app/">Open CrossingTime here</a>
+      <p class="note">Open it once with internet; after that it works offline too. Everything works except vibration.</p>
+    </section>
+
+    <section aria-labelledby="help">
+      <h2 id="help">After installing</h2>
+      <ol>
+        <li>Open the app. The first screen explains that it is for use with an O&amp;M Specialist. Press <strong>I understand</strong>.</li>
+        <li>Open <strong>Help</strong> to read how each activity works, or <strong>Accessibility</strong> (the person button) for text size, themes, speech and vibration.</li>
+        <li>Your instructor enters your crossing times, in person or by sending you a link.</li>
+      </ol>
+      <p class="note">Full guides: <a href="https://github.com/meazizul/crossingtime/blob/main/docs/INSTALL_GUIDE.md">getting the app on your phone</a> and <a href="https://github.com/meazizul/crossingtime/blob/main/docs/PARTICIPANT_GUIDE.md">how to use it</a>. Questions: ask your instructor.</p>
+    </section>
+
+    <footer>CrossingTime, formerly Gap Sense. Stevens Institute of Technology, with Cindi Lashinsky, COMS. <a href="https://github.com/meazizul/crossingtime/blob/main/PRIVACY.md">Privacy</a>: the app collects nothing.</footer>
+  </main>
+</body>
+</html>

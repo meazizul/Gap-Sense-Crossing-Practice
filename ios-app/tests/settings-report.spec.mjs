@@ -82,7 +82,7 @@ test("sharing opens the share sheet, or copies when there is none; texting opens
   await expect(page.locator("#shareNote")).toHaveText("Setup link shared. It does not lock Instructor setup: set an instructor code first.");
   const shared = await page.evaluate(() => window.__shared);
   expect(shared.text).toMatch(/#ts=4[A-Za-z0-9_-]+$/);
-  expect(shared.title).toBe("Gap Sense setup");
+  expect(shared.title).toBe("CrossingTime setup");
   // Texting: the sms: URL carries the message, no number.
   const smsUrl = await page.evaluate(() => {
     let captured = "";
@@ -92,7 +92,7 @@ test("sharing opens the share sheet, or copies when there is none; texting opens
     window.gsOpenSms = real;
     return captured;
   });
-  expect(smsUrl).toContain("Gap Sense setup from your instructor. Tap the link below once.");
+  expect(smsUrl).toContain("CrossingTime setup from your instructor. Tap the link below once.");
 });
 
 test("old v1 and v2 links still import; tampered or oversized links are rejected", async ({ page }) => {
@@ -257,7 +257,7 @@ test("sending a report: confirm first, then the share sheet; never a name; stree
   expect(report).toContain("Days practiced");
   await page.click("#confirmSendReportBtn");
   const shared = await page.evaluate(() => window.__shared);
-  expect(shared.title).toBe("Gap Sense practice report — K7");
+  expect(shared.title).toBe("CrossingTime practice report — K7");
   expect(shared.text).toBe(report);
   await expect(page.locator("#reportNote")).toContainText("Report handed to the app you chose");
   await expect(page.locator("#emailReportBtn")).toBeVisible();

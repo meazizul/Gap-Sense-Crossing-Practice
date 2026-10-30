@@ -1,4 +1,4 @@
-# App Guide — Gap Sense: Crossing Practice
+# App Guide — CrossingTime: Crossing Practice
 
 How the app works and how to operate it. Written for someone picking it up for
 the first time, including reviewers who are not the intended end user.
@@ -160,7 +160,7 @@ last vehicle; it is never recorded.
 
 **VoiceOver (iPhone app):** the pad's swipe area is a Direct Touch area and
 the VoiceOver cursor lands on it as the pad opens, so the first swipe or tap
-already counts. Turn Direct Touch on for Gap Sense once, from the rotor. Back
+already counts. Turn Direct Touch on for CrossingTime once, from the rotor. Back
 is outside the area: touch it, hear "Back", double-tap. VoiceOver's two-finger
 scrub does the same as Back. **TalkBack (Android):** swipe with two fingers on
 the pad, or double-tap to tap.
@@ -208,6 +208,19 @@ still never shows or says a number of seconds. The report carries the student
 code, never a name.
 
 ---
+
+## 1e. The session code
+
+Since build 16 a fresh install shows a **Session code** card at the top of
+Home. Help, Accessibility, Instructor setup, Progress and setup links all
+work; the four practice activities are disabled, and a link, a Siri phrase or
+an Android shortcut to one of them lands on the card instead. Typing the code
+(given out at a session) unlocks the phone for good; the flag is stored with
+the other settings and in the durable copy. The check happens on the phone,
+so it works with no internet. Installs that already had crossing times or
+history before build 16 are unlocked on their first start. The code is kept
+in the app as a hash (`GS_SESSION_CODE_SHA256` in `js/app.js`); to change it,
+replace the hash and the small fallback hash next to it.
 
 ## 2. Instructor setup
 
@@ -261,7 +274,7 @@ code. It is a guard against accidental changes, not security.
 ### Swiping with VoiceOver on (iPhone)
 
 The swipe areas in the iPhone app are **direct touch areas**. Turn on Direct
-Touch for Gap Sense once (VoiceOver rotor, Direct Touch), and swipes and taps
+Touch for CrossingTime once (VoiceOver rotor, Direct Touch), and swipes and taps
 there work exactly as they do with VoiceOver off: no double tap, no hunting for
 a button, and the vehicle is timed from the touch. The buttons remain for
 anyone who prefers them. On Android with TalkBack, use the buttons.
@@ -316,7 +329,7 @@ an activity back on; the instructor unlocks with the same code.
 - **Show the message text** has the message and a plain practice link to copy.
 
 The student taps the link once. In a browser it applies at once, then offers
-**Open in the Gap Sense app**, which hands the same setup to the installed app.
+**Open in the CrossingTime app**, which hands the same setup to the installed app.
 Links made inside the installed app always point at the public web address. The
 link carries a version tag and a checksum, so a corrupted or truncated link is
 rejected rather than silently applied. Links from earlier versions still work.
@@ -463,8 +476,8 @@ are the content. The word "Replay" before the tones and the description after
 them are the two exceptions, and both are placed so they never overlap a tone.
 
 ### Siri and shortcuts
-On iPhone, say "Practice my timing in Gap Sense", "Comparison preparation in
-Gap Sense", "Comparison practice in Gap Sense" or "At the street in Gap Sense".
+On iPhone, say "Practice my timing in CrossingTime", "Comparison preparation in
+CrossingTime", "Comparison practice in CrossingTime" or "At the street in CrossingTime".
 They work with no setup and appear in the Shortcuts app. On Android, touch and
 hold the app icon. The **Siri and shortcuts** screen explains both.
 

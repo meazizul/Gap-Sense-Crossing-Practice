@@ -193,7 +193,7 @@ public class GSNativePlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// directTouchShow: a native view marked for direct interaction, placed
     /// over the pad's swipe area. VoiceOver passes touches inside it straight
-    /// to the app (the student turns Direct Touch on for Gap Sense once), so a
+    /// to the app (the student turns Direct Touch on for CrossingTime once), so a
     /// swipe at the curb is the same swipe with VoiceOver on or off. Without
     /// VoiceOver it simply forwards the same gestures.
     ///
@@ -495,7 +495,7 @@ final class GSShortcutRouter {
 @available(iOS 16.0, *)
 struct OpenPracticeIntent: AppIntent {
     static let title: LocalizedStringResource = "Practice my timing"
-    static let description = IntentDescription("Opens Practice my timing in Gap Sense.")
+    static let description = IntentDescription("Opens Practice my timing in CrossingTime.")
     static let openAppWhenRun: Bool = true
 
     @MainActor
@@ -508,7 +508,7 @@ struct OpenPracticeIntent: AppIntent {
 @available(iOS 16.0, *)
 struct OpenPreparationIntent: AppIntent {
     static let title: LocalizedStringResource = "Comparison preparation"
-    static let description = IntentDescription("Opens Comparison preparation in Gap Sense.")
+    static let description = IntentDescription("Opens Comparison preparation in CrossingTime.")
     static let openAppWhenRun: Bool = true
 
     @MainActor
@@ -521,7 +521,7 @@ struct OpenPreparationIntent: AppIntent {
 @available(iOS 16.0, *)
 struct OpenComparisonIntent: AppIntent {
     static let title: LocalizedStringResource = "Comparison practice"
-    static let description = IntentDescription("Opens Comparison practice in Gap Sense.")
+    static let description = IntentDescription("Opens Comparison practice in CrossingTime.")
     static let openAppWhenRun: Bool = true
 
     @MainActor
@@ -534,7 +534,7 @@ struct OpenComparisonIntent: AppIntent {
 @available(iOS 16.0, *)
 struct OpenStreetIntent: AppIntent {
     static let title: LocalizedStringResource = "At the street"
-    static let description = IntentDescription("Opens At the street in Gap Sense.")
+    static let description = IntentDescription("Opens At the street in CrossingTime.")
     static let openAppWhenRun: Bool = true
 
     @MainActor
@@ -545,7 +545,7 @@ struct OpenStreetIntent: AppIntent {
 }
 
 /// Phrases Siri recognizes with no setup. Every phrase must contain the app
-/// name; Info.plist adds "Gap Sense" as an alternative name.
+/// name; Info.plist keeps "Gap Sense" (the name until build 15) as an alternative.
 @available(iOS 16.0, *)
 struct GapSenseShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {

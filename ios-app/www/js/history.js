@@ -1,5 +1,5 @@
 /* ============================================================
- * Gap Sense — attempt history, adaptive margin, and reporting
+ * CrossingTime — attempt history, adaptive margin, and reporting
  * ============================================================
  *
  * Every practice attempt is recorded here so that:
@@ -620,7 +620,7 @@ function gsReportHeaderTimes() {
 function gsBuildReport(options = {}) {
   const summary = gsSummary();
   const lines = [];
-  lines.push("Gap Sense — practice report");
+  lines.push("CrossingTime — practice report");
   lines.push("=".repeat(34));
   // A short code, never a name: the report travels by plain email.
   if (options.clientCode) lines.push(`Student code: ${options.clientCode}`);
@@ -695,7 +695,7 @@ function gsBuildReport(options = {}) {
   }
 
   lines.push("");
-  lines.push("Sent by the student from Gap Sense. No data leaves the device unless sent.");
+  lines.push("Sent by the student from CrossingTime. No data leaves the device unless sent.");
   return lines.join("\n");
 }
 

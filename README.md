@@ -1,4 +1,4 @@
-# Gap Sense — Crossing Practice
+# CrossingTime
 
 An **Orientation & Mobility (O&M)** training tool that helps blind and low-vision
 travelers build a felt, intuitive sense of how long it takes them to cross a
@@ -10,37 +10,35 @@ learns the *feel* of the duration, not a stopwatch reading.
 
 ## Origins
 
-Gap Sense began as a copy of **Cindi Lashinsky's CrossingTime (Streets)
+CrossingTime, which was called CrossingTime from August to October 2026, began as a copy of **Cindi Lashinsky's CrossingTime (Streets)
 repository**, her original proof of concept, and has been refined and expanded
 through ongoing collaboration with her. See [`NOTICE.md`](NOTICE.md).
 
 ---
 
-## Install the app (build 15)
+## Install the app (build 16)
 
-**One page with a button for each phone:** <https://azizulhaque.me/Gap-Sense-Crossing-Practice/install.html>. Send that link; it is all a participant needs.
+**One link, for everyone:** <https://azizulhaque.me/crossingtime/>. It has a
+button for iPhone, a button for Android and a button for the browser version,
+with two short steps under each. Send that link; it never changes.
 
-Or use the links directly:
+Behind the buttons:
 
-**iPhone.** On the phone, tap this link:
-<https://testflight.apple.com/join/wYreYpF6>
-Press **Accept**, then **Install**. If you do not have TestFlight yet, the
-link takes you to get it first; then tap the link again. Already have Gap
-Sense? Open **TestFlight** and press **Update**.
+- **iPhone:** TestFlight, <https://testflight.apple.com/join/wYreYpF6>. Press
+  **Accept**, then **Install**. Already have it? Open TestFlight, press **Update**.
+- **Android:** the newest build,
+  <https://github.com/meazizul/crossingtime/releases/latest/download/CrossingTime-android.apk>.
+  Open the downloaded file, press **Install**, allow this source once if asked.
+  A Google Play version is in closed testing and will replace this step.
+- **Browser:** <https://azizulhaque.me/crossingtime/app/>. Everything works
+  except vibration.
 
-**Android.** On the phone, tap this link:
-<https://github.com/meazizul/Gap-Sense-Crossing-Practice/releases/latest/download/GapSense-android-debug.apk>
-Press **Download**, open the downloaded file, press **Install**. If the phone
-asks, allow installing from this source once. This link always gives the
-newest build; installing over an older one keeps your data. A Google Play
-version is on its way and will not need the allow step.
+**The session code.** Since build 16 the four practice activities open with a
+code that instructors give out at a session. Everything else in the app works
+without it. Instructors running their own sessions: ask the team for the code.
 
-**Any browser, no install.** Open
-<https://azizulhaque.me/Gap-Sense-Crossing-Practice/>. Everything works except
-vibration. If you have used it before, reload once.
-
-To check which build you have: open the app, **Help**, **About**. It should
-say build 15. Step-by-step help for each phone, written to be read aloud:
+To check which build you have: open the app, **Help**, **About**. It should say
+build 16. Step-by-step help for each phone, written to be read aloud:
 [`docs/INSTALL_GUIDE.md`](docs/INSTALL_GUIDE.md).
 
 ## Test it and tell us what you find
@@ -51,7 +49,7 @@ You do not need to ask anyone how to test. In order:
 2. **Set up:** open **Instructor setup**, enter a first-half time (for example 4), a full-street time (for example 8) and a margin (0.4), then go back. Or press **Try it now with example times** on Home.
 3. **Try the four activities** in order: Practice my timing, Comparison preparation, Comparison practice, At the street. The answer screens take a swipe or a tap anywhere; **Back**, top left, cancels a try.
 4. **With VoiceOver or TalkBack on,** follow [`docs/TESTING.md`](docs/TESTING.md), section H4b: it lists exactly what should happen on each answer screen.
-5. **Report** anything wrong or unclear as a GitHub issue: <https://github.com/meazizul/Gap-Sense-Crossing-Practice/issues/new>. Say the phone, the build (Help, About), what you did, what happened and what you expected. Screen recordings with VoiceOver on are the most useful thing you can send.
+5. **Report** anything wrong or unclear as a GitHub issue: <https://github.com/meazizul/crossingtime/issues/new>. Say the phone, the build (Help, About), what you did, what happened and what you expected. Screen recordings with VoiceOver on are the most useful thing you can send.
 
 The step-by-step checklists for everything else are in [`docs/TESTING.md`](docs/TESTING.md); what each part of the app does and why is in [`docs/HOW_IT_WORKS.md`](docs/HOW_IT_WORKS.md).
 
@@ -84,7 +82,7 @@ not replace instruction.
 **To try it instantly — nothing to install:**
 
 ```
-https://azizulhaque.me/Gap-Sense-Crossing-Practice/?demo=1
+https://azizulhaque.me/crossingtime/app/?demo=1
 ```
 
 That link loads example times and opens straight into practice, so you can press
@@ -126,9 +124,9 @@ Start here depending on what you want:
 Every guide below is also in `docs/pdf/` as a PDF, for reading away from a code
 editor or handing to someone:
 
-- `Gap-Sense-Participant-Guide.pdf` — for people trying the app
-- `Gap-Sense-Install-Guide.pdf` — getting the app on a phone
-- `Gap-Sense-How-It-Works.pdf` — what each part does, and why
+- `CrossingTime-Participant-Guide.pdf` — for people trying the app
+- `CrossingTime-Install-Guide.pdf` — getting the app on a phone
+- `CrossingTime-How-It-Works.pdf` — what each part does, and why
 
 The history of the project, from the first prototype to today, is in
 [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
@@ -175,7 +173,7 @@ The history of the project, from the first prototype to today, is in
 - **The visual replay** is driven by a `requestAnimationFrame` loop reading that
   same `AudioContext` clock, so sound and picture stay locked together.
 - **Native shell:** [Capacitor](https://capacitorjs.com/), which wraps the web app
-  in real iOS and Android apps. On iOS a small Gap Sense plugin drives the
+  in real iOS and Android apps. On iOS a small CrossingTime plugin drives the
   Taptic Engine and connects Siri shortcuts; both apps open `gapsense://` links
   (an instructor's setup, or an activity).
 - **Accessibility** is a primary requirement, not an afterthought: four themes,

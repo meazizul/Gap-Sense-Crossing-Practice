@@ -70,7 +70,7 @@ server.listen(PORT, "0.0.0.0", () => {
     .filter((iface) => iface && iface.family === "IPv4" && !iface.internal)
     .map((iface) => iface.address);
 
-  console.log("\n  Gap Sense — Crossing Practice — LAN test server\n");
+  console.log("\n  CrossingTime — LAN test server\n");
   console.log(`  On this computer: http://localhost:${PORT}/`);
   if (addresses.length === 0) {
     console.log("  On your phone: no LAN address found — check your Wi-Fi connection.");

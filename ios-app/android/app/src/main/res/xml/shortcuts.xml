@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Static app shortcuts: touch and hold the Gap Sense icon. Each opens one
+<!-- Static app shortcuts: touch and hold the CrossingTime icon. Each opens one
      activity through the gapsense://open/<activity> link the web code handles. -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut

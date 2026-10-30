@@ -1,4 +1,4 @@
-# Testing Guide — Gap Sense: Crossing Practice
+# Testing Guide — CrossingTime: Crossing Practice
 
 Step-by-step procedures for verifying the app, with pass/fail criteria. Written
 so someone who has never seen the project can work through it start to finish.
@@ -223,6 +223,21 @@ Enable iOS **Reduce Motion**.
 
 **Pass:** the button flash effect is suppressed; everything still functions.
 
+### D8 — The session code (build 16)
+Fresh install (or clear the app's data). Open the app.
+
+**Pass:**
+- [ ] Home shows the Session code card; the four activity buttons are dimmed
+      and do nothing; Help, Accessibility, Instructor setup and Progress open
+- [ ] A Siri phrase, an Android shortcut or a `gapsense://open/practice` link
+      lands on Home with the code field focused and a spoken prompt
+- [ ] A wrong code is announced and the field keeps focus
+- [ ] The right code unlocks: the card disappears, focus moves to the first
+      activity, and the state survives closing and reopening the app
+- [ ] An install updated from build 15 with crossing times already set is
+      open at once, no card
+- [ ] Help, About says CrossingTime and build 16
+
 ### D7 — The replay said and shown (build 15)
 VoiceOver and TalkBack **off**. Run a practice try, a Comparison preparation
 try, a Comparison practice trial (answer wrong on purpose) and one vehicle At
@@ -291,7 +306,7 @@ Links made by earlier builds (versions `v1` and `v2`) still import.
 brief blank moment during the transition is normal.
 
 ### F2 — App identity
-**Pass:** home-screen icon shows the crossing glyph; label reads **Gap Sense**.
+**Pass:** home-screen icon shows the crossing glyph; label reads **CrossingTime**.
 
 ### F3 — Safe areas
 On a notch/Dynamic Island device, in both orientations.
@@ -455,7 +470,7 @@ box offers **Open Instructor setup**.
 **Pass:**
 - [ ] Accessibility → **Speak directions aloud**: each screen's name and directions are spoken; speech stops while a sound is being timed
 - [ ] **Play a test sound** plays a tone and a chime and says the sound engine is on
-- [ ] iPhone: "Hey Siri, Practice my timing in Gap Sense" opens that activity; the four actions appear in the Shortcuts app
+- [ ] iPhone: "Hey Siri, Practice my timing in CrossingTime" opens that activity; the four actions appear in the Shortcuts app
 - [ ] Android: touching and holding the icon shows the four activities
 
 ---
