@@ -1,5 +1,5 @@
 /* ============================================================
- * Gap Sense — Instructor setup: what the student sees and can change
+ * CrossingTime — Instructor setup: what the student sees and can change
  * ============================================================
  *
  * Cindi: the instructor should be able to choose which

@@ -20,23 +20,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Gap Sense — Crossing Practice</title>
+  <title>CrossingTime</title>
   <meta name="description" content="Build a felt sense of how long it takes you to cross a street. An O&amp;M timing trainer for blind and low-vision travelers, used with an Orientation and Mobility Specialist." />
 
   <!-- iOS home-screen / standalone behavior -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Gap Sense" />
+  <meta name="apple-mobile-web-app-title" content="CrossingTime" />
   <meta name="theme-color" content="#0F766E" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#070C14" media="(prefers-color-scheme: dark)" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="icon" href="icons/icon-192.png" />
 
-  <meta property="og:title" content="Gap Sense — Crossing Practice" />
+  <meta property="og:title" content="CrossingTime" />
   <meta property="og:description" content="An O&amp;M timing trainer for blind and low-vision travelers." />
-  <meta property="og:site_name" content="Gap Sense — Crossing Practice" />
+  <meta property="og:site_name" content="CrossingTime" />
   <meta property="og:type" content="website" />
 
   <link rel="stylesheet" href="css/app.css" />
@@ -67,7 +67,7 @@
         </span>
         <div class="brand-text">
           <!-- The one heading per screen. Focus lands here on every screen change. -->
-          <h1 class="app-title" id="screenTitle" tabindex="-1">Gap Sense</h1>
+          <h1 class="app-title" id="screenTitle" tabindex="-1">CrossingTime</h1>
           <p class="app-subtitle" aria-hidden="true">Crossing Practice</p>
         </div>
       </div>
@@ -95,6 +95,15 @@
     <section id="screen-home" class="screen" aria-labelledby="screenTitle">
       <p class="om-guidance" id="homeGuidance">For use under the guidance of an Orientation and Mobility Specialist. It does not replace O&amp;M instruction.</p>
       <p class="setup-required-prompt" id="volumeTip" role="status" hidden>Your phone volume is low. Press the volume up button on the side of the phone.</p>
+
+      <section class="setup-required-prompt session-code-card" id="sessionCodeCard" aria-labelledby="sessionCodeTitle" hidden>
+        <p class="setup-required-prompt-title" id="sessionCodeTitle">Session code</p>
+        <p>The four practice activities open with the code you receive at your session. Until then you can read Help, set Accessibility and enter crossing times.</p>
+        <label class="session-code-label" for="sessionCodeInput">Enter your session code</label>
+        <input class="session-code-input" id="sessionCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" />
+        <button class="settings-action primary" type="button" id="sessionCodeBtn">Unlock</button>
+        <p class="field-help" id="sessionCodeNote" role="status"></p>
+      </section>
 
       <button class="settings-action primary try-demo" id="tryDemoBtn" type="button">
         Try it now with example times
@@ -151,6 +160,7 @@
         </li>
       </ul>
       <p class="field-help" id="homeNoActivities" hidden>Your instructor has not turned on any activities yet.</p>
+      <p class="field-help" id="homeLockedNote" hidden>Locked until the session code is entered above.</p>
 
       <div class="home-links">
         <button class="settings-action" type="button" data-goto="progress">Progress</button>
@@ -401,7 +411,7 @@
     <section id="screen-help" class="screen" aria-labelledby="screenTitle" hidden>
       <section class="card">
         <h2 class="card-label">Use with your O&amp;M Specialist</h2>
-        <p class="field-help">Gap Sense is meant to be used under the guidance of an Orientation and Mobility Specialist. It is not a replacement for instruction and does not cover all the skills needed to cross streets.</p>
+        <p class="field-help">CrossingTime is meant to be used under the guidance of an Orientation and Mobility Specialist. It is not a replacement for instruction and does not cover all the skills needed to cross streets.</p>
         <button class="settings-action" id="showSafetyNotesBtn" type="button">Show the safety notes again</button>
       </section>
 
@@ -413,7 +423,7 @@
 
       <section class="card">
         <h2 class="card-label">For students</h2>
-        <p class="field-help"><strong>VoiceOver:</strong> on the iPhone app each answer screen is a direct touch area, and VoiceOver's cursor lands on it as the screen opens. Turn on Direct Touch for Gap Sense once (VoiceOver rotor, Direct Touch), and swipes and taps there work the same as with VoiceOver off. Back, in the top-left corner, is outside the area: touch it, hear "Back", double-tap. <strong>TalkBack:</strong> swipe with two fingers on the answer screen, or double-tap to tap.</p>
+        <p class="field-help"><strong>VoiceOver:</strong> on the iPhone app each answer screen is a direct touch area, and VoiceOver's cursor lands on it as the screen opens. Turn on Direct Touch for CrossingTime once (VoiceOver rotor, Direct Touch), and swipes and taps there work the same as with VoiceOver off. Back, in the top-left corner, is outside the area: touch it, hear "Back", double-tap. <strong>TalkBack:</strong> swipe with two fingers on the answer screen, or double-tap to tap.</p>
         <ul class="plain-list">
           <li><strong>Your crossing times</strong> come from your O&amp;M Specialist. They time you crossing and set the times in Instructor setup, or send you a link that sets them.</li>
           <li><strong>1. Practice my timing.</strong> Tap Begin, then tap again when you think you would have arrived. You hear the difference rather than being told a number.</li>
@@ -438,7 +448,7 @@
 
       <section class="card">
         <h2 class="card-label">About</h2>
-        <p class="field-help" id="aboutVersion">Gap Sense</p>
+        <p class="field-help" id="aboutVersion">CrossingTime</p>
         <p class="field-help" id="aboutStorage"></p>
         <p class="field-help">Free, open source, and private. Nothing leaves this device unless you send it.</p>
       </section>
@@ -602,7 +612,7 @@
           <label class="check-row"><input type="checkbox" id="shareIncludeLock" checked /> Lock Instructor setup on the student's phone with my instructor code (when one is set)</label>
           <button type="button" class="settings-action primary" id="shareTimingSettings">Share the setup link</button>
           <button type="button" class="settings-action" id="textSetupBtn">Text it to the student</button>
-          <p class="setup-note">The student taps the link once. If the app is installed, they then choose "Open in the Gap Sense app".</p>
+          <p class="setup-note">The student taps the link once. If the app is installed, they then choose "Open in the CrossingTime app".</p>
           <details class="share-details">
             <summary>Show the message text</summary>
             <div class="share-message-group">
@@ -651,20 +661,20 @@
           <h2 class="card-label">Open an activity with Siri</h2>
           <p class="field-help">These work without any setup. Say "Hey Siri", then one of these:</p>
           <ul class="plain-list">
-            <li>"Practice my timing in Gap Sense"</li>
-            <li>"Comparison preparation in Gap Sense"</li>
-            <li>"Comparison practice in Gap Sense"</li>
-            <li>"At the street in Gap Sense"</li>
+            <li>"Practice my timing in CrossingTime"</li>
+            <li>"Comparison preparation in CrossingTime"</li>
+            <li>"Comparison practice in CrossingTime"</li>
+            <li>"At the street in CrossingTime"</li>
           </ul>
-          <p class="field-help">To use your own words, open the Shortcuts app, choose Gap Sense, and add any of the four to a shortcut with the name you want.</p>
+          <p class="field-help">To use your own words, open the Shortcuts app, choose CrossingTime, and add any of the four to a shortcut with the name you want.</p>
           <button class="settings-action primary" type="button" id="openShortcutsAppBtn">Open the Shortcuts app</button>
         </section>
       </div>
       <div id="shortcutsAndroid" hidden>
         <section class="card">
           <h2 class="card-label">App shortcuts</h2>
-          <p class="field-help">Touch and hold the Gap Sense icon on your home screen to open any of the four activities directly. Drag one onto your home screen to keep it there.</p>
-          <p class="field-help">With Google Assistant, say "Open Gap Sense".</p>
+          <p class="field-help">Touch and hold the CrossingTime icon on your home screen to open any of the four activities directly. Drag one onto your home screen to keep it there.</p>
+          <p class="field-help">With Google Assistant, say "Open CrossingTime".</p>
         </section>
       </div>
       <div id="shortcutsWeb" hidden>
@@ -962,12 +972,12 @@
       </div>
       <div class="setup">
         <div class="setup-group">
-          <p class="field-help disclaimer-text">Gap Sense is meant to be used under the guidance of an Orientation and Mobility (O&amp;M) Specialist.</p>
+          <p class="field-help disclaimer-text">CrossingTime is meant to be used under the guidance of an Orientation and Mobility (O&amp;M) Specialist.</p>
           <p class="field-help disclaimer-text">It is not a replacement for O&amp;M instruction, and it does not cover all the skills needed to cross streets.</p>
         </div>
         <div class="setup-group">
           <h3 class="setup-heading">Got a link from your instructor?</h3>
-          <p class="field-help">Open it now. It sets up this app for you. If the app was not installed when you first tapped the link, go back and tap it again, then choose "Open in the Gap Sense app".</p>
+          <p class="field-help">Open it now. It sets up this app for you. If the app was not installed when you first tapped the link, go back and tap it again, then choose "Open in the CrossingTime app".</p>
         </div>
         <button class="settings-action primary" type="button" id="disclaimerAcceptBtn">I understand</button>
       </div>
@@ -982,8 +992,8 @@
       </div>
       <div class="setup">
         <p class="field-help">Your instructor's setup is saved in this browser.</p>
-        <p class="field-help">Using the installed Gap Sense app? Open the setup there too.</p>
-        <a class="settings-action primary link-button" id="openInAppLink" href="gapsense://setup">Open in the Gap Sense app</a>
+        <p class="field-help">Using the installed CrossingTime app? Open the setup there too.</p>
+        <a class="settings-action primary link-button" id="openInAppLink" href="gapsense://setup">Open in the CrossingTime app</a>
         <button class="settings-action" type="button" id="openInAppClose">Keep using it here</button>
       </div>
     </div>

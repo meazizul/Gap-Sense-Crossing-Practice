@@ -1,12 +1,12 @@
 /* ============================================================
- * Gap Sense — shell: navigation, progress, sharing, help
+ * CrossingTime — shell: navigation, progress, sharing, help
  * ============================================================ */
 
 const GS_SCREENS = ["home", "practice", "signal", "compare", "live", "progress", "help", "instructor", "shortcuts"];
 
 /* The app name lives here and in index.html <title>/manifest only, so a
  * rename (under discussion) is a small change. */
-const GS_APP_NAME = "Gap Sense";
+const GS_APP_NAME = "CrossingTime";
 
 const GS_SCREEN_TITLES = {
   home: GS_APP_NAME,
@@ -31,8 +31,8 @@ let gsCurrentScreen = "home";
  * and CACHE_VERSION (sw.js). In the native app the real bundle values are
  * read from the App plugin and override these. */
 const GS_APP_VERSION = "1.0";
-const GS_APP_BUILD = "15";
-const GS_APP_DATE = "28 October 2026";
+const GS_APP_BUILD = "17";
+const GS_APP_DATE = "30 October 2026";
 
 async function gsRenderAbout() {
   const el = document.getElementById("aboutVersion");
@@ -105,6 +105,13 @@ function gsShowScreen(name) {
   if (GS_STEP_ORDER.includes(name) && typeof gsActivityEnabled === "function" && !gsActivityEnabled(name)) {
     name = "home";
   }
+  // Build 16: the four activities wait for the session code (SOMA/SWOMA
+  // 2026). Links, Siri and the Home buttons all come through here.
+  let wantedLocked = false;
+  if (GS_STEP_ORDER.includes(name) && !gsIsUnlocked()) {
+    name = "home";
+    wantedLocked = true;
+  }
   const leaving = gsCurrentScreen;
   gsCancelActivities();
   if (leaving === "instructor" && name !== "instructor" && typeof gsInstructorLeave === "function") gsInstructorLeave();
@@ -142,6 +149,115 @@ function gsShowScreen(name) {
   window.scrollTo(0, 0);
 
   if (a11ySettings.selfVoice && name !== "home") gsSpeak(gsScreenIntro(name));
+  if (wantedLocked) gsSessionCodeAsk();
+}
+
+/* ============================================================
+ * Session code (build 16)
+ * ------------------------------------------------------------
+ * For the SOMA/SWOMA 2026 session: participants install the app at home,
+ * where they can read Help, set accessibility and even enter crossing
+ * times, but the four practice activities open only with the code given
+ * out in the room. The check is on the phone (no network in the room), the
+ * code is kept as a hash, and once entered the phone stays unlocked; the
+ * flag travels with the durable copy like every other om-* key. Installs
+ * that already had crossing times or history before this build are
+ * unlocked on their first start, so nobody who is already testing is shut
+ * out (Cindi's and Jonggi's groups).
+ * ============================================================ */
+
+const GS_UNLOCK_KEY = "om-unlocked";
+const GS_LOCK_SEEN_KEY = "om-lock-seen";
+const GS_SESSION_CODE_SHA256 = "158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab";
+const GS_SESSION_CODE_FALLBACK = "7c549383";   // djb2, for web views without SubtleCrypto
+
+function gsIsUnlocked() {
+  try { return localStorage.getItem(GS_UNLOCK_KEY) === "true"; } catch (error) { return true; }
+}
+
+/* The first start that knows about the lock: an install with data already
+ * on it predates the session code and stays open. */
+function gsLockInit() {
+  try {
+    if (localStorage.getItem(GS_LOCK_SEEN_KEY)) return;
+    const hadData = Boolean(localStorage.getItem("om-clear-time") || localStorage.getItem("om-full-time"))
+      || (localStorage.getItem("om-attempt-log") || "[]") !== "[]";
+    if (hadData && !localStorage.getItem(GS_UNLOCK_KEY)) localStorage.setItem(GS_UNLOCK_KEY, "true");
+    localStorage.setItem(GS_LOCK_SEEN_KEY, "1");
+  } catch (error) {
+    /* storage unavailable: nothing to remember */
+  }
+}
+
+function gsDjb2(text) {
+  let h = 5381;
+  for (const c of text) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0;
+  return h.toString(16);
+}
+
+async function gsCodeMatches(raw) {
+  const code = String(raw || "").replace(/\s+/g, "");
+  if (!code) return false;
+  try {
+    if (window.crypto?.subtle && window.isSecureContext) {
+      const buf = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(code));
+      const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+      return hex === GS_SESSION_CODE_SHA256;
+    }
+  } catch (error) {
+    /* fall through to the small hash */
+  }
+  return gsDjb2(code) === GS_SESSION_CODE_FALLBACK;
+}
+
+function gsSessionCodeNote(message, tone = "neutral") {
+  const note = document.getElementById("sessionCodeNote");
+  if (!note) return;
+  note.textContent = message;
+  note.dataset.tone = tone;
+  if (typeof announceScreenReader === "function" && message) announceScreenReader(message);
+}
+
+/* Said when a locked activity was asked for: the code card gets the focus. */
+function gsSessionCodeAsk() {
+  const input = document.getElementById("sessionCodeInput");
+  gsSessionCodeNote("The activities open with your session code. Enter it here.");
+  if (input) setTimeout(() => input.focus({ preventScroll: false }), 50);
+}
+
+async function gsSessionCodeSubmit() {
+  const input = document.getElementById("sessionCodeInput");
+  const value = input ? input.value : "";
+  if (!value.trim()) {
+    gsSessionCodeNote("Type the code first.", "warn");
+    input?.focus();
+    return;
+  }
+  if (!(await gsCodeMatches(value))) {
+    gsSessionCodeNote("That code did not match. You receive it at the session.", "warn");
+    if (input) { input.select?.(); input.focus(); }
+    return;
+  }
+  try { localStorage.setItem(GS_UNLOCK_KEY, "true"); } catch (error) { /* still unlocked for this run */ }
+  if (input) input.value = "";
+  gsRenderHome();
+  gsSessionCodeNote("Unlocked. The activities are open.", "ok");
+  const first = document.querySelector(".step-card:not([hidden]) .step-button");
+  if (first) setTimeout(() => first.focus({ preventScroll: true }), 300);
+  // The durable copy follows; the screen does not wait for it (the native
+  // store can take a moment on iPhone).
+  if (window.gsStore?.syncNow) { try { await window.gsStore.syncNow(); } catch (error) { /* best effort */ } }
+}
+
+function gsRenderLock() {
+  const locked = !gsIsUnlocked();
+  const card = document.getElementById("sessionCodeCard");
+  if (card) card.hidden = !locked;
+  const note = document.getElementById("homeLockedNote");
+  if (note) note.hidden = !locked;
+  const demo = document.getElementById("tryDemoBtn");
+  if (demo && locked) demo.hidden = true;
+  return locked;
 }
 
 /* ============================================================
@@ -211,9 +327,10 @@ function gsHasTimes() {
 }
 
 function gsRenderHome() {
-  const ready = gsHasTimes();
+  const locked = gsRenderLock();
+  const ready = gsHasTimes() && !locked;
   const banner = document.getElementById("homeSetupBanner");
-  if (banner) banner.hidden = ready;
+  if (banner) banner.hidden = gsHasTimes() || locked;
 
   // Every activity compares against the crossing times, so all of them wait
   // until the times exist. Activities the instructor turned off are hidden.
@@ -252,6 +369,10 @@ function gsRenderHome() {
   }
 
   gsRenderDemoNote();
+  if (locked) {
+    const demo = document.getElementById("tryDemoBtn");
+    if (demo) demo.hidden = true;
+  }
 
   // The numbers themselves stay in Instructor setup. A student who reads
   // "8.0 s" on the home screen is invited to count, which is the one thing
@@ -899,7 +1020,8 @@ function gsRenderDemoNote() {
     el.hidden = !gsUsingDemoTimes();
   });
   const btn = document.getElementById("tryDemoBtn");
-  if (btn) btn.hidden = gsHasTimes() && !gsUsingDemoTimes();
+  // Locked installs (build 16) have no shortcut into practice.
+  if (btn) btn.hidden = (gsHasTimes() && !gsUsingDemoTimes()) || !gsIsUnlocked();
 }
 
 /* ============================================================
@@ -1029,8 +1151,13 @@ function gsBindShell() {
 }
 
 function gsBoot() {
+  gsLockInit();
   gsLabelSections();
   gsBindShell();
+  document.getElementById("sessionCodeBtn")?.addEventListener("click", () => { gsSessionCodeSubmit(); });
+  document.getElementById("sessionCodeInput")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { event.preventDefault(); gsSessionCodeSubmit(); }
+  });
   if (typeof gsFeaturesInit === "function") gsFeaturesInit();
   gsComparisonInit();
   gsSignalInit();
