@@ -31,7 +31,7 @@ let gsCurrentScreen = "home";
  * and CACHE_VERSION (sw.js). In the native app the real bundle values are
  * read from the App plugin and override these. */
 const GS_APP_VERSION = "1.0";
-const GS_APP_BUILD = "16";
+const GS_APP_BUILD = "17";
 const GS_APP_DATE = "30 October 2026";
 
 async function gsRenderAbout() {
@@ -239,12 +239,14 @@ async function gsSessionCodeSubmit() {
     return;
   }
   try { localStorage.setItem(GS_UNLOCK_KEY, "true"); } catch (error) { /* still unlocked for this run */ }
-  if (window.gsStore?.syncNow) { try { await window.gsStore.syncNow(); } catch (error) { /* best effort */ } }
   if (input) input.value = "";
   gsRenderHome();
   gsSessionCodeNote("Unlocked. The activities are open.", "ok");
   const first = document.querySelector(".step-card:not([hidden]) .step-button");
   if (first) setTimeout(() => first.focus({ preventScroll: true }), 300);
+  // The durable copy follows; the screen does not wait for it (the native
+  // store can take a moment on iPhone).
+  if (window.gsStore?.syncNow) { try { await window.gsStore.syncNow(); } catch (error) { /* best effort */ } }
 }
 
 function gsRenderLock() {

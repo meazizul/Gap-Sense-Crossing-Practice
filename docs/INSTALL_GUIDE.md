@@ -108,7 +108,7 @@ screen: press **Share**, then **Add to Home Screen**.
 ## Which version do I have, and how do I report a problem?
 
 Open the app, press **Help**, and read **About**. The current version is
-**build 16**. If it says an older build, update: on iPhone open TestFlight and
+**build 17**. If it says an older build, update: on iPhone open TestFlight and
 press **Update**; on Android download the file above again and install it over
 the old one (your practice history stays); in a browser, reload the page.
 

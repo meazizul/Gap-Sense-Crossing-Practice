@@ -16,7 +16,7 @@ through ongoing collaboration with her. See [`NOTICE.md`](NOTICE.md).
 
 ---
 
-## Install the app (build 16)
+## Install the app (build 17)
 
 **One link, for everyone:** <https://azizulhaque.me/crossingtime/>. It has a
 button for iPhone, a button for Android and a button for the browser version,
@@ -33,12 +33,12 @@ Behind the buttons:
 - **Browser:** <https://azizulhaque.me/crossingtime/app/>. Everything works
   except vibration.
 
-**The session code.** Since build 16 the four practice activities open with a
+**The session code.** Since build 17 the four practice activities open with a
 code that instructors give out at a session. Everything else in the app works
 without it. Instructors running their own sessions: ask the team for the code.
 
 To check which build you have: open the app, **Help**, **About**. It should say
-build 16. Step-by-step help for each phone, written to be read aloud:
+build 17. Step-by-step help for each phone, written to be read aloud:
 [`docs/INSTALL_GUIDE.md`](docs/INSTALL_GUIDE.md).
 
 ## Test it and tell us what you find

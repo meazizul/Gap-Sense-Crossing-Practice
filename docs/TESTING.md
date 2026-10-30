@@ -223,7 +223,7 @@ Enable iOS **Reduce Motion**.
 
 **Pass:** the button flash effect is suppressed; everything still functions.
 
-### D8 — The session code (build 16)
+### D8 — The session code (build 17)
 Fresh install (or clear the app's data). Open the app.
 
 **Pass:**
@@ -236,7 +236,7 @@ Fresh install (or clear the app's data). Open the app.
       activity, and the state survives closing and reopening the app
 - [ ] An install updated from build 15 with crossing times already set is
       open at once, no card
-- [ ] Help, About says CrossingTime and build 16
+- [ ] Help, About says CrossingTime and build 17
 
 ### D7 — The replay said and shown (build 15)
 VoiceOver and TalkBack **off**. Run a practice try, a Comparison preparation

@@ -8,7 +8,7 @@ than commit history. They are accurate to the day.
 
 ---
 
-## 2026-10-30 (build 16) — CrossingTime, the session code, one permanent link
+## 2026-10-30 (build 17) — CrossingTime, the session code, one permanent link
 
 **The app is CrossingTime** (team decision, 28 October 2026). The name
 Gap Sense, used from August to October 2026, had the problem that "gap" means

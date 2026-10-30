@@ -199,7 +199,7 @@ test("web build keeps pinch zoom but blocks double-tap zoom; Help shows the buil
   expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).toBe("manipulation");
   expect(await page.evaluate(() => getComputedStyle(document.getElementById("settingsTrigger")).touchAction)).toBe("manipulation");
   await page.evaluate(() => gsShowScreen("help"));
-  await expect(page.locator("#aboutVersion")).toHaveText("CrossingTime version 1.0, build 16 (web), 30 October 2026.");
+  await expect(page.locator("#aboutVersion")).toHaveText("CrossingTime version 1.0, build 17 (web), 30 October 2026.");
 });
 
 test("native shell: pinch zoom allowed, bundle version, CrossingTime haptics plugin, playback audio session", async ({ page }) => {

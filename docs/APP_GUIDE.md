@@ -211,14 +211,14 @@ code, never a name.
 
 ## 1e. The session code
 
-Since build 16 a fresh install shows a **Session code** card at the top of
+Since build 17 a fresh install shows a **Session code** card at the top of
 Home. Help, Accessibility, Instructor setup, Progress and setup links all
 work; the four practice activities are disabled, and a link, a Siri phrase or
 an Android shortcut to one of them lands on the card instead. Typing the code
 (given out at a session) unlocks the phone for good; the flag is stored with
 the other settings and in the durable copy. The check happens on the phone,
 so it works with no internet. Installs that already had crossing times or
-history before build 16 are unlocked on their first start. The code is kept
+history before build 17 are unlocked on their first start. The code is kept
 in the app as a hash (`GS_SESSION_CODE_SHA256` in `js/app.js`); to change it,
 replace the hash and the small fallback hash next to it.
 
