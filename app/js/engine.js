@@ -2611,8 +2611,12 @@
       clearExemplarVisuals();
       emitCue("replay_start", { referenceTimes: reference, markerTimes });
       gsBeginQuiet();
-      // "Replay" is said first; the tones wait for the word (build 15).
-      const baseDelay = TEST_TUNING.replayLeadInSec + gsReplayIntro({ announced: true });
+      // "Replay" is said first and the tones wait for the word (build 15).
+      // The word takes the place of most of the old lead-in: half a second of
+      // silence after it, instead of a second and a half on top (build 18;
+      // Azizul found the wait before the replay long).
+      const intro = gsReplayIntro({ announced: true });
+      const baseDelay = intro > 0 ? intro + 0.5 : TEST_TUNING.replayLeadInSec;
 
       if (labels[0]) {
         exemplarVisualTimeouts.push(

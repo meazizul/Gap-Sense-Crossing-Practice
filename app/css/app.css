@@ -1804,6 +1804,13 @@ html, body {
   /* No double-tap zoom; see lockNativeViewport() in engine.js for the shell. */
 }
 button, label, input, select, textarea, summary, a { touch-action: manipulation; }
+/* touch-action is not inherited: a double tap on plain text still zoomed the
+   native apps (build 17). Every element opts out; the swipe pads below keep
+   their own `touch-action: none`, which is more specific. */
+*, *::before, *::after { touch-action: manipulation; }
+.gesture-overlay, .gesture-surface { touch-action: none; }
+#sessionCodeModalNote[data-tone="warn"] { color: var(--warn); font-weight: 700; }
+#sessionCodeModalNote[data-tone="ok"] { color: var(--ok); font-weight: 700; }
 
 /* ============================================================
    BUILD 7: instructor setup, full-screen pads,
