@@ -8,6 +8,25 @@ than commit history. They are accurate to the day.
 
 ---
 
+## 2026-10-30 (build 18) — the code on every start, a pop-up, no double-tap zoom, Google Play first
+
+- **The session code is asked on every start of the app**, for everyone,
+  including installs updated from earlier builds (the team's request after
+  build 17). A pop-up opens at start (after the sound tutorial on a first
+  run) with the field focused for VoiceOver and TalkBack; **Later** closes
+  it and Home, Help, Accessibility and Instructor setup work as before, with
+  the same field in a card on Home. The unlock lasts until the app is
+  closed; switching apps keeps it. A wrong code now says: "That code did
+  not match. Ask Azizul Haque or your O&M specialist for the session code."
+  The permanent flag from builds 16 and 17 no longer counts and is cleared.
+- **No double-tap zoom anywhere.** `touch-action` is not inherited, so a
+  double tap on plain text still zoomed the native apps; every element now
+  opts out, and the swipe pads keep their own setting. Pinch zoom stays.
+- **Google Play first.** The landing page's Android button opens the Google
+  Play test (Play Store install, no "unknown sources" step) for accounts on
+  the tester list, with the direct download kept as the fallback. The
+  install guide says the same.
+
 ## 2026-10-30 (build 17) — CrossingTime, the session code, one permanent link
 
 **The app is CrossingTime** (team decision, 28 October 2026). The name

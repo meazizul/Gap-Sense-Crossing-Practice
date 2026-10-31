@@ -25,8 +25,8 @@ export async function openApp(page, { query = "", tutorialSeen = true, disclaime
     localStorage.clear();
     if (tutorialSeen) localStorage.setItem("om-tutorial-seen", "true");
     if (disclaimerSeen) localStorage.setItem("om-disclaimer-ack", "true");
-    // Build 16: the activities wait for the session code; tests start past it.
-    if (!locked) { localStorage.setItem("om-unlocked", "true"); localStorage.setItem("om-lock-seen", "1"); }
+    // Build 18: the session code is asked on every start; tests start past it.
+    if (!locked) sessionStorage.setItem("gs-session-unlocked", "true"); else sessionStorage.removeItem("gs-session-unlocked");
     Object.entries(storage).forEach(([k, v]) => localStorage.setItem(k, v));
     // Build 14: the durable copy (store.js) follows; written now so the next
     // load starts from exactly this state.

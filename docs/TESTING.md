@@ -223,7 +223,7 @@ Enable iOS **Reduce Motion**.
 
 **Pass:** the button flash effect is suppressed; everything still functions.
 
-### D8 — The session code (build 17)
+### D8 — The session code (build 18)
 Fresh install (or clear the app's data). Open the app.
 
 **Pass:**
@@ -232,11 +232,12 @@ Fresh install (or clear the app's data). Open the app.
 - [ ] A Siri phrase, an Android shortcut or a `gapsense://open/practice` link
       lands on Home with the code field focused and a spoken prompt
 - [ ] A wrong code is announced and the field keeps focus
-- [ ] The right code unlocks: the card disappears, focus moves to the first
-      activity, and the state survives closing and reopening the app
-- [ ] An install updated from build 15 with crossing times already set is
-      open at once, no card
-- [ ] Help, About says CrossingTime and build 17
+- [ ] The right code unlocks: the pop-up closes, focus moves to the first
+      activity; the unlock survives switching apps but not closing the app
+- [ ] Closing and reopening the app asks for the code again, for every
+      install, including ones updated from earlier builds
+- [ ] A double tap on plain text never zooms the page (iPhone and Android)
+- [ ] Help, About says CrossingTime and build 18
 
 ### D7 — The replay said and shown (build 15)
 VoiceOver and TalkBack **off**. Run a practice try, a Comparison preparation

@@ -31,7 +31,7 @@ let gsCurrentScreen = "home";
  * and CACHE_VERSION (sw.js). In the native app the real bundle values are
  * read from the App plugin and override these. */
 const GS_APP_VERSION = "1.0";
-const GS_APP_BUILD = "17";
+const GS_APP_BUILD = "18";
 const GS_APP_DATE = "30 October 2026";
 
 async function gsRenderAbout() {
@@ -166,27 +166,23 @@ function gsShowScreen(name) {
  * out (Cindi's and Jonggi's groups).
  * ============================================================ */
 
-const GS_UNLOCK_KEY = "om-unlocked";
-const GS_LOCK_SEEN_KEY = "om-lock-seen";
+// Build 18: the code is asked on every start of the app, for everyone (the
+// team's request after build 17). The flag lives in sessionStorage, which
+// the phone clears when the app is closed and keeps while it is only in
+// the background. Nothing is grandfathered any more.
+const GS_UNLOCK_KEY = "gs-session-unlocked";
 const GS_SESSION_CODE_SHA256 = "158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab";
 const GS_SESSION_CODE_FALLBACK = "7c549383";   // djb2, for web views without SubtleCrypto
 
 function gsIsUnlocked() {
-  try { return localStorage.getItem(GS_UNLOCK_KEY) === "true"; } catch (error) { return true; }
+  try { return sessionStorage.getItem(GS_UNLOCK_KEY) === "true"; } catch (error) { return true; }
 }
 
-/* The first start that knows about the lock: an install with data already
- * on it predates the session code and stays open. */
-function gsLockInit() {
-  try {
-    if (localStorage.getItem(GS_LOCK_SEEN_KEY)) return;
-    const hadData = Boolean(localStorage.getItem("om-clear-time") || localStorage.getItem("om-full-time"))
-      || (localStorage.getItem("om-attempt-log") || "[]") !== "[]";
-    if (hadData && !localStorage.getItem(GS_UNLOCK_KEY)) localStorage.setItem(GS_UNLOCK_KEY, "true");
-    localStorage.setItem(GS_LOCK_SEEN_KEY, "1");
-  } catch (error) {
-    /* storage unavailable: nothing to remember */
-  }
+function gsSetUnlocked() {
+  try { sessionStorage.setItem(GS_UNLOCK_KEY, "true"); } catch (error) { /* unlocked for this run anyway */ }
+  // An older install may still carry build 16/17's permanent flag; it no
+  // longer counts, and it is cleared so nothing reads it by mistake.
+  try { localStorage.removeItem("om-unlocked"); localStorage.removeItem("om-lock-seen"); } catch (error) { /* ignore */ }
 }
 
 function gsDjb2(text) {
@@ -210,43 +206,74 @@ async function gsCodeMatches(raw) {
   return gsDjb2(code) === GS_SESSION_CODE_FALLBACK;
 }
 
-function gsSessionCodeNote(message, tone = "neutral") {
-  const note = document.getElementById("sessionCodeNote");
-  if (!note) return;
-  note.textContent = message;
-  note.dataset.tone = tone;
+const GS_CODE_WRONG = "That code did not match. Ask Azizul Haque or your O&M specialist for the session code.";
+
+/* The two places the code can be typed: the pop-up at start, and the card
+ * on Home. Each has its own input, button and note. */
+function gsCodeField(which) {
+  const modal = which === "modal";
+  return {
+    input: document.getElementById(modal ? "sessionCodeModalInput" : "sessionCodeInput"),
+    note: document.getElementById(modal ? "sessionCodeModalNote" : "sessionCodeNote")
+  };
+}
+
+function gsSessionCodeNote(message, tone = "neutral", which = "card") {
+  const { note } = gsCodeField(which);
+  if (note) {
+    note.textContent = message;
+    note.dataset.tone = tone;
+  }
   if (typeof announceScreenReader === "function" && message) announceScreenReader(message);
 }
 
-/* Said when a locked activity was asked for: the code card gets the focus. */
+/* A locked activity was asked for: open the pop-up with the field focused. */
 function gsSessionCodeAsk() {
-  const input = document.getElementById("sessionCodeInput");
-  gsSessionCodeNote("The activities open with your session code. Enter it here.");
-  if (input) setTimeout(() => input.focus({ preventScroll: false }), 50);
+  gsShowSessionCodeModal("The activities open with your session code. Enter it here.");
 }
 
-async function gsSessionCodeSubmit() {
-  const input = document.getElementById("sessionCodeInput");
+function gsShowSessionCodeModal(message = "") {
+  const dialog = document.getElementById("sessionCodeModal");
+  if (!dialog || typeof dialog.showModal !== "function") {
+    const { input } = gsCodeField("card");
+    if (message) gsSessionCodeNote(message);
+    if (input) setTimeout(() => input.focus(), 50);
+    return;
+  }
+  if (!dialog.open) {
+    lockPageScroll();
+    setMainContentInert(true);
+    dialog.showModal();
+  }
+  gsSessionCodeNote(message, "neutral", "modal");
+  document.getElementById("sessionCodeModalTitle")?.focus();
+}
+
+function gsCloseSessionCodeModal() {
+  const dialog = document.getElementById("sessionCodeModal");
+  if (dialog?.open) dialog.close();
+}
+
+async function gsSessionCodeSubmit(which = "card") {
+  const { input } = gsCodeField(which);
   const value = input ? input.value : "";
   if (!value.trim()) {
-    gsSessionCodeNote("Type the code first.", "warn");
+    gsSessionCodeNote("Type the code first.", "warn", which);
     input?.focus();
     return;
   }
   if (!(await gsCodeMatches(value))) {
-    gsSessionCodeNote("That code did not match. You receive it at the session.", "warn");
+    gsSessionCodeNote(GS_CODE_WRONG, "warn", which);
     if (input) { input.select?.(); input.focus(); }
     return;
   }
-  try { localStorage.setItem(GS_UNLOCK_KEY, "true"); } catch (error) { /* still unlocked for this run */ }
-  if (input) input.value = "";
+  gsSetUnlocked();
+  ["card", "modal"].forEach((w) => { const f = gsCodeField(w); if (f.input) f.input.value = ""; });
+  gsCloseSessionCodeModal();
   gsRenderHome();
   gsSessionCodeNote("Unlocked. The activities are open.", "ok");
   const first = document.querySelector(".step-card:not([hidden]) .step-button");
   if (first) setTimeout(() => first.focus({ preventScroll: true }), 300);
-  // The durable copy follows; the screen does not wait for it (the native
-  // store can take a moment on iPhone).
-  if (window.gsStore?.syncNow) { try { await window.gsStore.syncNow(); } catch (error) { /* best effort */ } }
 }
 
 function gsRenderLock() {
@@ -1110,6 +1137,11 @@ function gsBindShell() {
       unlockPageScroll();
       setMainContentInert(false);
     }
+    // First run: the sound tutorial, then the session code (build 18).
+    if (!gsIsUnlocked()) {
+      setTimeout(() => gsShowSessionCodeModal("Enter your session code to start practicing."), 300);
+      return;
+    }
     if (typeof offerOpenInApp === "function") offerOpenInApp();
   });
   document.querySelectorAll("[data-demo]").forEach((btn) => {
@@ -1151,12 +1183,27 @@ function gsBindShell() {
 }
 
 function gsBoot() {
-  gsLockInit();
   gsLabelSections();
   gsBindShell();
-  document.getElementById("sessionCodeBtn")?.addEventListener("click", () => { gsSessionCodeSubmit(); });
+  document.getElementById("sessionCodeBtn")?.addEventListener("click", () => { gsSessionCodeSubmit("card"); });
   document.getElementById("sessionCodeInput")?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") { event.preventDefault(); gsSessionCodeSubmit(); }
+    if (event.key === "Enter") { event.preventDefault(); gsSessionCodeSubmit("card"); }
+  });
+  document.getElementById("sessionCodeModalBtn")?.addEventListener("click", () => { gsSessionCodeSubmit("modal"); });
+  document.getElementById("sessionCodeModalInput")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { event.preventDefault(); gsSessionCodeSubmit("modal"); }
+  });
+  document.getElementById("sessionCodeLaterBtn")?.addEventListener("click", () => { gsCloseSessionCodeModal(); });
+  const codeModal = document.getElementById("sessionCodeModal");
+  codeModal?.addEventListener("close", () => {
+    unlockPageScroll();
+    setMainContentInert(false);
+    // Focus lands on the Home card's field when still locked, so the next
+    // swipe is the code, or on the first activity once unlocked.
+    const target = gsIsUnlocked()
+      ? document.querySelector(".step-card:not([hidden]) .step-button")
+      : document.getElementById("sessionCodeInput");
+    target?.focus({ preventScroll: true });
   });
   if (typeof gsFeaturesInit === "function") gsFeaturesInit();
   gsComparisonInit();
@@ -1192,6 +1239,9 @@ function gsBoot() {
     setTimeout(() => gsShowDisclaimer({ thenTutorial: true }), 500);
   } else if (!localStorage.getItem(GS_TUTORIAL_KEY)) {
     setTimeout(() => gsRunTutorial(), 700);
+  } else if (!gsIsUnlocked()) {
+    // Every start asks for the session code (build 18).
+    setTimeout(() => gsShowSessionCodeModal("Enter your session code to start practicing."), 400);
   } else if (typeof offerOpenInApp === "function") {
     offerOpenInApp();
   }

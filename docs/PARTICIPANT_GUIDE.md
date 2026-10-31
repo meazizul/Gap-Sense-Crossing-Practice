@@ -58,10 +58,10 @@ can play each sound as many times as you like.
 
 ## 2b. The session code
 
-The first time you open the app, the Home screen shows a box called **Session
-code**. The four practice parts open after you type the code your instructor
-gives you at the session. Type it once. The phone remembers it. Everything
-else, Help, Accessibility and your crossing times, works before that.
+Each time you open the app it asks for your **session code**. The four
+practice parts open after you type the code your instructor gives you at the
+session. Press **Later** to look around first: Help, Accessibility and your
+crossing times work without the code.
 
 ## 3. The most important thing
 

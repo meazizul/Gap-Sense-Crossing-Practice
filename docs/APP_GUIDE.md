@@ -211,14 +211,15 @@ code, never a name.
 
 ## 1e. The session code
 
-Since build 17 a fresh install shows a **Session code** card at the top of
-Home. Help, Accessibility, Instructor setup, Progress and setup links all
-work; the four practice activities are disabled, and a link, a Siri phrase or
-an Android shortcut to one of them lands on the card instead. Typing the code
-(given out at a session) unlocks the phone for good; the flag is stored with
-the other settings and in the durable copy. The check happens on the phone,
-so it works with no internet. Installs that already had crossing times or
-history before build 17 are unlocked on their first start. The code is kept
+Since build 18 every start of the app asks for the **session code** in a
+pop-up (after the sound tutorial on a first run). Later closes the pop-up:
+Help, Accessibility, Instructor setup, Progress and setup links all work, and
+the same field sits in a card at the top of Home; the four practice
+activities stay disabled until the code is typed, and a link, a Siri phrase
+or an Android shortcut to one of them reopens the pop-up. The unlock lasts
+until the app is closed (sessionStorage); backgrounding keeps it. The check
+happens on the phone, so it works with no internet. A wrong code says to ask
+Azizul Haque or the O&M specialist for the code. The code is kept
 in the app as a hash (`GS_SESSION_CODE_SHA256` in `js/app.js`); to change it,
 replace the hash and the small fallback hash next to it.
 

@@ -199,7 +199,7 @@ test("web build keeps pinch zoom but blocks double-tap zoom; Help shows the buil
   expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).toBe("manipulation");
   expect(await page.evaluate(() => getComputedStyle(document.getElementById("settingsTrigger")).touchAction)).toBe("manipulation");
   await page.evaluate(() => gsShowScreen("help"));
-  await expect(page.locator("#aboutVersion")).toHaveText("CrossingTime version 1.0, build 17 (web), 30 October 2026.");
+  await expect(page.locator("#aboutVersion")).toHaveText("CrossingTime version 1.0, build 18 (web), 30 October 2026.");
 });
 
 test("native shell: pinch zoom allowed, bundle version, CrossingTime haptics plugin, playback audio session", async ({ page }) => {
@@ -346,7 +346,7 @@ test("service worker: fetches fresh files online and still works offline", async
   await page.waitForFunction(async () => (await navigator.serviceWorker.ready).active?.state === "activated", null, { timeout: 15000 });
   await page.reload();
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), null, { timeout: 15000 });
-  expect(await page.evaluate(async () => (await caches.keys()))).toContain("gapsense-v18");
+  expect(await page.evaluate(async () => (await caches.keys()))).toContain("gapsense-v19");
   await context.setOffline(true);
   await page.reload();
   await expect(page.locator("#screen-home")).toBeVisible();
